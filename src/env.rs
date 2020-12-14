@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use std::ops::{Add, Neg, Sub};
 
-#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Serialize, Deserialize, Default, Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Vec2D {
     pub x: i16,
     pub y: i16,
@@ -91,9 +91,13 @@ pub struct Snake {
     pub name: String,
     pub health: i64,
     pub body: Vec<Vec2D>,
-    pub latency: String,
-    pub head: Vec2D,
-    pub length: i64,
+    #[serde(default)]
+    pub latency: Option<f64>,
+    // #[serde(default)]
+    // pub head: Vec2D,
+    // #[serde(default)]
+    // pub length: i64,
+    #[serde(default)]
     pub shout: String,
 }
 
@@ -105,8 +109,8 @@ impl PartialEq for Snake {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Board {
-    pub height: i64,
-    pub width: i64,
+    pub height: usize,
+    pub width: usize,
     pub food: Vec<Vec2D>,
     pub hazards: Vec<Vec2D>,
     pub snakes: Vec<Snake>,

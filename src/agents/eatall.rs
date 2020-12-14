@@ -26,7 +26,8 @@ impl Agent for EatAllAgent {
             let you_i = you_i as i8;
             let you: &CSnake = &snakes[you_i as usize];
 
-            let mut grid = Grid::filled(&snakes);
+            let mut grid = Grid::new(request.board.width, request.board.height);
+            grid.add_snakes(&snakes);
             let space_after_move = grid.space_after_move(you_i, &snakes);
 
             // Find Food
@@ -45,17 +46,17 @@ impl Agent for EatAllAgent {
 
                 // Heuristic for preferring high movement
                 let first_move_costs = [
-                    1.0 - space_after_move[0] as f64 / (11.0 * 11.0),
-                    1.0 - space_after_move[1] as f64 / (11.0 * 11.0),
-                    1.0 - space_after_move[2] as f64 / (11.0 * 11.0),
-                    1.0 - space_after_move[3] as f64 / (11.0 * 11.0),
+                    1.0 - space_after_move[0] as f64 / (grid.width * grid.height) as f64,
+                    1.0 - space_after_move[1] as f64 / (grid.width * grid.height) as f64,
+                    1.0 - space_after_move[2] as f64 / (grid.width * grid.height) as f64,
+                    1.0 - space_after_move[3] as f64 / (grid.width * grid.height) as f64,
                 ];
 
-                grid.populate(&request.board.food);
+                grid.add_food(&request.board.food);
                 use priority_queue::PriorityQueue;
                 let mut food_dirs: PriorityQueue<Direction, Reverse<usize>> = PriorityQueue::new();
                 for &p in &request.board.food {
-                    if let Some(path) = grid.a_star(request.you.head, p, first_move_costs) {
+                    if let Some(path) = grid.a_star(you.head(), p, first_move_costs) {
                         if path.len() >= 2 {
                             food_dirs.push(Direction::from(path[1] - path[0]), Reverse(path.len()));
                         }
@@ -80,7 +81,7 @@ impl Agent for EatAllAgent {
             let mut rng = rand::thread_rng();
             MoveResponse::new(
                 Direction::iter()
-                    .filter(|&d| grid.avaliable(request.you.head.apply(d)))
+                    .filter(|&d| grid.avaliable(request.you.body[0].apply(d)))
                     .choose(&mut rng)
                     .unwrap_or(Direction::Up),
             )

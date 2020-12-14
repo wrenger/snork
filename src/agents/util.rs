@@ -12,33 +12,33 @@ pub const BOARD_OBSTACLE: i8 = -2;
 pub const BOARD_TMP: i8 = -3;
 pub const BOARD_FOOD: i8 = -4;
 
-const BOARD_SIZE: usize = 11;
-
 #[derive(Clone)]
 pub struct Grid {
-    cells: [[i8; BOARD_SIZE]; BOARD_SIZE],
+    pub width: usize,
+    pub height: usize,
+    cells: Vec<Vec<i8>>,
 }
 
 impl Grid {
-    pub fn new() -> Grid {
+    pub fn new(width: usize, height: usize) -> Grid {
         Grid {
-            cells: [[-1; BOARD_SIZE]; BOARD_SIZE],
+            width,
+            height,
+            cells: vec![vec![-1; width]; height],
         }
     }
 
-    pub fn filled(snakes: &[CSnake]) -> Grid {
-        let mut board = Grid::new();
-
+    pub fn add_snakes(&mut self, snakes: &[CSnake]) {
         for snake in snakes {
             for &p in &snake.body {
-                board[p] = BOARD_OBSTACLE;
+                if self.has(p) {
+                    self[p] = BOARD_OBSTACLE;
+                }
             }
         }
-
-        board
     }
 
-    pub fn populate(&mut self, food: &[Vec2D]) {
+    pub fn add_food(&mut self, food: &[Vec2D]) {
         for &p in food {
             if self.has(p) {
                 self[p] = BOARD_FOOD;
@@ -51,7 +51,7 @@ impl Grid {
     }
 
     pub fn has(&self, p: Vec2D) -> bool {
-        0 <= p.x && p.x < BOARD_SIZE as _ && 0 <= p.y && p.y < BOARD_SIZE as _
+        0 <= p.x && p.x < self.width as _ && 0 <= p.y && p.y < self.height as _
     }
 
     pub fn count(&self, v: i8) -> usize {
@@ -62,7 +62,7 @@ impl Grid {
     }
 
     pub fn flood_fill(&mut self, heads: impl Iterator<Item = (i8, Vec2D)>) {
-        let mut queue = VecDeque::with_capacity(BOARD_SIZE * BOARD_SIZE * 2);
+        let mut queue = VecDeque::with_capacity(self.width * self.height * 2);
         for (i, p) in heads {
             if self.avaliable(p) {
                 queue.push_back((i, p));
@@ -149,20 +149,24 @@ impl Grid {
         let mut next_heads: Vec<(i8, Vec2D)> = Vec::new();
         let longer_enemies = snakes
             .iter()
-            .filter(|&(i, s)| *i != you_i && s.body.len() >= you.body.len());
-        for &(i, s) in longer_enemies {
+            .filter(|&(i, s)| *i != you_i && s.body.len() >= you.body.len())
+            .map(|(i, s)| (*i, s.head()))
+            .filter(|(_, s)| self.has(*s));
+        for (i, s) in longer_enemies {
             // Expand longer snakes in all directions
             next_heads.extend(
                 Direction::iter()
-                    .map(|d| (i, s.head().apply(d)))
+                    .map(|d| (i, s.apply(d)))
                     .filter(|(_, s)| self.avaliable(*s)),
             );
         }
         next_heads.push((you_i, you.head()));
         let shorter_enemies = snakes
             .iter()
-            .filter(|&(i, s)| *i != you_i && s.body.len() < you.body.len());
-        next_heads.extend(shorter_enemies.map(|(i, s)| (*i, s.head())));
+            .filter(|&(i, s)| *i != you_i && s.body.len() < you.body.len())
+            .map(|(i, s)| (*i, s.head()))
+            .filter(|(_, s)| self.has(*s));
+        next_heads.extend(shorter_enemies);
 
         let mut space_after_move = [0; 4];
         for (dir_i, dir) in Direction::iter().enumerate() {
@@ -254,9 +258,11 @@ mod test {
     #[test]
     fn test_a_star() {
         use super::*;
-        let grid = Grid::new();
+        let grid = Grid::new(11, 11);
 
-        let path = grid.a_star(Vec2D::new(0, 0), Vec2D::new(1, 1), [1.0, 0.0, 0.0, 0.0]).unwrap();
+        let path = grid
+            .a_star(Vec2D::new(0, 0), Vec2D::new(1, 1), [1.0, 0.0, 0.0, 0.0])
+            .unwrap();
         println!("{:?}", path);
         assert_eq!(path.len(), 3);
         assert_eq!(path[0], Vec2D::new(0, 0));
@@ -266,11 +272,11 @@ mod test {
     #[test]
     fn test_flood_fill() {
         use super::*;
-        let mut grid = Grid::new();
+        let mut grid = Grid::new(11, 11);
         grid.flood_fill([(0, Vec2D::new(0, 0))].iter().cloned());
         println!("Filled {:?}", grid);
 
-        let mut grid = Grid::new();
+        let mut grid = Grid::new(11, 11);
         grid.flood_fill(
             [(0, Vec2D::new(0, 0)), (1, Vec2D::new(10, 10))]
                 .iter()
@@ -278,7 +284,7 @@ mod test {
         );
         println!("Filled {:?}", grid);
 
-        let mut grid = Grid::new();
+        let mut grid = Grid::new(11, 11);
         grid.flood_fill(
             [
                 (0, Vec2D::new(0, 0)),
@@ -295,7 +301,8 @@ mod test {
     fn test_space_after_move() {
         use super::*;
         let snakes = [CSnake::new(0, vec![Vec2D::new(0, 0)])];
-        let grid = Grid::filled(&snakes);
+        let mut grid = Grid::new(11, 11);
+        grid.add_snakes(&snakes);
         let space = grid.space_after_move(0, &snakes);
         println!("space after move {:?}", space);
     }

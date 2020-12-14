@@ -65,7 +65,10 @@ async fn start(data: web::Data<ServerData>, reqest: web::Json<GameRequest>) -> H
     }
 
     if data.running_agents.len() < MAX_AGENT_COUNT {
-        let agent: Arc<Mutex<dyn Agent + Send>> = if reqest.game.ruleset.name == "standard" {
+        let agent: Arc<Mutex<dyn Agent + Send>> = if reqest.game.ruleset.name == "standard"
+            && reqest.board.width < 33
+            && reqest.board.height < 33
+        {
             let mut agent = EatAllAgent::default();
             agent.start(&reqest);
             Arc::new(Mutex::new(agent))
