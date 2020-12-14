@@ -1,6 +1,3 @@
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
@@ -61,6 +58,11 @@ async fn start(data: web::Data<ServerData>, reqest: web::Json<GameRequest>) -> H
         "start {} game {},{}",
         reqest.game.ruleset.name, reqest.game.id, reqest.you.id
     );
+    if !data.running_agents.is_empty() {
+        let now = Instant::now();
+        data.running_agents
+            .retain(|_, v| (now - v.start_time) < MAX_RUNTIME);
+    }
 
     if data.running_agents.len() < MAX_AGENT_COUNT {
         let agent: Arc<Mutex<dyn Agent + Send>> = if reqest.game.ruleset.name == "standard" {
@@ -77,7 +79,7 @@ async fn start(data: web::Data<ServerData>, reqest: web::Json<GameRequest>) -> H
             RunningInstance::new(agent),
         );
     }
-
+    println!("{} instances running", data.running_agents.len());
     HttpResponse::Ok().body("")
 }
 
@@ -113,9 +115,12 @@ async fn end(data: web::Data<ServerData>, reqest: web::Json<GameRequest>) -> Htt
     data.running_agents
         .remove(&(reqest.game.id.clone(), reqest.you.id.clone()));
 
-    let now = Instant::now();
-    data.running_agents
-        .retain(|_, v| (now - v.start_time) < MAX_RUNTIME);
+    if !data.running_agents.is_empty() {
+        let now = Instant::now();
+        data.running_agents
+            .retain(|_, v| (now - v.start_time) < MAX_RUNTIME);
+    }
+    println!("{} instances running", data.running_agents.len());
     HttpResponse::Ok().body("")
 }
 

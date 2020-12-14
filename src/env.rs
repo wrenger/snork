@@ -147,8 +147,9 @@ impl IndexResponse {
     }
 }
 
-#[derive(Serialize, Clone, Copy, Hash, PartialEq, Eq)]
+#[derive(Serialize, Debug, Clone, Copy, Hash, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
+#[repr(u8)]
 pub enum Direction {
     Up,
     Right,
