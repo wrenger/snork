@@ -38,14 +38,6 @@ impl Grid {
         }
     }
 
-    pub fn add_food(&mut self, food: &[Vec2D]) {
-        for &p in food {
-            if self.has(p) {
-                self[p] = BOARD_FOOD;
-            }
-        }
-    }
-
     pub fn avaliable(&self, p: Vec2D) -> bool {
         self.has(p) && self[p] != BOARD_OBSTACLE
     }
@@ -80,6 +72,21 @@ impl Grid {
                 }
             }
         }
+    }
+
+    pub fn flood_fill_snakes(&mut self, snakes: &[CSnake], you_i: i8) {
+        let mut snakes: Vec<(i8, &CSnake)> = snakes
+            .iter()
+            .enumerate()
+            .map(|(i, s)| (i as i8, s))
+            .collect();
+        // Longer or equally long snakes first
+        snakes.sort_by_key(|&(i, s)| Reverse(2 * s.body.len() - (i == you_i) as usize));
+        self.flood_fill(
+            snakes
+                .iter()
+                .flat_map(|&(i, s)| Direction::iter().map(move |d| (i, s.head().apply(d)))),
+        );
     }
 
     pub fn a_star(
@@ -145,56 +152,48 @@ impl Grid {
             .map(|(i, s)| (i as i8, s))
             .collect();
 
-        // Collect snake heads
-        let mut next_heads: Vec<(i8, Vec2D)> = Vec::new();
-        let longer_enemies = snakes
+        // longer snakes are expanded in all directions
+        let longer_enemies: Vec<(i8, Vec2D)> = snakes
             .iter()
             .filter(|&(i, s)| *i != you_i && s.body.len() >= you.body.len())
             .map(|(i, s)| (*i, s.head()))
-            .filter(|(_, s)| self.has(*s));
-        for (i, s) in longer_enemies {
-            // Expand longer snakes in all directions
-            next_heads.extend(
-                Direction::iter()
-                    .map(|d| (i, s.apply(d)))
-                    .filter(|(_, s)| self.avaliable(*s)),
-            );
-        }
-        next_heads.push((you_i, you.head()));
-        let shorter_enemies = snakes
+            .flat_map(|(i, s)| Direction::iter().map(move |d| (i, s.apply(d))))
+            .collect();
+        let shorter_enemies: Vec<(i8, Vec2D)> = snakes
             .iter()
             .filter(|&(i, s)| *i != you_i && s.body.len() < you.body.len())
             .map(|(i, s)| (*i, s.head()))
-            .filter(|(_, s)| self.has(*s));
-        next_heads.extend(shorter_enemies);
+            .collect();
 
         let mut space_after_move = [0; 4];
         for (dir_i, dir) in Direction::iter().enumerate() {
             let p = you.head().apply(dir);
-            if self.avaliable(p) {
-                let mut next_grid = self.clone();
-                // mark head
-                next_grid[p] = BOARD_OBSTACLE;
-                // free tail
-                for (_, snake) in &snakes {
-                    next_grid[snake.body[snake.body.len() - 1]] = BOARD_FREE;
-                }
-                for &(_, p) in &next_heads {
+            let mut next_grid = self.clone();
+            // free tail
+            for (_, snake) in &snakes {
+                next_grid[snake.body[snake.body.len() - 1]] = BOARD_FREE;
+            }
+            // longer heads
+            let mut next_heads: Vec<(i8, Vec2D)> = Vec::new();
+            for &(i, p) in &longer_enemies {
+                if next_grid.avaliable(p) {
+                    next_heads.extend(Direction::iter().map(move |d| (i, p.apply(d))));
                     next_grid[p] = BOARD_OBSTACLE;
                 }
+            }
+            if next_grid.avaliable(p) {
+                next_heads.extend(Direction::iter().map(move |d| (you_i, p.apply(d))));
+                next_grid[p] = BOARD_OBSTACLE;
+                // shorter heads
+                for &(i, p) in &shorter_enemies {
+                    if next_grid.has(p) {
+                        next_heads.extend(Direction::iter().map(move |d| (i, p.apply(d))));
+                        next_grid[p] = BOARD_OBSTACLE;
+                    }
+                }
 
-                next_grid.flood_fill(
-                    next_heads
-                        .iter()
-                        .map(|&(i, s)| {
-                            if i == you_i {
-                                (i, s.apply(dir))
-                            } else {
-                                (i, s)
-                            }
-                        })
-                        .flat_map(|(i, s)| Direction::iter().map(move |d| (i, s.apply(d)))),
-                );
+                next_grid.flood_fill(next_heads.iter().cloned());
+                println!("space {:?} {:?}", dir, next_grid);
                 space_after_move[dir_i] = next_grid.count(you_i);
             }
         }
@@ -226,19 +225,20 @@ impl std::fmt::Debug for Grid {
             }
             writeln!(f)?;
         }
-        writeln!(f, "}}")?;
+        write!(f, "}}")?;
         Ok(())
     }
 }
 
 pub struct CSnake {
     pub id: i8,
+    pub health: u8,
     pub body: Vec<Vec2D>,
 }
 
 impl CSnake {
-    pub fn new(id: i8, body: Vec<Vec2D>) -> CSnake {
-        CSnake { id, body }
+    pub fn new(id: i8, health: u8, body: Vec<Vec2D>) -> CSnake {
+        CSnake { id, health, body }
     }
 
     pub fn head(&self) -> Vec2D {
@@ -300,7 +300,7 @@ mod test {
     #[test]
     fn test_space_after_move() {
         use super::*;
-        let snakes = [CSnake::new(0, vec![Vec2D::new(0, 0)])];
+        let snakes = [CSnake::new(0, 100, vec![Vec2D::new(0, 0)])];
         let mut grid = Grid::new(11, 11);
         grid.add_snakes(&snakes);
         let space = grid.space_after_move(0, &snakes);

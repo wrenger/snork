@@ -7,8 +7,46 @@ use super::Agent;
 use crate::env::*;
 
 #[derive(Debug, Default)]
-pub struct EatAllAgent {
-    state: usize,
+pub struct EatAllAgent {}
+
+impl EatAllAgent {
+    fn find_food(
+        &self,
+        grid: &Grid,
+        food: &[Vec2D],
+        snakes: &[CSnake],
+        you_i: i8,
+        space_after_move: &[usize; 4],
+    ) -> Option<Direction> {
+        let you: &CSnake = &snakes[you_i as usize];
+
+        // Heuristic for preferring high movement
+        let first_move_costs = [
+            1.0 - space_after_move[0] as f64 / (grid.width * grid.height) as f64,
+            1.0 - space_after_move[1] as f64 / (grid.width * grid.height) as f64,
+            1.0 - space_after_move[2] as f64 / (grid.width * grid.height) as f64,
+            1.0 - space_after_move[3] as f64 / (grid.width * grid.height) as f64,
+        ];
+
+        println!("{:?}", grid);
+        use priority_queue::PriorityQueue;
+        let mut food_dirs: PriorityQueue<Direction, Reverse<usize>> = PriorityQueue::new();
+        for &p in food {
+            if let Some(path) = grid.a_star(you.head(), p, first_move_costs) {
+                if path.len() >= 2 {
+                    let costs = path.len() + if grid[p] == you_i { 0 } else { 5 };
+                    food_dirs.push(Direction::from(path[1] - path[0]), Reverse(costs));
+                }
+            }
+        }
+
+        while let Some((dir, _)) = food_dirs.pop() {
+            if space_after_move[dir as u8 as usize] >= you.body.len() - 1 {
+                return Some(dir);
+            }
+        }
+        None
+    }
 }
 
 impl Agent for EatAllAgent {
@@ -16,12 +54,13 @@ impl Agent for EatAllAgent {
 
     fn step(&mut self, request: &GameRequest) -> MoveResponse {
         if let Some(you_i) = request.board.snakes.iter().position(|s| s == &request.you) {
+            println!("{:?}", request.board.snakes);
             let snakes: Vec<CSnake> = request
                 .board
                 .snakes
                 .iter()
                 .enumerate()
-                .map(|(i, s)| CSnake::new(i as _, s.body.clone()))
+                .map(|(i, s)| CSnake::new(i as _, s.health as _, s.body.clone()))
                 .collect();
             let you_i = you_i as i8;
             let you: &CSnake = &snakes[you_i as usize];
@@ -29,44 +68,20 @@ impl Agent for EatAllAgent {
             let mut grid = Grid::new(request.board.width, request.board.height);
             grid.add_snakes(&snakes);
             let space_after_move = grid.space_after_move(you_i, &snakes);
+            println!("{:?}", space_after_move);
+
+            grid.flood_fill_snakes(&snakes, you_i);
 
             // Find Food
-            if request.turn < 50 || request.board.snakes[you_i as usize].health < 30 {
-                // Add space to avoid enemy heads
-                for (i, snake) in snakes.iter().enumerate() {
-                    if i as i8 != you_i && you.body.len() <= snake.body.len() {
-                        for dir in Direction::iter() {
-                            let p = snake.head().apply(dir);
-                            if grid.has(p) {
-                                grid[p] = BOARD_OBSTACLE
-                            }
-                        }
-                    }
-                }
-
-                // Heuristic for preferring high movement
-                let first_move_costs = [
-                    1.0 - space_after_move[0] as f64 / (grid.width * grid.height) as f64,
-                    1.0 - space_after_move[1] as f64 / (grid.width * grid.height) as f64,
-                    1.0 - space_after_move[2] as f64 / (grid.width * grid.height) as f64,
-                    1.0 - space_after_move[3] as f64 / (grid.width * grid.height) as f64,
-                ];
-
-                grid.add_food(&request.board.food);
-                use priority_queue::PriorityQueue;
-                let mut food_dirs: PriorityQueue<Direction, Reverse<usize>> = PriorityQueue::new();
-                for &p in &request.board.food {
-                    if let Some(path) = grid.a_star(you.head(), p, first_move_costs) {
-                        if path.len() >= 2 {
-                            food_dirs.push(Direction::from(path[1] - path[0]), Reverse(path.len()));
-                        }
-                    }
-                }
-
-                while let Some((dir, _)) = food_dirs.pop() {
-                    if space_after_move[dir as u8 as usize] > you.body.len() {
-                        return MoveResponse::new(dir);
-                    }
+            if you.body.len() < 10 || request.board.snakes[you_i as usize].health < 35 {
+                if let Some(dir) = self.find_food(
+                    &grid,
+                    &request.board.food,
+                    &snakes,
+                    you_i,
+                    &space_after_move,
+                ) {
+                    return MoveResponse::new(dir);
                 }
             }
 
@@ -74,6 +89,7 @@ impl Agent for EatAllAgent {
             {
                 if *space > 0 {
                     let d: Direction = unsafe { std::mem::transmute(dir as u8) };
+                    println!("proc {:?}", d);
                     return MoveResponse::new(d);
                 }
             }
@@ -81,7 +97,7 @@ impl Agent for EatAllAgent {
             let mut rng = rand::thread_rng();
             MoveResponse::new(
                 Direction::iter()
-                    .filter(|&d| grid.avaliable(request.you.body[0].apply(d)))
+                    .filter(|&d| grid.avaliable(you.head().apply(d)))
                     .choose(&mut rng)
                     .unwrap_or(Direction::Up),
             )
