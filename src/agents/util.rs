@@ -9,8 +9,6 @@ use crate::env::*;
 
 pub const BOARD_FREE: i8 = -1;
 pub const BOARD_OBSTACLE: i8 = -2;
-pub const BOARD_TMP: i8 = -3;
-pub const BOARD_FOOD: i8 = -4;
 
 #[derive(Clone)]
 pub struct Grid {
@@ -193,7 +191,6 @@ impl Grid {
                 }
 
                 next_grid.flood_fill(next_heads.iter().cloned());
-                println!("space {:?} {:?}", dir, next_grid);
                 space_after_move[dir_i] = next_grid.count(you_i);
             }
         }

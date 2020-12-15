@@ -28,7 +28,6 @@ impl EatAllAgent {
             1.0 - space_after_move[3] as f64 / (grid.width * grid.height) as f64,
         ];
 
-        println!("{:?}", grid);
         use priority_queue::PriorityQueue;
         let mut food_dirs: PriorityQueue<Direction, Reverse<usize>> = PriorityQueue::new();
         for &p in food {
@@ -54,7 +53,6 @@ impl Agent for EatAllAgent {
 
     fn step(&mut self, request: &GameRequest) -> MoveResponse {
         if let Some(you_i) = request.board.snakes.iter().position(|s| s == &request.you) {
-            println!("{:?}", request.board.snakes);
             let snakes: Vec<CSnake> = request
                 .board
                 .snakes
@@ -68,7 +66,6 @@ impl Agent for EatAllAgent {
             let mut grid = Grid::new(request.board.width, request.board.height);
             grid.add_snakes(&snakes);
             let space_after_move = grid.space_after_move(you_i, &snakes);
-            println!("{:?}", space_after_move);
 
             grid.flood_fill_snakes(&snakes, you_i);
 
@@ -89,7 +86,6 @@ impl Agent for EatAllAgent {
             {
                 if *space > 0 {
                     let d: Direction = unsafe { std::mem::transmute(dir as u8) };
-                    println!("proc {:?}", d);
                     return MoveResponse::new(d);
                 }
             }

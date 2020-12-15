@@ -143,6 +143,16 @@ async fn main() -> std::io::Result<()> {
     HttpServer::new(move || {
         App::new()
             .app_data(data.clone())
+            .app_data(web::JsonConfig::default().error_handler(|err, _req| {
+                println!("ERROR: {}", err);
+                actix_web::error::InternalError::from_response(
+                    "",
+                    HttpResponse::BadRequest()
+                        .content_type("application/json")
+                        .body(format!(r#"{{"error":"{}"}}"#, err)),
+                )
+                .into()
+            }))
             .service(index)
             .service(start)
             .service(game_move)
