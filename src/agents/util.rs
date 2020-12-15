@@ -169,7 +169,9 @@ impl Grid {
             let mut next_grid = self.clone();
             // free tail
             for (_, snake) in &snakes {
-                next_grid[snake.body[snake.body.len() - 1]] = BOARD_FREE;
+                if snake.body[snake.body.len() - 1] != snake.body[snake.body.len() - 2] {
+                    next_grid[snake.body[snake.body.len() - 1]] = BOARD_FREE;
+                }
             }
             // longer heads
             let mut next_heads: Vec<(i8, Vec2D)> = Vec::new();
