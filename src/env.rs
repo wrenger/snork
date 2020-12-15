@@ -72,20 +72,20 @@ impl Neg for Vec2D {
     }
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Game {
     pub id: String,
     pub ruleset: Ruleset,
     pub timeout: i64,
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Ruleset {
     pub name: String,
     pub version: String,
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Snake {
     pub id: String,
     pub name: String,
@@ -101,7 +101,7 @@ impl PartialEq for Snake {
     }
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Board {
     pub height: usize,
     pub width: usize,
@@ -110,7 +110,7 @@ pub struct Board {
     pub snakes: Vec<Snake>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct GameRequest {
     pub game: Game,
     pub turn: i64,

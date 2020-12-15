@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+use std::sync::mpsc::Sender;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
@@ -9,6 +11,8 @@ use env::{GameRequest, IndexResponse, MoveResponse};
 
 mod agents;
 use agents::{Agent, EatAllAgent, Random};
+
+mod savegame;
 
 use actix_web::{get, post, web, App, HttpResponse, HttpServer};
 use structopt::StructOpt;
@@ -40,10 +44,28 @@ impl RunningInstance {
     }
 }
 
+struct ServerConfig {
+    save_queue: Option<Sender<Option<GameRequest>>>,
+}
+
+impl ServerConfig {
+    fn new(save_queue: Option<Sender<Option<GameRequest>>>) -> ServerConfig {
+        ServerConfig { save_queue }
+    }
+}
+
 /// Container holding the server state and running agents
-#[derive(Debug, Default)]
+#[derive(Debug)]
 struct ServerData {
     running_agents: CHashMap<(String, String), RunningInstance>,
+}
+
+impl ServerData {
+    fn new() -> ServerData {
+        ServerData {
+            running_agents: CHashMap::new(),
+        }
+    }
 }
 
 #[get("/")]
@@ -66,8 +88,8 @@ async fn start(data: web::Data<ServerData>, reqest: web::Json<GameRequest>) -> H
 
     if data.running_agents.len() < MAX_AGENT_COUNT {
         let agent: Arc<Mutex<dyn Agent + Send>> = if reqest.game.ruleset.name == "standard"
-            && reqest.board.width < 33
-            && reqest.board.height < 33
+            && reqest.board.width <= 32
+            && reqest.board.height <= 32
         {
             let mut agent = EatAllAgent::default();
             agent.start(&reqest);
@@ -87,7 +109,7 @@ async fn start(data: web::Data<ServerData>, reqest: web::Json<GameRequest>) -> H
 }
 
 #[post("/move")]
-async fn game_move(data: web::Data<ServerData>, reqest: web::Json<GameRequest>) -> HttpResponse {
+async fn game_move(config: web::Data<ServerConfig>, data: web::Data<ServerData>, reqest: web::Json<GameRequest>) -> HttpResponse {
     println!(
         "move {} game {},{}",
         reqest.game.ruleset.name, reqest.game.id, reqest.you.id
@@ -97,9 +119,14 @@ async fn game_move(data: web::Data<ServerData>, reqest: web::Json<GameRequest>) 
         .running_agents
         .get(&(reqest.game.id.clone(), reqest.you.id.clone()))
     {
-        return HttpResponse::Ok().json(instance.agent.lock().unwrap().step(&reqest));
+        let next_move = instance.agent.lock().unwrap().step(&reqest);
+        if let Some(save_queue) = &config.save_queue {
+            save_queue.send(Some(reqest.into_inner())).unwrap();
+        }
+        HttpResponse::Ok().json(next_move)
+    } else {
+        HttpResponse::Ok().json(MoveResponse::default())
     }
-    HttpResponse::Ok().json(MoveResponse::default())
 }
 
 #[post("/end")]
@@ -133,16 +160,21 @@ struct Opt {
     /// Port of the webserver.
     #[structopt(short, long, default_value = "5001")]
     port: u16,
+    #[structopt(short, long)]
+    log_dir: Option<PathBuf>,
 }
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    let opt = Opt::from_args();
-    let data = web::Data::new(ServerData::default());
+    let Opt { port, log_dir } = Opt::from_args();
+    let save_queue = log_dir.map(|d| savegame::worker(d));
+    let server_data = web::Data::new(ServerData::new());
 
-    HttpServer::new(move || {
+    let save_queue_copy = save_queue.clone();
+    let result = HttpServer::new(move || {
         App::new()
-            .app_data(data.clone())
+            .data(ServerConfig::new(save_queue_copy.clone()))
+            .app_data(server_data.clone())
             .app_data(web::JsonConfig::default().error_handler(|err, _req| {
                 println!("ERROR: {}", err);
                 actix_web::error::InternalError::from_response(
@@ -158,7 +190,13 @@ async fn main() -> std::io::Result<()> {
             .service(game_move)
             .service(end)
     })
-    .bind(("0.0.0.0", opt.port))?
+    .bind(("0.0.0.0", port))?
     .run()
-    .await
+    .await;
+
+    if let Some(save_queue) = save_queue {
+        save_queue.send(None).unwrap();
+    }
+
+    result
 }
