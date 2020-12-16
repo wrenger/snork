@@ -20,6 +20,19 @@ impl EatAllAgent {
     ) -> Option<Direction> {
         let you: &CSnake = &snakes[you_i as usize];
 
+        // Avoid longer enemy heads
+        let mut grid = grid.clone();
+        for (i, snake) in snakes.iter().enumerate() {
+            if you_i != i as i8 && snake.body.len() >= you.body.len() {
+                for d in Direction::iter() {
+                    let p = snake.head().apply(d);
+                    if grid.has(p) {
+                        grid[p] = BOARD_OBSTACLE;
+                    }
+                }
+            }
+        }
+
         // Heuristic for preferring high movement
         let first_move_costs = [
             1.0 - space_after_move[0] as f64 / (grid.width * grid.height) as f64,
