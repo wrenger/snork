@@ -13,6 +13,7 @@ mod agents;
 use agents::{Agent, EatAllAgent, Random};
 
 mod savegame;
+mod game;
 
 use actix_web::{get, post, web, App, HttpResponse, HttpServer};
 use structopt::StructOpt;
@@ -167,7 +168,7 @@ struct Opt {
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     let Opt { port, log_dir } = Opt::from_args();
-    let save_queue = log_dir.map(|d| savegame::worker(d));
+    let save_queue = log_dir.map(savegame::worker);
     let server_data = web::Data::new(ServerData::new());
 
     let save_queue_copy = save_queue.clone();

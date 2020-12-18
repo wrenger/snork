@@ -2,9 +2,9 @@ use std::cmp::Reverse;
 
 use rand::seq::IteratorRandom;
 
-use super::util::*;
 use super::Agent;
 use crate::env::*;
+use crate::game::{Cell, Grid};
 
 #[derive(Debug, Default)]
 pub struct EatAllAgent {}
@@ -14,20 +14,20 @@ impl EatAllAgent {
         &self,
         grid: &Grid,
         food: &[Vec2D],
-        snakes: &[CSnake],
-        you_i: i8,
+        snakes: &[SnakeData],
+        you_i: u8,
         space_after_move: &[usize; 4],
     ) -> Option<Direction> {
-        let you: &CSnake = &snakes[you_i as usize];
+        let you: &SnakeData = &snakes[you_i as usize];
 
         // Avoid longer enemy heads
         let mut grid = grid.clone();
         for (i, snake) in snakes.iter().enumerate() {
-            if you_i != i as i8 && snake.body.len() >= you.body.len() {
+            if you_i != i as u8 && snake.body.len() >= you.body.len() {
                 for d in Direction::iter() {
                     let p = snake.head().apply(d);
                     if grid.has(p) {
-                        grid[p] = BOARD_OBSTACLE;
+                        grid[p] = Cell::snake_body(i as u8, p, Some(snake.head()));
                     }
                 }
             }
@@ -46,7 +46,7 @@ impl EatAllAgent {
         for &p in food {
             if let Some(path) = grid.a_star(you.head(), p, first_move_costs) {
                 if path.len() >= 2 {
-                    let costs = path.len() + if grid[p] == you_i { 0 } else { 5 };
+                    let costs = path.len() + if grid[p].is_owned_by(you_i) { 0 } else { 5 };
                     food_dirs.push(Direction::from(path[1] - path[0]), Reverse(costs));
                 }
             }
@@ -66,18 +66,16 @@ impl Agent for EatAllAgent {
 
     fn step(&mut self, request: &GameRequest) -> MoveResponse {
         if let Some(you_i) = request.board.snakes.iter().position(|s| s == &request.you) {
-            let snakes: Vec<CSnake> = request
-                .board
-                .snakes
-                .iter()
-                .enumerate()
-                .map(|(i, s)| CSnake::new(i as _, s.health as _, s.body.clone()))
-                .collect();
-            let you_i = you_i as i8;
-            let you: &CSnake = &snakes[you_i as usize];
+            let snakes = &request.board.snakes;
+            let you_i = you_i as u8;
+            let you = &snakes[you_i as usize];
 
             let mut grid = Grid::new(request.board.width, request.board.height);
-            grid.add_snakes(&snakes);
+            for (i, snake) in snakes.iter().enumerate() {
+                grid.add_snake(i as u8, snake);
+            }
+            grid.add_food(&request.board.food);
+            println!("{:?}", grid);
             let space_after_move = grid.space_after_move(you_i, &snakes);
 
             grid.flood_fill_snakes(&snakes, you_i);
@@ -105,8 +103,11 @@ impl Agent for EatAllAgent {
 
             let mut rng = rand::thread_rng();
             MoveResponse::new(
-                Direction::iter()
-                    .filter(|&d| grid.avaliable(you.head().apply(d)))
+                grid.valid_moves(you_i)
+                    .iter()
+                    .enumerate()
+                    .filter(|&(_, valid)| *valid)
+                    .map(|v| Direction::from(v.0 as u8))
                     .choose(&mut rng)
                     .unwrap_or(Direction::Up),
             )

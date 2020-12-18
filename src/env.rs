@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use std::ops::{Add, Neg, Sub};
 
-#[derive(Serialize, Deserialize, Default, Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Serialize, Deserialize, Default, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Vec2D {
     pub x: i16,
     pub y: i16,
@@ -86,17 +86,33 @@ pub struct Ruleset {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Snake {
+pub struct SnakeData {
     pub id: String,
     pub name: String,
-    pub health: i64,
+    pub health: u8,
     pub body: Vec<Vec2D>,
     #[serde(default)]
     pub shout: String,
 }
 
-impl PartialEq for Snake {
-    fn eq(&self, rhs: &Snake) -> bool {
+impl SnakeData {
+    pub fn new(health: u8, body: Vec<Vec2D>) -> SnakeData {
+        SnakeData {
+            id: String::new(),
+            name: String::new(),
+            health,
+            body,
+            shout: String::new(),
+        }
+    }
+
+    pub fn head(&self) -> Vec2D {
+        self.body[0]
+    }
+}
+
+impl PartialEq for SnakeData {
+    fn eq(&self, rhs: &SnakeData) -> bool {
         self.id == rhs.id
     }
 }
@@ -107,7 +123,7 @@ pub struct Board {
     pub width: usize,
     pub food: Vec<Vec2D>,
     pub hazards: Vec<Vec2D>,
-    pub snakes: Vec<Snake>,
+    pub snakes: Vec<SnakeData>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -115,7 +131,7 @@ pub struct GameRequest {
     pub game: Game,
     pub turn: i64,
     pub board: Board,
-    pub you: Snake,
+    pub you: SnakeData,
 }
 
 #[derive(Serialize)]
@@ -179,6 +195,13 @@ impl From<Vec2D> for Direction {
         } else {
             Direction::Up
         }
+    }
+}
+
+impl From<u8> for Direction {
+    fn from(v: u8) -> Direction {
+        assert!(v < 4, "Invalid direction");
+        unsafe { std::mem::transmute(v) }
     }
 }
 

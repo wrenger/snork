@@ -2,7 +2,6 @@ mod eatall;
 pub use eatall::EatAllAgent;
 mod random;
 pub use random::Random;
-mod util;
 
 use super::env::{GameRequest, MoveResponse};
 
