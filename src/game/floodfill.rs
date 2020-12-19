@@ -80,6 +80,8 @@ impl FloodFill {
         assert_eq!(self.width, grid.width);
         assert_eq!(self.height, grid.height);
 
+        // TODO: Move next step simulation to Game
+
         let you = &snakes[you_i as usize];
         let snakes: Vec<(u8, &SnakeData)> = snakes
             .iter()
@@ -213,7 +215,7 @@ mod test {
             vec![Vec2D::new(0, 0), Vec2D::new(1, 0)],
         )];
         let mut grid = Grid::new(11, 11);
-        for (i, snake) in snakes.iter().enumerate() {
+        for snake in &snakes {
             grid.add_snake(snake.body.iter().cloned());
         }
         let mut floodfill = FloodFill::new(grid.width, grid.height);
@@ -230,7 +232,7 @@ mod test {
             ),
         ];
         let mut grid = Grid::new(11, 11);
-        for (i, snake) in snakes.iter().enumerate() {
+        for snake in &snakes {
             grid.add_snake(snake.body.iter().cloned());
         }
         let space = floodfill.space_after_move(&grid, 0, &snakes);

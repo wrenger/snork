@@ -4,8 +4,32 @@ use std::ops::Index;
 use std::ops::IndexMut;
 use std::usize;
 
-use super::Cell;
 use crate::env::{Direction, Vec2D};
+
+/// Represents a single tile of the board
+#[derive(Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum Cell {
+    Free,
+    Food,
+    Occupied,
+}
+
+impl Default for Cell {
+    fn default() -> Cell {
+        Cell::Free
+    }
+}
+
+impl std::fmt::Debug for Cell {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match *self {
+            Cell::Free => write!(f, "__"),
+            Cell::Food => write!(f, "()"),
+            Cell::Occupied => write!(f, "[]"),
+        }
+    }
+}
 
 /// The game state including up to four snakes.
 #[derive(Clone)]
