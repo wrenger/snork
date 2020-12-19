@@ -1,18 +1,30 @@
 use std::cmp::Reverse;
 
 use rand::seq::IteratorRandom;
+use rand::{rngs::SmallRng, SeedableRng};
 
 use super::Agent;
 use crate::env::*;
-use crate::game::{Cell, Grid};
+use crate::game::{Cell, FloodFill, Grid};
 
-#[derive(Debug, Default)]
-pub struct EatAllAgent {}
+#[derive(Debug)]
+pub struct EatAllAgent {
+    grid: Grid,
+    floodfill: FloodFill,
+    rng: rand::rngs::SmallRng,
+}
 
 impl EatAllAgent {
+    pub fn new(request: &GameRequest) -> EatAllAgent {
+        EatAllAgent {
+            grid: Grid::new(request.board.width, request.board.width),
+            floodfill: FloodFill::new(request.board.width, request.board.width),
+            rng: SmallRng::from_entropy(),
+        }
+    }
+
     fn find_food(
         &self,
-        grid: &Grid,
         food: &[Vec2D],
         snakes: &[SnakeData],
         you_i: u8,
@@ -21,13 +33,13 @@ impl EatAllAgent {
         let you: &SnakeData = &snakes[you_i as usize];
 
         // Avoid longer enemy heads
-        let mut grid = grid.clone();
+        let mut grid = self.grid.clone();
         for (i, snake) in snakes.iter().enumerate() {
             if you_i != i as u8 && snake.body.len() >= you.body.len() {
                 for d in Direction::iter() {
                     let p = snake.head().apply(d);
                     if grid.has(p) {
-                        grid[p] = Cell::snake_body(i as u8, p, Some(snake.head()));
+                        grid[p] = Cell::Occupied;
                     }
                 }
             }
@@ -46,7 +58,12 @@ impl EatAllAgent {
         for &p in food {
             if let Some(path) = grid.a_star(you.head(), p, first_move_costs) {
                 if path.len() >= 2 {
-                    let costs = path.len() + if grid[p].is_owned_by(you_i) { 0 } else { 5 };
+                    let costs = path.len()
+                        + if self.floodfill[p] == you_i as i8 {
+                            0
+                        } else {
+                            5
+                        };
                     food_dirs.push(Direction::from(path[1] - path[0]), Reverse(costs));
                 }
             }
@@ -70,25 +87,22 @@ impl Agent for EatAllAgent {
             let you_i = you_i as u8;
             let you = &snakes[you_i as usize];
 
-            let mut grid = Grid::new(request.board.width, request.board.height);
-            for (i, snake) in snakes.iter().enumerate() {
-                grid.add_snake(i as u8, snake);
+            // Prepare grid
+            self.grid.clear();
+            for snake in snakes {
+                self.grid.add_snake(snake.body.iter().cloned());
             }
-            grid.add_food(&request.board.food);
-            println!("{:?}", grid);
-            let space_after_move = grid.space_after_move(you_i, &snakes);
+            self.grid.add_food(&request.board.food);
 
-            grid.flood_fill_snakes(&snakes, you_i);
+            // Flood fill heuristics
+            let space_after_move = self.floodfill.space_after_move(&self.grid, you_i, &snakes);
+            self.floodfill.flood_snakes(&self.grid, &snakes, you_i);
 
             // Find Food
             if you.body.len() < 10 || request.board.snakes[you_i as usize].health < 35 {
-                if let Some(dir) = self.find_food(
-                    &grid,
-                    &request.board.food,
-                    &snakes,
-                    you_i,
-                    &space_after_move,
-                ) {
+                if let Some(dir) =
+                    self.find_food(&request.board.food, &snakes, you_i, &space_after_move)
+                {
                     return MoveResponse::new(dir);
                 }
             }
@@ -101,14 +115,14 @@ impl Agent for EatAllAgent {
                 }
             }
 
-            let mut rng = rand::thread_rng();
+            let grid = &self.grid;
+            let rng = &mut self.rng;
             MoveResponse::new(
-                grid.valid_moves(you_i)
-                    .iter()
-                    .enumerate()
-                    .filter(|&(_, valid)| *valid)
-                    .map(|v| Direction::from(v.0 as u8))
-                    .choose(&mut rng)
+                Direction::iter()
+                    .filter(|&d| {
+                        grid.has(you.head().apply(d)) && grid[you.head().apply(d)] != Cell::Occupied
+                    })
+                    .choose(rng)
                     .unwrap_or(Direction::Up),
             )
         } else {
@@ -130,7 +144,7 @@ mod test {
             r#"{"game":{"id":"bcb8c2e8-4fb7-485b-9ade-9df947dd9623","ruleset":{"name":"standard","version":"v1.0.15"},"timeout":500},"turn":69,"board":{"height":11,"width":11,"food":[{"x":7,"y":9},{"x":1,"y":0}],"hazards":[],"snakes":[{"id":"gs_3MjqcwQJxYG7VrvjbbkRW9JB","name":"Nessegrev-flood","health":85,"body":[{"x":7,"y":10},{"x":8,"y":10},{"x":8,"y":9},{"x":9,"y":9},{"x":10,"y":9},{"x":10,"y":8},{"x":10,"y":7}],"shout":""},{"id":"gs_c9JrKQcQqHHPJFm43W47RKMd","name":"Rufio the Tenacious","health":80,"body":[{"x":5,"y":8},{"x":4,"y":8},{"x":4,"y":9},{"x":3,"y":9},{"x":2,"y":9},{"x":2,"y":8},{"x":2,"y":7}],"shout":""},{"id":"gs_ffjK7pqCwVXYGtwhWtk3vtJX","name":"marrrvin","health":89,"body":[{"x":8,"y":7},{"x":8,"y":8},{"x":7,"y":8},{"x":7,"y":7},{"x":7,"y":6},{"x":6,"y":6},{"x":5,"y":6},{"x":5,"y":5},{"x":6,"y":5}],"shout":""},{"id":"gs_Kr6BCBwbDpdGDpWbw9vMS6qV","name":"kostka","health":93,"body":[{"x":7,"y":2},{"x":7,"y":3},{"x":6,"y":3},{"x":5,"y":3},{"x":4,"y":3},{"x":3,"y":3}],"shout":""}]},"you":{"id":"gs_ffjK7pqCwVXYGtwhWtk3vtJX","name":"marrrvin","health":89,"body":[{"x":8,"y":7},{"x":8,"y":8},{"x":7,"y":8},{"x":7,"y":7},{"x":7,"y":6},{"x":6,"y":6},{"x":5,"y":6},{"x":5,"y":5},{"x":6,"y":5}],"shout":""}}"#
         ).unwrap();
 
-        let mut agent = EatAllAgent::default();
+        let mut agent = EatAllAgent::new(&game_req);
         agent.start(&game_req);
 
         const COUNT: usize = 1000;

@@ -72,6 +72,50 @@ impl Neg for Vec2D {
     }
 }
 
+#[derive(Serialize, Debug, Clone, Copy, Hash, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+#[repr(u8)]
+pub enum Direction {
+    Up,
+    Right,
+    Down,
+    Left,
+}
+
+impl Direction {
+    pub fn iter() -> impl Iterator<Item = Direction> {
+        [
+            Direction::Up,
+            Direction::Right,
+            Direction::Down,
+            Direction::Left,
+        ]
+        .iter()
+        .copied()
+    }
+}
+
+impl From<Vec2D> for Direction {
+    fn from(p: Vec2D) -> Direction {
+        if p.x < 0 {
+            Direction::Left
+        } else if p.x > 0 {
+            Direction::Right
+        } else if p.y < 0 {
+            Direction::Down
+        } else {
+            Direction::Up
+        }
+    }
+}
+
+impl From<u8> for Direction {
+    fn from(v: u8) -> Direction {
+        assert!(v < 4, "Invalid direction");
+        unsafe { std::mem::transmute(v) }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Game {
     pub id: String,
@@ -90,6 +134,7 @@ pub struct SnakeData {
     pub id: String,
     pub name: String,
     pub health: u8,
+    /// head to tail
     pub body: Vec<Vec2D>,
     #[serde(default)]
     pub shout: String,
@@ -158,50 +203,6 @@ impl IndexResponse {
             head,
             tail,
         }
-    }
-}
-
-#[derive(Serialize, Debug, Clone, Copy, Hash, PartialEq, Eq)]
-#[serde(rename_all = "lowercase")]
-#[repr(u8)]
-pub enum Direction {
-    Up,
-    Right,
-    Down,
-    Left,
-}
-
-impl Direction {
-    pub fn iter() -> impl Iterator<Item = Direction> {
-        [
-            Direction::Up,
-            Direction::Right,
-            Direction::Down,
-            Direction::Left,
-        ]
-        .iter()
-        .copied()
-    }
-}
-
-impl From<Vec2D> for Direction {
-    fn from(p: Vec2D) -> Direction {
-        if p.x < 0 {
-            Direction::Left
-        } else if p.x > 0 {
-            Direction::Right
-        } else if p.y < 0 {
-            Direction::Down
-        } else {
-            Direction::Up
-        }
-    }
-}
-
-impl From<u8> for Direction {
-    fn from(v: u8) -> Direction {
-        assert!(v < 4, "Invalid direction");
-        unsafe { std::mem::transmute(v) }
     }
 }
 

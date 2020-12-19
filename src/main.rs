@@ -92,7 +92,7 @@ async fn start(data: web::Data<ServerData>, reqest: web::Json<GameRequest>) -> H
             && reqest.board.width <= 32
             && reqest.board.height <= 32
         {
-            let mut agent = EatAllAgent::default();
+            let mut agent = EatAllAgent::new(&reqest);
             agent.start(&reqest);
             Arc::new(Mutex::new(agent))
         } else {

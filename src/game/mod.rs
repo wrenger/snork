@@ -1,4 +1,6 @@
 mod grid;
 pub use grid::*;
-mod cell;
-pub use cell::*;
+mod game;
+pub use game::*;
+mod floodfill;
+pub use floodfill::*;
