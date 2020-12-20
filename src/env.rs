@@ -140,22 +140,6 @@ pub struct SnakeData {
     pub shout: String,
 }
 
-impl SnakeData {
-    pub fn new(health: u8, body: Vec<Vec2D>) -> SnakeData {
-        SnakeData {
-            id: String::new(),
-            name: String::new(),
-            health,
-            body,
-            shout: String::new(),
-        }
-    }
-
-    pub fn head(&self) -> Vec2D {
-        self.body[0]
-    }
-}
-
 impl PartialEq for SnakeData {
     fn eq(&self, rhs: &SnakeData) -> bool {
         self.id == rhs.id

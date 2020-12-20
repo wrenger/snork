@@ -78,7 +78,7 @@ impl Grid {
         &self,
         start: Vec2D,
         target: Vec2D,
-        first_move_heuristic: [f64; 4],
+        first_move_heuristic: &[f64; 4],
     ) -> Option<Vec<Vec2D>> {
         use priority_queue::PriorityQueue;
         use std::collections::HashMap;
@@ -167,6 +167,7 @@ impl std::fmt::Debug for Grid {
 mod test {
 
     #[test]
+    #[ignore]
     fn grid_size() {
         use super::*;
         use std::mem;
@@ -176,48 +177,12 @@ mod test {
     }
 
     #[test]
-    fn grid_snake() {
-        use super::*;
-        use crate::env::SnakeData;
-
-        let mut grid = Grid::new(11, 11);
-        let snake = SnakeData::new(
-            100,
-            vec![Vec2D::new(5, 5), Vec2D::new(5, 5), Vec2D::new(5, 5)],
-        );
-        grid.add_snake(snake.body.iter().cloned());
-        println!("{:?}", grid);
-        assert_eq!(grid[Vec2D::new(5, 5)], Cell::Occupied);
-
-        let mut grid = Grid::new(11, 11);
-        let snake = SnakeData::new(
-            100,
-            vec![Vec2D::new(6, 5), Vec2D::new(5, 5), Vec2D::new(5, 5)],
-        );
-        grid.add_snake(snake.body.iter().cloned());
-        println!("{:?}", grid);
-        assert_eq!(grid[Vec2D::new(6, 5)], Cell::Occupied);
-        assert_eq!(grid[Vec2D::new(5, 5)], Cell::Occupied);
-
-        let mut grid = Grid::new(11, 11);
-        let snake = SnakeData::new(
-            100,
-            vec![Vec2D::new(6, 6), Vec2D::new(6, 5), Vec2D::new(5, 5)],
-        );
-        grid.add_snake(snake.body.iter().cloned());
-        println!("{:?}", grid);
-        assert_eq!(grid[Vec2D::new(6, 6)], Cell::Occupied);
-        assert_eq!(grid[Vec2D::new(6, 5)], Cell::Occupied);
-        assert_eq!(grid[Vec2D::new(5, 5)], Cell::Occupied);
-    }
-
-    #[test]
     fn grid_a_star() {
         use super::*;
         let grid = Grid::new(11, 11);
 
         let path = grid
-            .a_star(Vec2D::new(0, 0), Vec2D::new(1, 1), [1.0, 0.0, 0.0, 0.0])
+            .a_star(Vec2D::new(0, 0), Vec2D::new(1, 1), &[1.0, 0.0, 0.0, 0.0])
             .unwrap();
         println!("{:?}", path);
         assert_eq!(path.len(), 3);

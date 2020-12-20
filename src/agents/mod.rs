@@ -1,5 +1,5 @@
-mod eatall;
-pub use eatall::EatAllAgent;
+mod mobility;
+pub use mobility::MobilityAgent;
 mod random;
 pub use random::Random;
 

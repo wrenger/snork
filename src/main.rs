@@ -9,8 +9,10 @@ use chashmap::CHashMap;
 mod env;
 use env::{GameRequest, IndexResponse, MoveResponse};
 
+mod util;
+
 mod agents;
-use agents::{Agent, EatAllAgent, Random};
+use agents::{Agent, MobilityAgent, Random};
 
 mod savegame;
 mod game;
@@ -92,7 +94,7 @@ async fn start(data: web::Data<ServerData>, reqest: web::Json<GameRequest>) -> H
             && reqest.board.width <= 32
             && reqest.board.height <= 32
         {
-            let mut agent = EatAllAgent::new(&reqest);
+            let mut agent = MobilityAgent::new(&reqest);
             agent.start(&reqest);
             Arc::new(Mutex::new(agent))
         } else {
@@ -120,10 +122,12 @@ async fn game_move(config: web::Data<ServerConfig>, data: web::Data<ServerData>,
         .running_agents
         .get(&(reqest.game.id.clone(), reqest.you.id.clone()))
     {
+        let timer = Instant::now();
         let next_move = instance.agent.lock().unwrap().step(&reqest);
         if let Some(save_queue) = &config.save_queue {
             save_queue.send(Some(reqest.into_inner())).unwrap();
         }
+        println!("response time {:?}ms", (Instant::now() - timer).as_millis());
         HttpResponse::Ok().json(next_move)
     } else {
         HttpResponse::Ok().json(MoveResponse::default())

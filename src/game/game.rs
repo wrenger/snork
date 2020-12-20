@@ -11,47 +11,48 @@ pub enum Outcome {
 }
 
 #[derive(Debug, Clone)]
-struct Snake {
+pub struct Snake {
+    pub id: u8,
     /// tail to head
-    id: u8,
-    body: VecDeque<Vec2D>,
-    health: u8,
+    pub body: VecDeque<Vec2D>,
+    pub health: u8,
 }
 impl Snake {
-    fn new(id: u8, body: VecDeque<Vec2D>, health: u8) -> Snake {
+    pub fn new(id: u8, body: VecDeque<Vec2D>, health: u8) -> Snake {
         Snake { id, body, health }
     }
 
-    fn head(&self) -> Vec2D {
+    pub fn from(snake: &SnakeData, id: u8) -> Snake {
+        Snake::new(id, snake.body.iter().cloned().rev().collect(), snake.health)
+    }
+
+    pub fn head(&self) -> Vec2D {
         *self.body.back().unwrap()
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct Game {
-    snakes: Vec<Snake>,
-    grid: Grid,
+    pub snakes: Vec<Snake>,
+    pub grid: Grid,
 }
 
 impl Game {
-    pub fn new(width: usize, height: usize, snakes: &[SnakeData], food: &[Vec2D]) -> Game {
-        let mut grid = Grid::new(width, height);
-        grid.add_food(food);
-
-        let mut game_snakes = Vec::new();
-        for (i, snake) in snakes.iter().enumerate() {
-            grid.add_snake(snake.body.iter().cloned());
-            game_snakes.push(Snake::new(
-                i as u8,
-                snake.body.iter().cloned().rev().collect(),
-                snake.health,
-            ))
-        }
-
+    pub fn new(width: usize, height: usize) -> Game {
         Game {
-            snakes: game_snakes,
-            grid,
+            snakes: Vec::with_capacity(4),
+            grid: Grid::new(width, height),
         }
+    }
+
+    pub fn reset(&mut self, snakes: Vec<Snake>, food: &[Vec2D]) {
+        self.grid.clear();
+        self.grid.add_food(food);
+
+        for snake in &snakes {
+            self.grid.add_snake(snake.body.iter().cloned());
+        }
+        self.snakes = snakes
     }
 
     pub fn outcome(&self) -> Outcome {
@@ -146,17 +147,20 @@ mod test {
     fn game_step_test() {
         use super::*;
         use Direction::*;
-        let snakes = [
-            SnakeData::new(
+        let snakes = vec![
+            Snake::new(
+                0,
+                vec![Vec2D::new(4, 6), Vec2D::new(4, 7), Vec2D::new(4, 8)].into(),
                 100,
-                vec![Vec2D::new(4, 8), Vec2D::new(4, 7), Vec2D::new(4, 6)],
             ),
-            SnakeData::new(
+            Snake::new(
+                1,
+                vec![Vec2D::new(6, 6), Vec2D::new(6, 7), Vec2D::new(6, 8)].into(),
                 100,
-                vec![Vec2D::new(6, 8), Vec2D::new(6, 7), Vec2D::new(6, 6)],
             ),
         ];
-        let mut game = Game::new(11, 11, &snakes, &[]);
+        let mut game = Game::new(11, 11);
+        game.reset(snakes.clone(), &[]);
         println!("{:?}", game.grid);
         game.step([Right, Right, Up, Up]);
 
@@ -175,7 +179,7 @@ mod test {
         assert!(game.snake_is_alive(1));
         assert_eq!(game.grid[Vec2D::new(8, 8)], Cell::Occupied);
 
-        let mut game = Game::new(11, 11, &snakes, &[]);
+        game.reset(snakes, &[]);
         game.step([Right, Left, Up, Up]);
         println!("{:?}", game.grid);
         assert!(!game.snake_is_alive(0));
@@ -187,19 +191,22 @@ mod test {
     fn game_step_circle() {
         use super::*;
         use std::time::Instant;
-        let snakes = [SnakeData::new(
-            100,
+        let snakes = vec![Snake::new(
+            0,
             vec![
-                Vec2D::new(4, 8),
-                Vec2D::new(4, 7),
-                Vec2D::new(4, 6),
+                Vec2D::new(6, 6),
+                Vec2D::new(6, 6),
+                Vec2D::new(6, 6),
                 Vec2D::new(5, 6),
-                Vec2D::new(6, 6),
-                Vec2D::new(6, 6),
-                Vec2D::new(6, 6),
-            ],
+                Vec2D::new(4, 6),
+                Vec2D::new(4, 7),
+                Vec2D::new(4, 8),
+            ]
+            .into(),
+            100,
         )];
-        let mut game = Game::new(11, 11, &snakes, &[]);
+        let mut game = Game::new(11, 11);
+        game.reset(snakes, &[]);
         println!("{:?}", game.grid);
 
         let start = Instant::now();
@@ -231,26 +238,31 @@ mod test {
         use std::time::{Duration, Instant};
         const SIMULATION_TIME: usize = 200;
 
-        let snakes = [
-            SnakeData::new(
+        let snakes = vec![
+            Snake::new(
+                0,
+                vec![Vec2D::new(6, 7), Vec2D::new(6, 7), Vec2D::new(6, 7)].into(),
                 100,
-                vec![Vec2D::new(6, 7), Vec2D::new(6, 7), Vec2D::new(6, 7)],
             ),
-            SnakeData::new(
+            Snake::new(
+                1,
+                vec![Vec2D::new(3, 2), Vec2D::new(3, 2), Vec2D::new(3, 2)].into(),
                 100,
-                vec![Vec2D::new(3, 2), Vec2D::new(3, 2), Vec2D::new(3, 2)],
             ),
-            SnakeData::new(
+            Snake::new(
+                2,
+                vec![Vec2D::new(7, 3), Vec2D::new(7, 3), Vec2D::new(7, 3)].into(),
                 100,
-                vec![Vec2D::new(7, 3), Vec2D::new(7, 3), Vec2D::new(7, 3)],
             ),
-            SnakeData::new(
+            Snake::new(
+                3,
+                vec![Vec2D::new(3, 8), Vec2D::new(3, 8), Vec2D::new(3, 8)].into(),
                 100,
-                vec![Vec2D::new(3, 8), Vec2D::new(3, 8), Vec2D::new(3, 8)],
             ),
         ];
         let mut rng = rand::thread_rng();
-        let mut game = Game::new(11, 11, &snakes, &[]);
+        let mut game = Game::new(11, 11);
+        game.reset(snakes, &[]);
 
         let dist = Uniform::from(0..11);
         for _ in 0..20 {
