@@ -58,13 +58,15 @@ impl Agent for MobilityAgent {
         // Prepare grid
         let mut snakes = Vec::with_capacity(0);
         snakes.push(Snake::from(&request.you, 0));
-        snakes.extend(request.board.snakes.iter().enumerate().flat_map(|(i, s)| {
-            if s.id != request.you.id {
-                Some(Snake::from(s, i as u8 + 1))
-            } else {
-                None
-            }
-        }));
+        snakes.extend(
+            request
+                .board
+                .snakes
+                .iter()
+                .filter(|s| s.id != request.you.id)
+                .enumerate()
+                .map(|(i, s)| Snake::from(s, i as u8 + 1)),
+        );
         self.game.reset(snakes, &request.board.food);
         let you = &self.game.snakes[0];
 
