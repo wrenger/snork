@@ -27,7 +27,7 @@ fn max_n_rec(
             flood_fill.flood_snakes(&game.grid, &game.snakes, 0);
             let mut result = [0; 4];
             if game.snake_is_alive(0) {
-                result[0] = flood_fill.count_space_of(0);
+                result[0] = flood_fill.count_space_of(true);
             }
             result
         } else {

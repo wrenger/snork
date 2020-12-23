@@ -36,7 +36,7 @@ impl MobilityAgent {
         for &p in food {
             if let Some(path) = grid.a_star(you.head(), p, first_move_costs) {
                 if path.len() >= 2 {
-                    let costs = path.len() + if self.floodfill[p] == 0 as i8 { 0 } else { 5 };
+                    let costs = path.len() + if self.floodfill[p].is_you() { 0 } else { 5 };
                     food_dirs.push(Direction::from(path[1] - path[0]), Reverse(costs));
                 }
             }
