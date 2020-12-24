@@ -107,10 +107,6 @@ impl Agent for MobilityAgent {
 
         // Find Food
         if you.body.len() < 10 || you.health < 35 {
-            println!(
-                "Search food {}",
-                next_enemy.map_or(false, |s| s.body.len() >= you.body.len())
-            );
             if let Some(dir) = self.find_food(
                 &request.board.food,
                 &grid,
@@ -146,6 +142,7 @@ impl Agent for MobilityAgent {
 #[cfg(test)]
 mod test {
     #[test]
+    #[ignore]
     fn bench_mobility() {
         use super::*;
         use std::time::Instant;

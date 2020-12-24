@@ -118,16 +118,22 @@ impl FloodFill {
         assert_eq!(self.width, grid.width);
         assert_eq!(self.height, grid.height);
 
+        #[inline]
+        fn owns(cell: FCell, you: bool, num: u8, food: u8) -> bool {
+            cell.is_free()
+                || (cell.is_occupied()
+                    // follow your tail
+                    && ((cell.is_you() == you && cell.get_num() <= num - food)
+                        // follow enemy tail
+                        || (cell.is_you() != you && cell.get_num() < num)))
+        }
+
         for (you, p) in heads {
             if self.has(p) {
                 let num = 1;
                 let food = if grid[p] == Cell::Food { 1 } else { 0 };
                 let cell = self[p];
-                if cell.is_free()
-                    || (cell.is_occupied()
-                        && ((cell.is_you() && cell.get_num() <= num + food)
-                            || (!cell.is_you() && cell.get_num() < num)))
-                {
+                if owns(cell, you, num, food) {
                     // println!(">> ({}, {}, {}, {:?}), {:?}", you, num, food, p, cell);
                     self[p] = FCell::with_owner(you);
                     self.queue.push_back((you, num + 1, food, p));
@@ -144,11 +150,7 @@ impl FloodFill {
                     }
                     let cell = self[p];
                     // println!("({}, {}, {}, {:?}), {:?}", you, num, food, p, cell);
-                    if cell.is_free()
-                        || (cell.is_occupied()
-                            && ((cell.is_you() == you && cell.get_num() <= num - food)
-                                || (cell.is_you() != you && cell.get_num() < num)))
-                    {
+                    if owns(cell, you, num, food) {
                         self[p] = FCell::with_owner(you);
                         self.queue.push_back((you, num + 1, food, p));
                     }
@@ -384,12 +386,7 @@ mod test {
             ),
             Snake::new(
                 1,
-                vec![
-                    Vec2D::new(0, 1),
-                    Vec2D::new(0, 2),
-                    Vec2D::new(0, 3),
-                ]
-                .into(),
+                vec![Vec2D::new(0, 1), Vec2D::new(0, 2), Vec2D::new(0, 3)].into(),
                 100,
             ),
         ];
