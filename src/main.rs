@@ -12,10 +12,10 @@ use env::{GameRequest, IndexResponse, MoveResponse};
 mod util;
 
 mod agents;
-use agents::{Agent, MobilityAgent, Random};
+use agents::*;
 
-mod savegame;
 mod game;
+mod savegame;
 
 use actix_web::{get, post, web, App, HttpResponse, HttpServer};
 use structopt::StructOpt;
@@ -98,7 +98,7 @@ async fn start(data: web::Data<ServerData>, reqest: web::Json<GameRequest>) -> H
             agent.start(&reqest);
             Arc::new(Mutex::new(agent))
         } else {
-            let mut agent = Random::default();
+            let mut agent = RandomAgent::default();
             agent.start(&reqest);
             Arc::new(Mutex::new(agent))
         };
@@ -112,7 +112,11 @@ async fn start(data: web::Data<ServerData>, reqest: web::Json<GameRequest>) -> H
 }
 
 #[post("/move")]
-async fn game_move(config: web::Data<ServerConfig>, data: web::Data<ServerData>, reqest: web::Json<GameRequest>) -> HttpResponse {
+async fn game_move(
+    config: web::Data<ServerConfig>,
+    data: web::Data<ServerData>,
+    reqest: web::Json<GameRequest>,
+) -> HttpResponse {
     println!(
         "move {} game {},{}",
         reqest.game.ruleset.name, reqest.game.id, reqest.you.id

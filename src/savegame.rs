@@ -1,7 +1,7 @@
 use std::fs::{self, OpenOptions};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::{channel, Sender};
-use std::io::Write;
 use std::thread;
 
 use crate::env::*;

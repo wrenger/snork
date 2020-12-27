@@ -13,14 +13,14 @@ use crate::util::argmax;
 #[derive(Debug)]
 pub struct MobilityAgent {
     game: Game,
-    floodfill: FloodFill,
+    flood_fill: FloodFill,
 }
 
 impl MobilityAgent {
     pub fn new(request: &GameRequest) -> MobilityAgent {
         MobilityAgent {
             game: Game::new(request.board.width, request.board.width),
-            floodfill: FloodFill::new(request.board.width, request.board.width),
+            flood_fill: FloodFill::new(request.board.width, request.board.width),
         }
     }
 
@@ -38,7 +38,7 @@ impl MobilityAgent {
         for &p in food {
             if let Some(path) = grid.a_star(you.head(), p, first_move_costs) {
                 if path.len() >= 2 {
-                    let costs = path.len() + if self.floodfill[p].is_you() { 0 } else { 5 };
+                    let costs = path.len() + if self.flood_fill[p].is_you() { 0 } else { 5 };
                     food_dirs.push(Direction::from(path[1] - path[0]), Reverse(costs));
                 }
             }
@@ -74,9 +74,9 @@ impl Agent for MobilityAgent {
 
         // Flood fill heuristics
         let start = Instant::now();
+        let flood_fill = &mut self.flood_fill;
         let space_after_move = max_n(&self.game, 1, |game| {
             if game.snake_is_alive(0) {
-                let mut flood_fill = FloodFill::new(game.grid.width, game.grid.height);
                 flood_fill.flood_snakes(&game.grid, &game.snakes, 0);
                 flood_fill.count_space_of(true) as f64
             } else {
@@ -84,7 +84,7 @@ impl Agent for MobilityAgent {
             }
         });
         println!("max_n {:?}ms", (Instant::now() - start).as_millis());
-        self.floodfill
+        self.flood_fill
             .flood_snakes(&self.game.grid, &self.game.snakes, 0);
 
         // Avoid longer enemy heads

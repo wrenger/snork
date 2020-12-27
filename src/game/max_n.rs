@@ -1,19 +1,12 @@
-use super::{FloodFill, Game};
+use super::Game;
 use crate::env::Direction;
 
 /// Assuming the evaluated agent has id = 0
-pub fn max_n<F>(game: &Game, depth: usize, heuristic: F) -> [f64; 4]
+pub fn max_n<F>(game: &Game, depth: usize, mut heuristic: F) -> [f64; 4]
 where
-    F: FnOnce(&Game) -> f64 + Copy,
+    F: FnMut(&Game) -> f64,
 {
-    max_n_rec(
-        &game,
-        depth,
-        0,
-        0,
-        [Direction::Up; 4],
-        heuristic,
-    )
+    max_n_rec(&game, depth, 0, 0, [Direction::Up; 4], &mut heuristic)
 }
 
 fn max_n_rec<F>(
@@ -22,10 +15,10 @@ fn max_n_rec<F>(
     current_depth: usize,
     current_ply_depth: usize,
     actions: [Direction; 4],
-    heuristic: F,
+    heuristic: &mut F,
 ) -> [f64; 4]
 where
-    F: FnOnce(&Game) -> f64 + Copy,
+    F: FnMut(&Game) -> f64,
 {
     let mut actions = actions;
     if current_ply_depth == actions.len() {
@@ -38,14 +31,7 @@ where
             // eval
             [heuristic(&game), 0.0, 0.0, 0.0]
         } else {
-            let mut result = max_n_rec(
-                &game,
-                depth,
-                current_depth + 1,
-                0,
-                actions,
-                heuristic,
-            );
+            let mut result = max_n_rec(&game, depth, current_depth + 1, 0, actions, heuristic);
             // max
             for i in 1..3 {
                 if result[i] > result[0] {
@@ -106,7 +92,7 @@ mod test {
 
     #[test]
     fn max_n_test() {
-        use super::super::Snake;
+        use super::super::{FloodFill, Snake};
         use super::*;
         use crate::env::Vec2D;
         use std::time::Instant;
@@ -144,9 +130,9 @@ mod test {
         game.reset(snakes, &[]);
         println!("{:?}", game.grid);
         let start = Instant::now();
-        let moves = max_n(&game, 3, |game| {
+        let mut flood_fill = FloodFill::new(game.grid.width, game.grid.height);
+        let moves = max_n(&game, 2, |game| {
             if game.snake_is_alive(0) {
-                let mut flood_fill = FloodFill::new(game.grid.width, game.grid.height);
                 flood_fill.flood_snakes(&game.grid, &game.snakes, 0);
                 flood_fill.count_space_of(true) as f64
             } else {
