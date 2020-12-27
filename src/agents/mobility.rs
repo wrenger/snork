@@ -8,6 +8,8 @@ use super::Agent;
 use crate::env::*;
 use crate::game::{max_n, Cell, FloodFill, Game, Grid, Snake};
 
+use crate::util::argmax;
+
 #[derive(Debug)]
 pub struct MobilityAgent {
     game: Game,
@@ -26,7 +28,7 @@ impl MobilityAgent {
         &self,
         food: &[Vec2D],
         grid: &Grid,
-        space_after_move: &[usize; 4],
+        space_after_move: &[f64; 4],
         first_move_costs: &[f64; 4],
     ) -> Option<Direction> {
         let you: &Snake = &self.game.snakes[0];
@@ -43,7 +45,7 @@ impl MobilityAgent {
         }
 
         while let Some((dir, _)) = food_dirs.pop() {
-            if space_after_move[dir as u8 as usize] >= you.body.len() - 1 {
+            if space_after_move[dir as u8 as usize] as usize >= you.body.len() - 1 {
                 return Some(dir);
             }
         }
@@ -72,7 +74,14 @@ impl Agent for MobilityAgent {
 
         // Flood fill heuristics
         let start = Instant::now();
-        let space_after_move = max_n(&self.game, 1);
+        let space_after_move = max_n(&self.game, 1, |game, flood_fill| {
+            if game.snake_is_alive(0) {
+                flood_fill.flood_snakes(&game.grid, &game.snakes, 0);
+                flood_fill.count_space_of(true) as f64
+            } else {
+                0.0
+            }
+        });
         println!("max_n {:?}ms", (Instant::now() - start).as_millis());
         self.floodfill
             .flood_snakes(&self.game.grid, &self.game.snakes, 0);
@@ -98,13 +107,6 @@ impl Agent for MobilityAgent {
             1.0 - space_after_move[3] as f64 / (grid.width * grid.height) as f64,
         ];
 
-        let next_enemy = self
-            .game
-            .snakes
-            .iter()
-            .filter(|s| s.id != you.id)
-            .min_by_key(|s| (s.head() - you.head()).manhattan());
-
         // Find Food
         if you.body.len() < 10 || you.health < 35 {
             if let Some(dir) = self.find_food(
@@ -117,8 +119,8 @@ impl Agent for MobilityAgent {
             }
         }
 
-        if let Some((dir, space)) = space_after_move.iter().enumerate().max_by_key(|(_, v)| *v) {
-            if *space > 0 {
+        if let Some(dir) = argmax(space_after_move.iter()) {
+            if space_after_move[dir] > 0.0 {
                 let d: Direction = unsafe { std::mem::transmute(dir as u8) };
                 return MoveResponse::new(d);
             }
