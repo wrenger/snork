@@ -74,8 +74,9 @@ impl Agent for MobilityAgent {
 
         // Flood fill heuristics
         let start = Instant::now();
-        let space_after_move = max_n(&self.game, 1, |game, flood_fill| {
+        let space_after_move = max_n(&self.game, 1, |game| {
             if game.snake_is_alive(0) {
+                let mut flood_fill = FloodFill::new(game.grid.width, game.grid.height);
                 flood_fill.flood_snakes(&game.grid, &game.snakes, 0);
                 flood_fill.count_space_of(true) as f64
             } else {

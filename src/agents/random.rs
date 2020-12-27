@@ -2,14 +2,8 @@ use super::Agent;
 use crate::env::*;
 use rand::seq::IteratorRandom;
 
-#[derive(Debug)]
-pub struct Random {}
-
-impl Default for Random {
-    fn default() -> Random {
-        Random {}
-    }
-}
+#[derive(Debug, Default)]
+pub struct Random;
 
 impl Agent for Random {
     fn start(&mut self, _: &GameRequest) {}

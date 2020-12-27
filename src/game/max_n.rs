@@ -4,16 +4,14 @@ use crate::env::Direction;
 /// Assuming the evaluated agent has id = 0
 pub fn max_n<F>(game: &Game, depth: usize, heuristic: F) -> [f64; 4]
 where
-    F: FnOnce(&Game, &mut FloodFill) -> f64 + Copy,
+    F: FnOnce(&Game) -> f64 + Copy,
 {
-    let mut flood_fill = FloodFill::new(game.grid.width, game.grid.height);
     max_n_rec(
         &game,
         depth,
         0,
         0,
         [Direction::Up; 4],
-        &mut flood_fill,
         heuristic,
     )
 }
@@ -24,11 +22,10 @@ fn max_n_rec<F>(
     current_depth: usize,
     current_ply_depth: usize,
     actions: [Direction; 4],
-    flood_fill: &mut FloodFill,
     heuristic: F,
 ) -> [f64; 4]
 where
-    F: FnOnce(&Game, &mut FloodFill) -> f64 + Copy,
+    F: FnOnce(&Game) -> f64 + Copy,
 {
     let mut actions = actions;
     if current_ply_depth == actions.len() {
@@ -39,7 +36,7 @@ where
 
         if current_depth + 1 >= depth {
             // eval
-            [heuristic(&game, flood_fill), 0.0, 0.0, 0.0]
+            [heuristic(&game), 0.0, 0.0, 0.0]
         } else {
             let mut result = max_n_rec(
                 &game,
@@ -47,7 +44,6 @@ where
                 current_depth + 1,
                 0,
                 actions,
-                flood_fill,
                 heuristic,
             );
             // max
@@ -69,7 +65,6 @@ where
                     current_depth,
                     current_ply_depth + 1,
                     actions,
-                    flood_fill,
                     heuristic,
                 )[0];
             }
@@ -86,7 +81,6 @@ where
                     current_depth,
                     current_ply_depth + 1,
                     actions,
-                    flood_fill,
                     heuristic,
                 )[0];
                 if val < min {
@@ -100,7 +94,6 @@ where
                 current_depth,
                 current_ply_depth + 1,
                 actions,
-                flood_fill,
                 heuristic,
             )[0];
         }
@@ -151,8 +144,9 @@ mod test {
         game.reset(snakes, &[]);
         println!("{:?}", game.grid);
         let start = Instant::now();
-        let moves = max_n(&game, 2, |game, flood_fill| {
+        let moves = max_n(&game, 3, |game| {
             if game.snake_is_alive(0) {
+                let mut flood_fill = FloodFill::new(game.grid.width, game.grid.height);
                 flood_fill.flood_snakes(&game.grid, &game.snakes, 0);
                 flood_fill.count_space_of(true) as f64
             } else {
