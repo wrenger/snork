@@ -67,15 +67,12 @@ impl Game {
         self.snakes.iter().any(|s| s.id == snake)
     }
 
-    pub fn valid_moves(&self, snake: u8) -> [bool; 4] {
-        let mut moves = [false; 4];
+    pub fn valid_moves(&self, snake: u8) -> ValidMoves {
         if let Some(snake) = self.snakes.iter().find(|s| s.id == snake) {
-            for (i, d) in Direction::iter().enumerate() {
-                let p = snake.head().apply(d);
-                moves[i] = self.grid.has(p) && self.grid[p] != Cell::Occupied;
-            }
+            ValidMoves::new(self, snake)
+        } else {
+            ValidMoves::empty(self)
         }
-        moves
     }
 
     /// Moves the given snake in the given direction
@@ -140,6 +137,55 @@ impl Game {
     }
 }
 
+pub struct ValidMoves<'a> {
+    game: &'a Game,
+    snake: Option<&'a Snake>,
+    dir: u8,
+}
+
+impl<'a> ValidMoves<'a> {
+    fn empty(game: &'a Game) -> ValidMoves {
+        ValidMoves {
+            game,
+            snake: None,
+            dir: 0,
+        }
+    }
+
+    fn new(game: &'a Game, snake: &'a Snake) -> ValidMoves<'a> {
+        ValidMoves {
+            game,
+            snake: Some(snake),
+            dir: 0,
+        }
+    }
+}
+
+impl<'a> Iterator for ValidMoves<'a> {
+    type Item = Direction;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(snake) = self.snake {
+            while self.dir < 4 {
+                let d = Direction::from(self.dir);
+                let p = snake.head().apply(d);
+                self.dir += 1;
+
+                let grid = &self.game.grid;
+                let snakes = &self.game.snakes;
+                // Free or occupied by tail (free in the next turn)
+                if grid.has(p)
+                    && (grid[p] != Cell::Occupied
+                        || snakes.iter().any(|s| p == s.body[0] && p != s.body[1]))
+                {
+                    return Some(d);
+                }
+            }
+        }
+        None
+    }
+}
+
 #[cfg(test)]
 mod test {
 
@@ -184,6 +230,30 @@ mod test {
         println!("{:?}", game.grid);
         assert!(!game.snake_is_alive(0));
         assert!(!game.snake_is_alive(1));
+    }
+
+    #[test]
+    fn game_valid_moves() {
+        use super::*;
+        use Direction::*;
+
+        let snakes = vec![
+            Snake::new(
+                0,
+                vec![Vec2D::new(4, 1), Vec2D::new(4, 0), Vec2D::new(5, 0)].into(),
+                100,
+            ),
+            Snake::new(
+                1,
+                vec![Vec2D::new(6, 0), Vec2D::new(6, 1), Vec2D::new(5, 1)].into(),
+                100,
+            ),
+        ];
+        let mut game = Game::new(11, 11);
+        game.reset(snakes, &[]);
+
+        println!("{:?}", game.grid);
+        assert!([Right].iter().cloned().eq(game.valid_moves(0)));
     }
 
     #[test]
@@ -284,10 +354,6 @@ mod test {
                 for i in 0..4 {
                     moves[i as usize] = game
                         .valid_moves(i)
-                        .iter()
-                        .enumerate()
-                        .filter(|&(_, valid)| *valid)
-                        .map(|v| Direction::from(v.0 as u8))
                         .choose(&mut rng)
                         .unwrap_or(Direction::Up);
                 }

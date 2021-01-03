@@ -127,13 +127,10 @@ impl Agent for MobilityAgent {
             }
         }
 
-        let grid = &self.game.grid;
         let mut rng = SmallRng::from_entropy();
         MoveResponse::new(
-            Direction::iter()
-                .filter(|&d| {
-                    grid.has(you.head().apply(d)) && grid[you.head().apply(d)] != Cell::Occupied
-                })
+            self.game
+                .valid_moves(0)
                 .choose(&mut rng)
                 .unwrap_or(Direction::Up),
         )
