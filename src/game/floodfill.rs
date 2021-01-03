@@ -125,7 +125,8 @@ impl FloodFill {
                     // follow your tail
                     && ((cell.is_you() == you && cell.get_num() <= num - food)
                         // follow enemy tail
-                        || (cell.is_you() != you && cell.get_num() < num)))
+                        // distance of 1 as buffer for eating
+                        || (cell.is_you() != you && cell.get_num() <= num - you as u8)))
         }
 
         for (you, p) in heads {
