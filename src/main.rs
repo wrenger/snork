@@ -90,18 +90,16 @@ async fn start(data: web::Data<ServerData>, reqest: web::Json<GameRequest>) -> H
     }
 
     if data.running_agents.len() < MAX_AGENT_COUNT {
-        let agent: Arc<Mutex<dyn Agent + Send>> = if reqest.game.ruleset.name == "standard"
-            && reqest.board.width <= 32
-            && reqest.board.height <= 32
-        {
-            let mut agent = MobilityAgent::new(&reqest);
-            agent.start(&reqest);
-            Arc::new(Mutex::new(agent))
-        } else {
-            let mut agent = RandomAgent::default();
-            agent.start(&reqest);
-            Arc::new(Mutex::new(agent))
-        };
+        let agent: Arc<Mutex<dyn Agent + Send>> =
+            if reqest.board.width <= 32 && reqest.board.height <= 32 {
+                let mut agent = MobilityAgent::new(&reqest);
+                agent.start(&reqest);
+                Arc::new(Mutex::new(agent))
+            } else {
+                let mut agent = RandomAgent::default();
+                agent.start(&reqest);
+                Arc::new(Mutex::new(agent))
+            };
         data.running_agents.insert(
             (reqest.game.id.clone(), reqest.you.id.clone()),
             RunningInstance::new(agent),
