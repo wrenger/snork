@@ -1,5 +1,5 @@
 mod mobility;
-pub use mobility::MobilityAgent;
+pub use mobility::{MobilityAgent, Config};
 mod random;
 pub use random::RandomAgent;
 mod tree;

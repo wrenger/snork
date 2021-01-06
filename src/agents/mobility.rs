@@ -14,6 +14,27 @@ use crate::util::argmax;
 pub struct MobilityAgent {
     game: Game,
     flood_fill: FloodFill,
+    config: Config,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct Config {
+    /// [0, 100]
+    health_threshold: u8,
+    /// [0, width * height]
+    min_len: usize,
+    /// [0, 10]
+    first_move_cost: f64,
+}
+
+impl Default for Config {
+    fn default() -> Config {
+        Config {
+            health_threshold: 35,
+            min_len: 10,
+            first_move_cost: 1.0,
+        }
+    }
 }
 
 impl MobilityAgent {
@@ -21,6 +42,7 @@ impl MobilityAgent {
         MobilityAgent {
             game: Game::new(request.board.width, request.board.width),
             flood_fill: FloodFill::new(request.board.width, request.board.width),
+            config: request.config.clone().unwrap_or_default(),
         }
     }
 
@@ -102,14 +124,20 @@ impl Agent for MobilityAgent {
 
         // Heuristic for preferring high movement
         let first_move_costs = [
-            1.0 - space_after_move[0] as f64 / (grid.width * grid.height) as f64,
-            1.0 - space_after_move[1] as f64 / (grid.width * grid.height) as f64,
-            1.0 - space_after_move[2] as f64 / (grid.width * grid.height) as f64,
-            1.0 - space_after_move[3] as f64 / (grid.width * grid.height) as f64,
+            (1.0 - space_after_move[0] as f64 / (grid.width * grid.height) as f64)
+                * self.config.first_move_cost,
+            (1.0 - space_after_move[1] as f64 / (grid.width * grid.height) as f64)
+                * self.config.first_move_cost,
+            (1.0 - space_after_move[2] as f64 / (grid.width * grid.height) as f64)
+                * self.config.first_move_cost,
+            (1.0 - space_after_move[3] as f64 / (grid.width * grid.height) as f64)
+                * self.config.first_move_cost,
         ];
 
         // Find Food
-        if you.body.len() < 10 || you.health < 35 {
+        if you.body.len() < self.config.min_len
+            || you.health < self.config.health_threshold
+        {
             if let Some(dir) = self.find_food(
                 &request.board.food,
                 &grid,

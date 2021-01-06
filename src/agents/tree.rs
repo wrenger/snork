@@ -2,7 +2,7 @@ use std::time::Instant;
 
 use super::Agent;
 use crate::env::*;
-use crate::game::{max_n, Cell, FloodFill, Game, Outcome, Snake};
+use crate::game::{max_n, Max, Cell, FloodFill, Game, Outcome, Snake};
 
 use crate::util::argmax;
 
@@ -11,11 +11,66 @@ use rand::{rngs::SmallRng, seq::IteratorRandom, SeedableRng};
 #[derive(Debug, Default)]
 pub struct TreeAgent;
 
+#[derive(Debug, PartialEq, Default, Clone, Copy)]
+pub struct HeuristicResult(f64, f64, f64, f64);
+
+impl From<HeuristicResult> for f64 {
+    fn from(v: HeuristicResult) -> f64 {
+        v.0 + v.1 + v.2 + v.3
+    }
+}
+impl PartialOrd for HeuristicResult {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        f64::from(*self).partial_cmp(&f64::from(*other))
+    }
+}
+impl Max for HeuristicResult {
+    fn max() -> HeuristicResult {
+        HeuristicResult(std::f64::INFINITY, 0.0, 0.0, 0.0)
+    }
+}
+
+impl TreeAgent {
+    fn heuristic(
+        &self,
+        food: &[Vec2D],
+        flood_fill: &mut FloodFill,
+        game: &Game,
+    ) -> HeuristicResult {
+        match game.outcome() {
+            Outcome::Match => HeuristicResult::default(),
+            Outcome::Winner(0) => HeuristicResult(std::f64::INFINITY, 0.0, 0.0, 0.0),
+            Outcome::Winner(_) => HeuristicResult(-std::f64::INFINITY, 0.0, 0.0, 0.0),
+            Outcome::None => {
+                flood_fill.flood_snakes(&game.grid, &game.snakes, 0);
+                let space = flood_fill.count_space_of(true);
+
+                let mobility = space as f64 / (game.grid.width * game.grid.height) as f64;
+
+                let health = game.snakes[0].health as f64 / 100.0;
+
+                let own_len = game.snakes[0].body.len();
+                let max_enemy_len = game.snakes[1..]
+                    .iter()
+                    .map(|s| s.body.len())
+                    .max()
+                    .unwrap_or(0);
+                let len_advantage = own_len as f64 / max_enemy_len as f64;
+
+                let accessable_food =
+                    food.iter().filter(|&&p| flood_fill[p].is_you()).count() as f64;
+
+                HeuristicResult(mobility, health, len_advantage, accessable_food)
+            }
+        }
+    }
+}
+
 impl Agent for TreeAgent {
     fn start(&mut self, _: &GameRequest) {}
 
     fn step(&mut self, request: &GameRequest) -> MoveResponse {
-        let mut snakes = Vec::with_capacity(0);
+        let mut snakes = Vec::with_capacity(4);
         snakes.push(Snake::from(&request.you, 0));
         snakes.extend(
             request
@@ -30,58 +85,34 @@ impl Agent for TreeAgent {
         game.reset(snakes, &request.board.food);
 
         let depth = match game.snakes.len() {
-            2 => 3,
-            3 => 2,
-            _ => 1,
+            1 => 6,
+            2 => 4,
+            3 => 3,
+            _ => 2,
         };
+
+        let mut flood_fill = FloodFill::new(game.grid.width, game.grid.height);
 
         let start = Instant::now();
         let evaluation = max_n(&game, depth, |game| {
-            match game.outcome() {
-                Outcome::Match => 0.1,
-                Outcome::Winner(0) => std::f64::MAX,
-                Outcome::Winner(_) => std::f64::MIN,
-                Outcome::None => {
-                    let mut flood_fill = FloodFill::new(game.grid.width, game.grid.height);
-                    flood_fill.flood_snakes(&game.grid, &game.snakes, 0);
-                    let mobility = flood_fill.count_space_of(true) as f64
-                        / (game.grid.width * game.grid.height) as f64;
-                    let health = game.snakes[0].health as f64 / 100.0;
-                    let max_enemy_len = game.snakes[1..]
-                        .iter()
-                        .map(|s| s.body.len())
-                        .max()
-                        .unwrap_or(0) as f64;
-                    let own_len = game.snakes[0].body.len() as f64;
-                    let len_advantage = (own_len - max_enemy_len) / own_len;
-
-                    // TODO: Minimize food distance if low health or shorter then enemy
-
-                    mobility + health + len_advantage
-                }
-            }
+            self.heuristic(&request.board.food, &mut flood_fill, game)
         });
         println!(
-            "max_n {} {:?}ms",
+            "max_n {} {:?}ms {:?}",
             depth,
-            (Instant::now() - start).as_millis()
+            (Instant::now() - start).as_millis(),
+            evaluation
         );
 
         if let Some(dir) = argmax(evaluation.iter()) {
-            if evaluation[dir] > 0.0 {
-                let d: Direction = unsafe { std::mem::transmute(dir as u8) };
-                return MoveResponse::new(d);
+            if evaluation[dir] > HeuristicResult::default() {
+                return MoveResponse::new(Direction::from(dir as u8));
             }
         }
 
-        let you: &Snake = &game.snakes[0];
-        let grid = &game.grid;
         let mut rng = SmallRng::from_entropy();
         MoveResponse::new(
-            Direction::iter()
-                .filter(|&d| {
-                    grid.has(you.head().apply(d)) && grid[you.head().apply(d)] != Cell::Occupied
-                })
+            game.valid_moves(0)
                 .choose(&mut rng)
                 .unwrap_or(Direction::Up),
         )

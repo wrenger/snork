@@ -1,24 +1,36 @@
 use super::Game;
 use crate::env::Direction;
 
+pub trait Max {
+    fn max() -> Self;
+}
+
+impl Max for f64 {
+    fn max() -> f64 {
+        std::f64::INFINITY
+    }
+}
+
 /// Assuming the evaluated agent has id = 0
-pub fn max_n<F>(game: &Game, depth: usize, mut heuristic: F) -> [f64; 4]
+pub fn max_n<F, T>(game: &Game, depth: usize, mut heuristic: F) -> [T; 4]
 where
-    F: FnMut(&Game) -> f64,
+    F: FnMut(&Game) -> T,
+    T: PartialOrd + Copy + Default + Max,
 {
     max_n_rec(&game, depth, 0, 0, [Direction::Up; 4], &mut heuristic)
 }
 
-fn max_n_rec<F>(
+fn max_n_rec<F, T>(
     game: &Game,
     depth: usize,
     current_depth: usize,
     current_ply_depth: usize,
     actions: [Direction; 4],
     heuristic: &mut F,
-) -> [f64; 4]
+) -> [T; 4]
 where
-    F: FnMut(&Game) -> f64,
+    F: FnMut(&Game) -> T,
+    T: PartialOrd + Copy + Default + Max,
 {
     let mut actions = actions;
     if current_ply_depth == actions.len() {
@@ -29,7 +41,7 @@ where
 
         if current_depth + 1 >= depth {
             // eval
-            [heuristic(&game), 0.0, 0.0, 0.0]
+            [heuristic(&game), T::default(), T::default(), T::default()]
         } else {
             let mut result = max_n_rec(&game, depth, current_depth + 1, 0, actions, heuristic);
             // max
@@ -41,7 +53,7 @@ where
             result
         }
     } else if current_ply_depth == 0 {
-        let mut result = [0.0; 4];
+        let mut result = [T::default(); 4];
         if game.snake_is_alive(current_ply_depth as u8) {
             for (i, d) in Direction::iter().enumerate() {
                 actions[current_ply_depth] = d;
@@ -57,7 +69,7 @@ where
         }
         result
     } else {
-        let mut min = std::f64::MAX;
+        let mut min = T::max();
         if game.snake_is_alive(current_ply_depth as u8) {
             for d in Direction::iter() {
                 actions[current_ply_depth] = d;
@@ -83,7 +95,7 @@ where
                 heuristic,
             )[0];
         }
-        [min, 0.0, 0.0, 0.0]
+        [min, T::default(), T::default(), T::default()]
     }
 }
 
