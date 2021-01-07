@@ -14,11 +14,11 @@ use crate::util::argmax;
 pub struct MobilityAgent {
     game: Game,
     flood_fill: FloodFill,
-    config: Config,
+    config: MobilityConfig,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct Config {
+pub struct MobilityConfig {
     /// [0, 100]
     health_threshold: u8,
     /// [0, width * height]
@@ -27,9 +27,9 @@ pub struct Config {
     first_move_cost: f64,
 }
 
-impl Default for Config {
-    fn default() -> Config {
-        Config {
+impl Default for MobilityConfig {
+    fn default() -> MobilityConfig {
+        MobilityConfig {
             health_threshold: 35,
             min_len: 10,
             first_move_cost: 1.0,
@@ -38,11 +38,11 @@ impl Default for Config {
 }
 
 impl MobilityAgent {
-    pub fn new(request: &GameRequest) -> MobilityAgent {
+    pub fn new(request: &GameRequest, config: &MobilityConfig) -> MobilityAgent {
         MobilityAgent {
             game: Game::new(request.board.width, request.board.width),
             flood_fill: FloodFill::new(request.board.width, request.board.width),
-            config: request.config.clone().unwrap_or_default(),
+            config: config.clone(),
         }
     }
 
@@ -76,8 +76,6 @@ impl MobilityAgent {
 }
 
 impl Agent for MobilityAgent {
-    fn start(&mut self, _: &GameRequest) {}
-
     fn step(&mut self, request: &GameRequest) -> MoveResponse {
         // Prepare grid
         let mut snakes = Vec::with_capacity(0);
@@ -135,9 +133,7 @@ impl Agent for MobilityAgent {
         ];
 
         // Find Food
-        if you.body.len() < self.config.min_len
-            || you.health < self.config.health_threshold
-        {
+        if you.body.len() < self.config.min_len || you.health < self.config.health_threshold {
             if let Some(dir) = self.find_food(
                 &request.board.food,
                 &grid,
@@ -179,8 +175,7 @@ mod test {
             r#"{"game":{"id":"bcb8c2e8-4fb7-485b-9ade-9df947dd9623","ruleset":{"name":"standard","version":"v1.0.15"},"timeout":500},"turn":69,"board":{"height":11,"width":11,"food":[{"x":7,"y":9},{"x":1,"y":0}],"hazards":[],"snakes":[{"id":"gs_3MjqcwQJxYG7VrvjbbkRW9JB","name":"Nessegrev-flood","health":85,"body":[{"x":7,"y":10},{"x":8,"y":10},{"x":8,"y":9},{"x":9,"y":9},{"x":10,"y":9},{"x":10,"y":8},{"x":10,"y":7}],"shout":""},{"id":"gs_c9JrKQcQqHHPJFm43W47RKMd","name":"Rufio the Tenacious","health":80,"body":[{"x":5,"y":8},{"x":4,"y":8},{"x":4,"y":9},{"x":3,"y":9},{"x":2,"y":9},{"x":2,"y":8},{"x":2,"y":7}],"shout":""},{"id":"gs_ffjK7pqCwVXYGtwhWtk3vtJX","name":"marrrvin","health":89,"body":[{"x":8,"y":7},{"x":8,"y":8},{"x":7,"y":8},{"x":7,"y":7},{"x":7,"y":6},{"x":6,"y":6},{"x":5,"y":6},{"x":5,"y":5},{"x":6,"y":5}],"shout":""},{"id":"gs_Kr6BCBwbDpdGDpWbw9vMS6qV","name":"kostka","health":93,"body":[{"x":7,"y":2},{"x":7,"y":3},{"x":6,"y":3},{"x":5,"y":3},{"x":4,"y":3},{"x":3,"y":3}],"shout":""}]},"you":{"id":"gs_ffjK7pqCwVXYGtwhWtk3vtJX","name":"marrrvin","health":89,"body":[{"x":8,"y":7},{"x":8,"y":8},{"x":7,"y":8},{"x":7,"y":7},{"x":7,"y":6},{"x":6,"y":6},{"x":5,"y":6},{"x":5,"y":5},{"x":6,"y":5}],"shout":""}}"#
         ).unwrap();
 
-        let mut agent = MobilityAgent::new(&game_req);
-        agent.start(&game_req);
+        let mut agent = MobilityAgent::new(&game_req, &MobilityConfig::default());
 
         const COUNT: usize = 1000;
 

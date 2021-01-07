@@ -75,6 +75,22 @@ impl Game {
         }
     }
 
+    pub fn move_is_valid(&self, snake: u8, dir: Direction) -> bool {
+        if let Some(snake) = self.snakes.iter().find(|s| s.id == snake) {
+            self.snake_move_is_valid(snake, dir)
+        } else {
+            false
+        }
+    }
+
+    fn snake_move_is_valid(&self, snake: &Snake, dir: Direction) -> bool {
+        let p = snake.head().apply(dir);
+        // Free or occupied by tail (free in the next turn)
+        self.grid.has(p)
+            && (self.grid[p] != Cell::Occupied
+                || self.snakes.iter().any(|s| p == s.body[0] && p != s.body[1]))
+    }
+
     /// Moves the given snake in the given direction
     pub fn step(&mut self, moves: [Direction; 4]) {
         // pop tail
@@ -168,16 +184,8 @@ impl<'a> Iterator for ValidMoves<'a> {
         if let Some(snake) = self.snake {
             while self.dir < 4 {
                 let d = Direction::from(self.dir);
-                let p = snake.head().apply(d);
                 self.dir += 1;
-
-                let grid = &self.game.grid;
-                let snakes = &self.game.snakes;
-                // Free or occupied by tail (free in the next turn)
-                if grid.has(p)
-                    && (grid[p] != Cell::Occupied
-                        || snakes.iter().any(|s| p == s.body[0] && p != s.body[1]))
-                {
+                if self.game.snake_move_is_valid(snake, d) {
                     return Some(d);
                 }
             }

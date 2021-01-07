@@ -1,13 +1,17 @@
 use super::Game;
 use crate::env::Direction;
 
-pub trait Max {
+pub trait Comparable: Default + Copy + PartialOrd + std::fmt::Debug {
     fn max() -> Self;
+    fn min() -> Self;
 }
 
-impl Max for f64 {
+impl Comparable for f64 {
     fn max() -> f64 {
         std::f64::INFINITY
+    }
+    fn min() -> f64 {
+        -std::f64::INFINITY
     }
 }
 
@@ -15,7 +19,7 @@ impl Max for f64 {
 pub fn max_n<F, T>(game: &Game, depth: usize, mut heuristic: F) -> [T; 4]
 where
     F: FnMut(&Game) -> T,
-    T: PartialOrd + Copy + Default + Max,
+    T: Comparable,
 {
     max_n_rec(&game, depth, 0, 0, [Direction::Up; 4], &mut heuristic)
 }
@@ -30,7 +34,7 @@ fn max_n_rec<F, T>(
 ) -> [T; 4]
 where
     F: FnMut(&Game) -> T,
-    T: PartialOrd + Copy + Default + Max,
+    T: Comparable,
 {
     let mut actions = actions;
     if current_ply_depth == actions.len() {
@@ -45,7 +49,7 @@ where
         } else {
             let mut result = max_n_rec(&game, depth, current_depth + 1, 0, actions, heuristic);
             // max
-            for i in 1..3 {
+            for i in 1..4 {
                 if result[i] > result[0] {
                     result[0] = result[i]
                 }

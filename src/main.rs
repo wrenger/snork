@@ -78,10 +78,10 @@ async fn index() -> HttpResponse {
 }
 
 #[post("/start")]
-async fn start(data: web::Data<ServerData>, reqest: web::Json<GameRequest>) -> HttpResponse {
+async fn start(data: web::Data<ServerData>, request: web::Json<GameRequest>) -> HttpResponse {
     println!(
         "start {} game {},{}",
-        reqest.game.ruleset.name, reqest.game.id, reqest.you.id
+        request.game.ruleset.name, request.game.id, request.you.id
     );
     if !data.running_agents.is_empty() {
         let now = Instant::now();
@@ -90,19 +90,9 @@ async fn start(data: web::Data<ServerData>, reqest: web::Json<GameRequest>) -> H
     }
 
     if data.running_agents.len() < MAX_AGENT_COUNT {
-        let agent: Arc<Mutex<dyn Agent + Send>> =
-            if reqest.board.width <= 32 && reqest.board.height <= 32 {
-                let mut agent = MobilityAgent::new(&reqest);
-                agent.start(&reqest);
-                Arc::new(Mutex::new(agent))
-            } else {
-                let mut agent = RandomAgent::default();
-                agent.start(&reqest);
-                Arc::new(Mutex::new(agent))
-            };
         data.running_agents.insert(
-            (reqest.game.id.clone(), reqest.you.id.clone()),
-            RunningInstance::new(agent),
+            (request.game.id.clone(), request.you.id.clone()),
+            RunningInstance::new(request.config.create_agent(&request)),
         );
     }
     println!("{} instances running", data.running_agents.len());
@@ -113,21 +103,21 @@ async fn start(data: web::Data<ServerData>, reqest: web::Json<GameRequest>) -> H
 async fn game_move(
     config: web::Data<ServerConfig>,
     data: web::Data<ServerData>,
-    reqest: web::Json<GameRequest>,
+    request: web::Json<GameRequest>,
 ) -> HttpResponse {
     println!(
         "move {} game {},{}",
-        reqest.game.ruleset.name, reqest.game.id, reqest.you.id
+        request.game.ruleset.name, request.game.id, request.you.id
     );
 
     if let Some(instance) = data
         .running_agents
-        .get(&(reqest.game.id.clone(), reqest.you.id.clone()))
+        .get(&(request.game.id.clone(), request.you.id.clone()))
     {
         let timer = Instant::now();
-        let next_move = instance.agent.lock().unwrap().step(&reqest);
+        let next_move = instance.agent.lock().unwrap().step(&request);
         if let Some(save_queue) = &config.save_queue {
-            save_queue.send(Some(reqest.into_inner())).unwrap();
+            save_queue.send(Some(request.into_inner())).unwrap();
         }
         println!("response time {:?}ms", (Instant::now() - timer).as_millis());
         HttpResponse::Ok().json(next_move)
@@ -137,20 +127,20 @@ async fn game_move(
 }
 
 #[post("/end")]
-async fn end(data: web::Data<ServerData>, reqest: web::Json<GameRequest>) -> HttpResponse {
+async fn end(data: web::Data<ServerData>, request: web::Json<GameRequest>) -> HttpResponse {
     println!(
         "end {} game {},{}",
-        reqest.game.ruleset.name, reqest.game.id, reqest.you.id
+        request.game.ruleset.name, request.game.id, request.you.id
     );
 
     if let Some(instance) = data
         .running_agents
-        .get(&(reqest.game.id.clone(), reqest.you.id.clone()))
+        .get(&(request.game.id.clone(), request.you.id.clone()))
     {
-        instance.agent.lock().unwrap().end(&reqest);
+        instance.agent.lock().unwrap().end(&request);
     }
     data.running_agents
-        .remove(&(reqest.game.id.clone(), reqest.you.id.clone()));
+        .remove(&(request.game.id.clone(), request.you.id.clone()));
 
     if !data.running_agents.is_empty() {
         let now = Instant::now();

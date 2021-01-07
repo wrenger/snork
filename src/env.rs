@@ -161,7 +161,8 @@ pub struct GameRequest {
     pub turn: i64,
     pub board: Board,
     pub you: SnakeData,
-    pub config: Option<super::agents::Config>,
+    #[serde(default)]
+    pub config: crate::agents::Config,
 }
 
 #[derive(Serialize)]

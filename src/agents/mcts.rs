@@ -8,7 +8,6 @@ pub struct MonteAgent {
 }
 
 impl Agent for MonteAgent {
-    fn start(&mut self, _: &GameRequest) {}
     fn step(&mut self, _: &GameRequest) -> MoveResponse {
         // TODO: Implement
 

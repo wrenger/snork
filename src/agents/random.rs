@@ -6,7 +6,6 @@ use rand::seq::IteratorRandom;
 pub struct RandomAgent;
 
 impl Agent for RandomAgent {
-    fn start(&mut self, _: &GameRequest) {}
     fn step(&mut self, _: &GameRequest) -> MoveResponse {
         let mut rng = rand::thread_rng();
         MoveResponse::new(Direction::iter().choose(&mut rng).unwrap_or(Direction::Up))
