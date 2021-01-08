@@ -22,9 +22,6 @@ use structopt::StructOpt;
 
 pub const API_VERSION: &str = "1";
 pub const AUTHOR: &str = "l4r0x";
-pub const COLOR: &str = "#FF7043";
-pub const HEAD: &str = "sand-worm";
-pub const TAIL: &str = "pixel";
 
 /// Max number of parallel agent instances
 pub const MAX_AGENT_COUNT: usize = 10;
@@ -49,11 +46,27 @@ impl RunningInstance {
 
 struct ServerConfig {
     save_queue: Option<Sender<Option<GameRequest>>>,
+    color: String,
+    head: String,
+    tail: String,
+    config: Config,
 }
 
 impl ServerConfig {
-    fn new(save_queue: Option<Sender<Option<GameRequest>>>) -> ServerConfig {
-        ServerConfig { save_queue }
+    fn new(
+        save_queue: Option<Sender<Option<GameRequest>>>,
+        color: String,
+        head: String,
+        tail: String,
+        config: Config,
+    ) -> ServerConfig {
+        ServerConfig {
+            save_queue,
+            color,
+            head,
+            tail,
+            config,
+        }
     }
 }
 
@@ -72,13 +85,23 @@ impl ServerData {
 }
 
 #[get("/")]
-async fn index() -> HttpResponse {
+async fn index(config: web::Data<ServerConfig>) -> HttpResponse {
     println!("index");
-    HttpResponse::Ok().json(IndexResponse::new(API_VERSION, AUTHOR, COLOR, HEAD, TAIL))
+    HttpResponse::Ok().json(IndexResponse::new(
+        API_VERSION,
+        AUTHOR,
+        config.color.clone(),
+        config.head.clone(),
+        config.tail.clone(),
+    ))
 }
 
 #[post("/start")]
-async fn start(data: web::Data<ServerData>, request: web::Json<GameRequest>) -> HttpResponse {
+async fn start(
+    config: web::Data<ServerConfig>,
+    data: web::Data<ServerData>,
+    request: web::Json<GameRequest>,
+) -> HttpResponse {
     println!(
         "start {} game {},{}",
         request.game.ruleset.name, request.game.id, request.you.id
@@ -92,7 +115,11 @@ async fn start(data: web::Data<ServerData>, request: web::Json<GameRequest>) -> 
     if data.running_agents.len() < MAX_AGENT_COUNT {
         data.running_agents.insert(
             (request.game.id.clone(), request.you.id.clone()),
-            RunningInstance::new(request.config.create_agent(&request)),
+            RunningInstance::new(if let Some(config) = &request.config {
+                config.create_agent(&request)
+            } else {
+                config.config.create_agent(&request)
+            }),
         );
     }
     println!("{} instances running", data.running_agents.len());
@@ -154,6 +181,16 @@ async fn end(data: web::Data<ServerData>, request: web::Json<GameRequest>) -> Ht
 #[derive(Debug, StructOpt)]
 #[structopt(name = "rusty snake", about = "High performant rust snake.")]
 struct Opt {
+    #[structopt(long, default_value = "#FF7043")]
+    color: String,
+    #[structopt(long, default_value = "sand-worm")]
+    head: String,
+    #[structopt(long, default_value = "pixel")]
+    tail: String,
+
+    #[structopt(long, default_value)]
+    config: Config,
+
     /// Port of the webserver.
     #[structopt(short, long, default_value = "5001")]
     port: u16,
@@ -163,14 +200,27 @@ struct Opt {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    let Opt { port, log_dir } = Opt::from_args();
+    let Opt {
+        port,
+        log_dir,
+        color,
+        head,
+        tail,
+        config,
+    } = Opt::from_args();
     let save_queue = log_dir.map(savegame::worker);
     let server_data = web::Data::new(ServerData::new());
 
     let save_queue_copy = save_queue.clone();
     let result = HttpServer::new(move || {
         App::new()
-            .data(ServerConfig::new(save_queue_copy.clone()))
+            .data(ServerConfig::new(
+                save_queue_copy.clone(),
+                color.clone(),
+                head.clone(),
+                tail.clone(),
+                config.clone(),
+            ))
             .app_data(server_data.clone())
             .app_data(web::JsonConfig::default().error_handler(|err, _req| {
                 println!("ERROR: {}", err);

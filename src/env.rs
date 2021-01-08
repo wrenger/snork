@@ -161,26 +161,25 @@ pub struct GameRequest {
     pub turn: i64,
     pub board: Board,
     pub you: SnakeData,
-    #[serde(default)]
-    pub config: crate::agents::Config,
+    pub config: Option<crate::agents::Config>,
 }
 
 #[derive(Serialize)]
 pub struct IndexResponse {
     pub apiversion: &'static str,
     pub author: &'static str,
-    pub color: &'static str,
-    pub head: &'static str,
-    pub tail: &'static str,
+    pub color: String,
+    pub head: String,
+    pub tail: String,
 }
 
 impl IndexResponse {
     pub fn new(
         apiversion: &'static str,
         author: &'static str,
-        color: &'static str,
-        head: &'static str,
-        tail: &'static str,
+        color: String,
+        head: String,
+        tail: String,
     ) -> IndexResponse {
         IndexResponse {
             apiversion,

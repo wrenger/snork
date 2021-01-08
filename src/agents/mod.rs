@@ -1,3 +1,5 @@
+use std::str::FromStr;
+use std::string::ToString;
 use std::sync::{Arc, Mutex};
 
 mod mobility;
@@ -16,16 +18,16 @@ pub trait Agent: std::fmt::Debug + 'static {
     fn end(&mut self, request: &GameRequest);
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum Config {
-    Mobility(crate::agents::MobilityConfig),
-    Tree(crate::agents::TreeConfig),
+    Mobility(MobilityConfig),
+    Tree(TreeConfig),
     Random,
 }
 
 impl Default for Config {
     fn default() -> Self {
-        Config::Mobility(crate::agents::MobilityConfig::default())
+        Config::Tree(TreeConfig::default())
     }
 }
 
@@ -40,5 +42,19 @@ impl Config {
             }
             _ => Arc::new(Mutex::new(RandomAgent::default())),
         }
+    }
+}
+
+impl FromStr for Config {
+    type Err = serde_json::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        serde_json::from_str(s)
+    }
+}
+
+impl ToString for Config {
+    fn to_string(&self) -> std::string::String {
+        serde_json::to_string(self).unwrap_or_default()
     }
 }

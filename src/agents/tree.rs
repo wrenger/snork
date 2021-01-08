@@ -136,7 +136,7 @@ impl Agent for TreeAgent {
 
         let depth = match game.snakes.len() {
             1 => 6,
-            2 => 4,
+            2 => 5,
             3 => 3,
             _ => 2,
         };
