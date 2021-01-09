@@ -45,6 +45,7 @@ impl RunningInstance {
 }
 
 struct ServerConfig {
+    runtime: u64,
     save_queue: Option<Sender<Option<GameRequest>>>,
     color: String,
     head: String,
@@ -54,6 +55,7 @@ struct ServerConfig {
 
 impl ServerConfig {
     fn new(
+        runtime: u64,
         save_queue: Option<Sender<Option<GameRequest>>>,
         color: String,
         head: String,
@@ -61,6 +63,7 @@ impl ServerConfig {
         config: Config,
     ) -> ServerConfig {
         ServerConfig {
+            runtime,
             save_queue,
             color,
             head,
@@ -142,7 +145,11 @@ async fn game_move(
         .get(&(request.game.id.clone(), request.you.id.clone()))
     {
         let timer = Instant::now();
-        let next_move = instance.agent.lock().unwrap().step(&request);
+        let next_move = instance
+            .agent
+            .lock()
+            .unwrap()
+            .step(&request, config.runtime);
         if let Some(save_queue) = &config.save_queue {
             save_queue.send(Some(request.into_inner())).unwrap();
         }
@@ -181,27 +188,35 @@ async fn end(data: web::Data<ServerData>, request: web::Json<GameRequest>) -> Ht
 #[derive(Debug, StructOpt)]
 #[structopt(name = "rusty snake", about = "High performant rust snake.")]
 struct Opt {
-    #[structopt(long, default_value = "#FF7043")]
-    color: String,
-    #[structopt(long, default_value = "sand-worm")]
-    head: String,
-    #[structopt(long, default_value = "pixel")]
-    tail: String,
-
-    #[structopt(long, default_value)]
-    config: Config,
-
     /// Port of the webserver.
     #[structopt(short, long, default_value = "5001")]
     port: u16,
+    /// Time per step in ms.
+    #[structopt(long, default_value = "200")]
+    runtime: u64,
+    /// Directory where games are logged.
     #[structopt(short, long)]
     log_dir: Option<PathBuf>,
+
+    /// Color in hex format.
+    #[structopt(long, default_value = "#FF7043")]
+    color: String,
+    /// Head @see https://docs.battlesnake.com/references/personalization
+    #[structopt(long, default_value = "sand-worm")]
+    head: String,
+    /// Tail @see https://docs.battlesnake.com/references/personalization
+    #[structopt(long, default_value = "pixel")]
+    tail: String,
+    /// Default configuration.
+    #[structopt(long, default_value)]
+    config: Config,
 }
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     let Opt {
         port,
+        runtime,
         log_dir,
         color,
         head,
@@ -215,6 +230,7 @@ async fn main() -> std::io::Result<()> {
     let result = HttpServer::new(move || {
         App::new()
             .data(ServerConfig::new(
+                runtime,
                 save_queue_copy.clone(),
                 color.clone(),
                 head.clone(),

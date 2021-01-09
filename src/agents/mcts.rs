@@ -8,7 +8,7 @@ pub struct MonteAgent {
 }
 
 impl Agent for MonteAgent {
-    fn step(&mut self, _: &GameRequest) -> MoveResponse {
+    fn step(&mut self, _: &GameRequest, _: u64) -> MoveResponse {
         // TODO: Implement
 
         let mut rng = rand::thread_rng();

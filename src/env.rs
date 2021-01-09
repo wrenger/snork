@@ -164,7 +164,7 @@ pub struct GameRequest {
     pub config: Option<crate::agents::Config>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub struct IndexResponse {
     pub apiversion: &'static str,
     pub author: &'static str,
@@ -191,7 +191,7 @@ impl IndexResponse {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub struct MoveResponse {
     pub r#move: Direction,
     pub shout: String,

@@ -18,14 +18,23 @@ pub struct TreeAgent {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(default)]
 pub struct TreeConfig {
     /// Calculation time in ms
-    latency: usize,
+    mobility: f64,
+    health: f64,
+    len_advantage: f64,
+    food_ownership: f64,
 }
 
 impl Default for TreeConfig {
     fn default() -> Self {
-        TreeConfig { latency: 200 }
+        TreeConfig {
+            mobility: 1.0,
+            health: 1.0,
+            len_advantage: 1.0,
+            food_ownership: 1.0,
+        }
     }
 }
 
@@ -67,7 +76,12 @@ impl TreeAgent {
         }
     }
 
-    fn heuristic(food: &[Vec2D], flood_fill: &mut FloodFill, game: &Game) -> HeuristicResult {
+    fn heuristic(
+        food: &[Vec2D],
+        flood_fill: &mut FloodFill,
+        game: &Game,
+        config: &TreeConfig,
+    ) -> HeuristicResult {
         match game.outcome() {
             Outcome::Match => HeuristicResult::default(),
             Outcome::Winner(0) => HeuristicResult::max(),
@@ -92,17 +106,27 @@ impl TreeAgent {
                     food.iter().filter(|&&p| flood_fill[p].is_you()).count() as f64;
                 let food_ownership = accessable_food / game.grid.width as f64;
 
-                HeuristicResult(mobility, health, len_advantage, food_ownership)
+                HeuristicResult(
+                    mobility * config.mobility,
+                    health * config.health,
+                    len_advantage * config.len_advantage,
+                    food_ownership * config.food_ownership,
+                )
             }
         }
     }
 
-    fn next_move(game: &Game, food: &[Vec2D], depth: usize) -> Option<Direction> {
+    fn next_move(
+        game: &Game,
+        food: &[Vec2D],
+        depth: usize,
+        config: &TreeConfig,
+    ) -> Option<Direction> {
         let mut flood_fill = FloodFill::new(game.grid.width, game.grid.height);
 
         let start = Instant::now();
         let evaluation = max_n(&game, depth, |game| {
-            TreeAgent::heuristic(&food, &mut flood_fill, game)
+            TreeAgent::heuristic(&food, &mut flood_fill, game, config)
         });
         println!(
             "max_n {} {:?}ms {:?}",
@@ -118,7 +142,7 @@ impl TreeAgent {
 }
 
 impl Agent for TreeAgent {
-    fn step(&mut self, request: &GameRequest) -> MoveResponse {
+    fn step(&mut self, request: &GameRequest, ms: u64) -> MoveResponse {
         let (sender, receiver) = mpsc::channel();
         let mut snakes = Vec::with_capacity(4);
         snakes.push(Snake::from(&request.you, 0));
@@ -144,8 +168,9 @@ impl Agent for TreeAgent {
         {
             let game = game.clone();
             let food = request.board.food.clone();
+            let config = self.config.clone();
             thread::spawn(move || {
-                let result = TreeAgent::next_move(&game, &food, depth);
+                let result = TreeAgent::next_move(&game, &food, depth, &config);
                 if sender.send(result).is_err() {
                     println!("Timeout");
                 }
@@ -154,11 +179,12 @@ impl Agent for TreeAgent {
 
         // Calculate the next move with smaller depth in case of timeouts
         let start = Instant::now();
-        let alternative_result = TreeAgent::next_move(&game, &request.board.food, depth - 1);
+        let alternative_result =
+            TreeAgent::next_move(&game, &request.board.food, depth - 1, &self.config);
         let delta = Instant::now() - start;
 
         let result = receiver
-            .recv_timeout(Duration::from_millis(self.config.latency as _) - delta)
+            .recv_timeout(Duration::from_millis(ms) - delta)
             .ok()
             .flatten();
 
@@ -202,7 +228,7 @@ mod test {
 
         let start = Instant::now();
         for _ in 0..COUNT {
-            let d = agent.step(&game_req);
+            let d = agent.step(&game_req, 200);
             assert_eq!(d.r#move, Direction::Down);
         }
         let end = Instant::now();

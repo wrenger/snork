@@ -18,6 +18,7 @@ pub struct MobilityAgent {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(default)]
 pub struct MobilityConfig {
     /// [0, 100]
     health_threshold: u8,
@@ -76,7 +77,7 @@ impl MobilityAgent {
 }
 
 impl Agent for MobilityAgent {
-    fn step(&mut self, request: &GameRequest) -> MoveResponse {
+    fn step(&mut self, request: &GameRequest, _: u64) -> MoveResponse {
         // Prepare grid
         let mut snakes = Vec::with_capacity(0);
         snakes.push(Snake::from(&request.you, 0));
@@ -181,7 +182,7 @@ mod test {
 
         let start = Instant::now();
         for _ in 0..COUNT {
-            let d = agent.step(&game_req);
+            let d = agent.step(&game_req, 200);
             assert_eq!(d.r#move, Direction::Down);
         }
         let end = Instant::now();

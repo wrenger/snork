@@ -2,7 +2,6 @@ use std::cmp::Reverse;
 use std::f64;
 use std::ops::Index;
 use std::ops::IndexMut;
-use std::usize;
 
 use crate::env::{Direction, Vec2D};
 
