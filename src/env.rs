@@ -126,6 +126,7 @@ pub struct Game {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Ruleset {
     pub name: String,
+    #[serde(default)]
     pub version: String,
 }
 
