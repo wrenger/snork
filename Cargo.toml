@@ -3,6 +3,7 @@ name = "rusty"
 version = "0.1.0"
 authors = ["Lars Wrenger <lars@wrenger.net>"]
 edition = "2018"
+default-run = "rusty"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -16,9 +17,9 @@ path = "src/move.rs"
 [dependencies]
 actix-web = "3.3.2"
 actix-rt = "1.1.1"
-serde = "1.0.118"
+serde = "1.0.119"
 structopt = "0.3.21"
-priority-queue = "1.0.3"
-rand = {version = "0.7.3", features = ["small_rng"]}
+priority-queue = "1.0.5"
+rand = {version = "0.8.1", features = ["small_rng"]}
 chashmap = "2.2.2"
-serde_json = "1.0.60"
+serde_json = "1.0.61"

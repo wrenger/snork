@@ -107,7 +107,7 @@ where
 mod test {
 
     #[test]
-    fn max_n_test() {
+    fn max_n() {
         use super::super::{FloodFill, Snake};
         use super::*;
         use crate::env::Vec2D;

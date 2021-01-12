@@ -198,7 +198,7 @@ impl<'a> Iterator for ValidMoves<'a> {
 mod test {
 
     #[test]
-    fn game_step_test() {
+    fn game_step() {
         use super::*;
         use Direction::*;
         let snakes = vec![
@@ -241,7 +241,7 @@ mod test {
     }
 
     #[test]
-    fn game_valid_moves() {
+    fn test_valid_moves() {
         use super::*;
         use Direction::*;
 
@@ -266,7 +266,7 @@ mod test {
 
     #[test]
     #[ignore]
-    fn game_step_circle() {
+    fn bench_step_circle() {
         use super::*;
         use std::time::Instant;
         let snakes = vec![Snake::new(
@@ -307,7 +307,7 @@ mod test {
 
     #[test]
     #[ignore]
-    fn game_step_random() {
+    fn bench_step_random() {
         use super::*;
         use rand::{
             distributions::{Distribution, Uniform},
