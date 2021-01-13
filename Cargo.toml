@@ -9,6 +9,7 @@ default-run = "rusty"
 
 [profile.release]
 lto = true
+opt-level = 3
 
 [[bin]]
 name = "move"
