@@ -35,7 +35,7 @@ impl std::fmt::Debug for Cell {
 pub struct Grid {
     pub width: usize,
     pub height: usize,
-    cells: Vec<Cell>,
+    pub cells: Vec<Cell>,
 }
 
 impl Grid {

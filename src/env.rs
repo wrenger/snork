@@ -116,14 +116,14 @@ impl From<u8> for Direction {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Game {
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct GameData {
     pub id: String,
     pub ruleset: Ruleset,
     pub timeout: i64,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct Ruleset {
     pub name: String,
     #[serde(default)]
@@ -158,7 +158,7 @@ pub struct Board {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GameRequest {
-    pub game: Game,
+    pub game: GameData,
     pub turn: i64,
     pub board: Board,
     pub you: SnakeData,

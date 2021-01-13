@@ -1,7 +1,6 @@
 use std::str::FromStr;
 use std::string::ToString;
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
 
 mod mobility;
 pub use mobility::{MobilityAgent, MobilityConfig};
@@ -55,7 +54,7 @@ impl FromStr for Config {
 }
 
 impl ToString for Config {
-    fn to_string(&self) -> std::string::String {
+    fn to_string(&self) -> String {
         serde_json::to_string(self).unwrap_or_default()
     }
 }

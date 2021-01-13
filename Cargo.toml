@@ -14,6 +14,10 @@ lto = true
 name = "move"
 path = "src/move.rs"
 
+[[bin]]
+name = "simulate"
+path = "src/simulate.rs"
+
 [dependencies]
 actix-web = "3.3.2"
 actix-rt = "1.1.1"
@@ -23,3 +27,4 @@ priority-queue = "1.0.5"
 rand = {version = "0.8.1", features = ["small_rng"]}
 chashmap = "2.2.2"
 serde_json = "1.0.61"
+threadpool = "1.8.1"
