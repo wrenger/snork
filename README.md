@@ -14,6 +14,20 @@ cargo run --release -- [-h] [-p <port>] [--config <json>]
 
 > There are additional options for `--config`, `--runtime` and visual representation of the snake (`--head`, `--tail`, `--color`).
 
+## Simulating Configs
+
+```bash
+cargo run --release --bin simulate -- '{"Tree":{}}' '{"Tree":{}}' '{"Tree":{}}' '{"Tree":{}}' -j 8 --game-count 8
+```
+
+> Play `--game-count` games on `-j` threads.
+
+The last line of the standard output contains the number of wins / total:
+
+```
+Result: 0/8
+```
+
 ## Testing moves
 
 There is also an additional `move` program that outputs the chosen move for a given game input.
