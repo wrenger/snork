@@ -29,7 +29,7 @@ struct Opts {
     height: usize,
     #[structopt(long, default_value = "0.15")]
     food_rate: f64,
-    #[structopt(long, default_value = "1")]
+    #[structopt(short, long, default_value = "1")]
     game_count: usize,
     #[structopt(short, long, default_value = "4")]
     jobs: usize,
@@ -173,7 +173,7 @@ fn play_game(
         }
 
         // Spawn food
-        if rng.gen::<f64>() < food_rate {
+        if game.grid.cells.iter().all(|&c| c != Cell::Food) || rng.gen::<f64>() < food_rate {
             if let Some(cell) = game
                 .grid
                 .cells
