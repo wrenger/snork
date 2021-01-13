@@ -159,7 +159,7 @@ pub struct Board {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GameRequest {
     pub game: GameData,
-    pub turn: i64,
+    pub turn: usize,
     pub board: Board,
     pub you: SnakeData,
     pub config: Option<crate::agents::Config>,
