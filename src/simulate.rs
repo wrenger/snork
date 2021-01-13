@@ -164,11 +164,12 @@ fn play_game(
         }
         game.step(moves);
 
-        if game.outcome() != Outcome::None {
-            println!("game: {:?} after {} turns", game.outcome(), turn);
-            if game.outcome() == Outcome::Winner(0) {
-                return true;
-            }
+        if game.outcome() == Outcome::Winner(0) {
+            println!("game: win after {} turns", turn);
+            return true;
+        }
+        if !game.snake_is_alive(0) {
+            println!("game: loss after {} turns", turn);
             return false;
         }
 
@@ -212,7 +213,8 @@ fn main() {
         pool.execute(move || {
             tx.send(play_game(
                 &agents, width, height, runtime, food_rate, verbose,
-            )).unwrap();
+            ))
+            .unwrap();
         })
     }
     drop(tx);
