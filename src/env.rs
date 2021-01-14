@@ -162,7 +162,6 @@ pub struct GameRequest {
     pub turn: usize,
     pub board: Board,
     pub you: SnakeData,
-    pub config: Option<crate::agents::Config>,
 }
 
 #[derive(Serialize, Debug)]

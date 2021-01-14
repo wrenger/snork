@@ -12,7 +12,7 @@ use rand::prelude::*;
 use rand::seq::IteratorRandom;
 use std::time::Instant;
 
-use std::sync::{mpsc, Arc, Mutex};
+use std::sync::mpsc;
 use threadpool::ThreadPool;
 
 #[derive(structopt::StructOpt)]
@@ -120,7 +120,6 @@ fn game_to_request(game: &Game, turn: usize) -> GameRequest {
             hazards: Vec::new(),
             snakes,
         },
-        config: None,
     }
 }
 
@@ -174,7 +173,7 @@ fn play_game(
         }
 
         // Spawn food
-        if game.grid.cells.iter().all(|&c| c != Cell::Food) || rng.gen::<f64>() < food_rate {
+        if request.board.food.is_empty() || rng.gen::<f64>() < food_rate {
             if let Some(cell) = game
                 .grid
                 .cells

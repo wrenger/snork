@@ -118,11 +118,7 @@ async fn start(
     if data.running_agents.len() < MAX_AGENT_COUNT {
         data.running_agents.insert(
             (request.game.id.clone(), request.you.id.clone()),
-            RunningInstance::new(if let Some(config) = &request.config {
-                config.create_agent(&request)
-            } else {
-                config.config.create_agent(&request)
-            }),
+            RunningInstance::new(config.config.create_agent(&request)),
         );
     }
     println!("{} instances running", data.running_agents.len());

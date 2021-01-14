@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::str::FromStr;
 
 use structopt::StructOpt;
 
@@ -10,18 +10,24 @@ use game::*;
 mod util;
 
 #[derive(structopt::StructOpt)]
-enum Opts {
-    /// Json data of the request
-    Data { data: String },
-    /// File containing the data
-    File { file: PathBuf },
+#[structopt(name = "rusty snake move", about = "Simulate a move for an agent.")]
+struct Opts {
+    /// Default configuration.
+    #[structopt(long, default_value)]
+    config: Config,
+    /// JSON Game request.
+    request: env::GameRequest,
+}
+
+impl FromStr for env::GameRequest {
+    type Err = serde_json::Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        serde_json::from_str(s)
+    }
 }
 
 fn main() {
-    let request: env::GameRequest = match Opts::from_args() {
-        Opts::Data { data } => serde_json::from_str(&data).unwrap(),
-        Opts::File { file } => serde_json::from_reader(std::fs::File::open(file).unwrap()).unwrap(),
-    };
+    let Opts { config, request } = Opts::from_args();
 
     let mut game = Game::new(request.board.width, request.board.height);
     let mut snakes = Vec::with_capacity(4);
@@ -41,11 +47,7 @@ fn main() {
     flood_fill.flood_snakes(&game.grid, &game.snakes, 0);
     println!("{:?}", flood_fill);
 
-    let agent = request
-        .config
-        .as_ref()
-        .map(|c| c.create_agent(&request))
-        .unwrap_or_else(|| Config::default().create_agent(&request));
+    let agent = config.create_agent(&request);
 
     let step = agent.lock().unwrap().step(&request, 200);
 
