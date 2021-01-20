@@ -119,6 +119,7 @@ impl From<u8> for Direction {
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct GameData {
     pub id: String,
+    #[serde(default)]
     pub ruleset: Ruleset,
     pub timeout: i64,
 }

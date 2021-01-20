@@ -170,6 +170,9 @@ impl TreeAgent {
 
 impl Agent for TreeAgent {
     fn step(&mut self, request: &GameRequest, ms: u64) -> MoveResponse {
+        let start = Instant::now();
+        let duration = Duration::from_millis(ms);
+
         let (sender, receiver) = mpsc::channel();
         let mut snakes = Vec::with_capacity(4);
         snakes.push(Snake::from(&request.you, 0));
@@ -185,49 +188,38 @@ impl Agent for TreeAgent {
         let mut game = Game::new(request.board.width, request.board.height);
         game.reset(snakes, &request.board.food);
 
-        let depth = match game.snakes.len() {
-            1 => 6,
-            2 => 5,
-            3 => 3,
-            _ => 2,
-        };
-
-        {
-            let game = game.clone();
-            let food = request.board.food.clone();
-            let turn = request.turn;
-            let config = self.config.clone();
-            thread::spawn(move || {
-                let result = TreeAgent::next_move(&game, turn, &food, depth, &config);
+        let food = request.board.food.clone();
+        let turn = request.turn;
+        let config = self.config.clone();
+        let game_copy = game.clone();
+        let handle = thread::spawn(move || {
+            for depth in 1..20 {
+                let result = TreeAgent::next_move(&game_copy, turn, &food, depth, &config);
                 if sender.send(result).is_err() {
-                    println!("Timeout");
+                    break;
                 }
-            });
-        };
+            }
+        });
 
-        // Calculate the next move with smaller depth in case of timeouts
-        let start = Instant::now();
-        let alternative_result = TreeAgent::next_move(
-            &game,
-            request.turn,
-            &request.board.food,
-            depth - 1,
-            &self.config,
-        );
-        let delta = Instant::now() - start;
-
-        let result = receiver
-            .recv_timeout(Duration::from_millis(ms) - delta)
+        let mut result = None;
+        while let Some(current) = receiver
+            .recv_timeout({
+                let runtime = Instant::now() - start;
+                if runtime < duration {
+                    duration - runtime
+                } else {
+                    Duration::from_millis(0)
+                }
+            })
             .ok()
-            .flatten();
+            .flatten()
+        {
+            result = Some(current);
+        }
+        drop(handle);
 
         if let Some(dir) = result {
             println!(">>> main: {:?}", dir);
-            return MoveResponse::new(dir);
-        }
-
-        if let Some(dir) = alternative_result {
-            println!(">>> alt: {:?}", dir);
             return MoveResponse::new(dir);
         }
 
