@@ -21,7 +21,8 @@ where
     F: FnMut(&Game) -> T,
     T: Comparable,
 {
-    max_n_rec(&game, depth, 0, 0, [Direction::Up; 4], &mut heuristic)
+    let mut action = Vec::with_capacity(game.snakes.len());
+    max_n_rec(&game, depth, 0, 0, &mut action, &mut heuristic)
 }
 
 fn max_n_rec<F, T>(
@@ -29,24 +30,26 @@ fn max_n_rec<F, T>(
     depth: usize,
     current_depth: usize,
     current_ply_depth: usize,
-    actions: [Direction; 4],
+    actions: &mut Vec<Direction>,
     heuristic: &mut F,
 ) -> [T; 4]
 where
     F: FnMut(&Game) -> T,
     T: Comparable,
 {
-    let mut actions = actions;
-    if current_ply_depth == actions.len() {
+    if current_ply_depth == game.snakes.len() {
+
+        assert_eq!(current_ply_depth, actions.len());
         // simulate
         let mut game = game.clone();
-        game.step(actions);
+        game.step(&actions);
 
         if current_depth + 1 >= depth {
             // eval
             [heuristic(&game), T::default(), T::default(), T::default()]
         } else {
-            let mut result = max_n_rec(&game, depth, current_depth + 1, 0, actions, heuristic);
+            let mut actions = Vec::with_capacity(game.snakes.len());
+            let mut result = max_n_rec(&game, depth, current_depth + 1, 0, &mut actions, heuristic);
             // max
             for i in 1..4 {
                 if result[i] > result[0] {
@@ -59,7 +62,8 @@ where
         let mut result = [T::min(); 4];
         if game.snake_is_alive(current_ply_depth as u8) {
             for (i, d) in Direction::iter().enumerate() {
-                actions[current_ply_depth] = d;
+                actions.truncate(current_ply_depth);
+                actions.push(d);
                 result[i] = max_n_rec(
                     game,
                     depth,
@@ -75,7 +79,8 @@ where
         let mut min = T::max();
         if game.snake_is_alive(current_ply_depth as u8) {
             for d in Direction::iter() {
-                actions[current_ply_depth] = d;
+                actions.truncate(current_ply_depth);
+                actions.push(d);
                 let val = max_n_rec(
                     game,
                     depth,
@@ -89,6 +94,8 @@ where
                 }
             }
         } else {
+            actions.truncate(current_ply_depth);
+            actions.push(Direction::Up);
             min = max_n_rec(
                 game,
                 depth,

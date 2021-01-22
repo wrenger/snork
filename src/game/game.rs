@@ -26,6 +26,10 @@ impl Snake {
         Snake::new(id, snake.body.iter().cloned().rev().collect(), snake.health)
     }
 
+    pub fn alive(&self) -> bool {
+        self.health > 0
+    }
+
     pub fn head(&self) -> Vec2D {
         *self.body.back().unwrap()
     }
@@ -33,6 +37,8 @@ impl Snake {
 
 #[derive(Debug, Clone)]
 pub struct Game {
+    /// All snakes. Dead ones have health = 0 and no body.
+    /// The ids are have to match the index!
     pub snakes: Vec<Snake>,
     pub grid: Grid,
 }
@@ -49,34 +55,44 @@ impl Game {
         self.grid.clear();
         self.grid.add_food(food);
 
-        for snake in &snakes {
+        for (i, snake) in snakes.iter().enumerate() {
+            assert_eq!(snake.id, i as u8);
             self.grid.add_snake(snake.body.iter().cloned());
         }
         self.snakes = snakes
     }
 
     pub fn outcome(&self) -> Outcome {
-        match self.snakes.len() {
+        let mut living_snakes = 0;
+        let mut survivor = 0;
+        for snake in &self.snakes {
+            if snake.alive() {
+                living_snakes += 1;
+                survivor = snake.id;
+            }
+        }
+        match living_snakes {
             0 => Outcome::Match,
-            1 => Outcome::Winner(self.snakes[0].id),
+            1 => Outcome::Winner(survivor),
             _ => Outcome::None,
         }
     }
 
     pub fn snake_is_alive(&self, snake: u8) -> bool {
-        self.snakes.iter().any(|s| s.id == snake)
+        snake < self.snakes.len() as u8 && self.snakes[snake as usize].alive()
     }
 
     pub fn valid_moves(&self, snake: u8) -> ValidMoves {
-        if let Some(snake) = self.snakes.iter().find(|s| s.id == snake) {
-            ValidMoves::new(self, snake)
+        if self.snake_is_alive(snake) {
+            ValidMoves::new(self, &self.snakes[snake as usize])
         } else {
             ValidMoves::empty(self)
         }
     }
 
     pub fn move_is_valid(&self, snake: u8, dir: Direction) -> bool {
-        if let Some(snake) = self.snakes.iter().find(|s| s.id == snake) {
+        if self.snake_is_alive(snake) {
+            let snake = &self.snakes[snake as usize];
             self.snake_move_is_valid(snake, dir)
         } else {
             false
@@ -88,50 +104,60 @@ impl Game {
         // Free or occupied by tail (free in the next turn)
         self.grid.has(p)
             && (self.grid[p] != Cell::Occupied
-                || self.snakes.iter().any(|s| p == s.body[0] && p != s.body[1]))
+                || self
+                    .snakes
+                    .iter()
+                    .filter(|s| s.alive())
+                    .any(|s| p == s.body[0] && p != s.body[1]))
     }
 
     /// Moves the given snake in the given direction
-    pub fn step(&mut self, moves: [Direction; 4]) {
-        // pop tail
+    pub fn step(&mut self, moves: &[Direction]) {
+        assert!(moves.len() >= self.snakes.len());
+
+        // Pop tail
         for snake in &mut self.snakes {
-            let tail = snake.body.pop_front().unwrap();
-            let new_tail = snake.body[0];
-            if tail != new_tail {
-                self.grid[tail] = Cell::Free;
+            if snake.alive() {
+                let tail = snake.body.pop_front().unwrap();
+                let new_tail = snake.body[0];
+                if tail != new_tail {
+                    self.grid[tail] = Cell::Free;
+                }
             }
         }
 
-        let mut survivors = [None; 4];
-
-        // move head & eat
+        // Move head & eat
         for snake in &mut self.snakes {
-            let dir = moves[snake.id as usize];
-            let head = snake.head().apply(dir);
-            if self.grid.has(head) && snake.health > 0 && self.grid[head] != Cell::Occupied {
-                if self.grid[head] == Cell::Food {
-                    snake.body.push_front(snake.body[0]);
-                    snake.health = 100;
+            if snake.alive() {
+                let dir = moves[snake.id as usize];
+                let head = snake.head().apply(dir);
+                if self.grid.has(head) && snake.health > 0 && self.grid[head] != Cell::Occupied {
+                    if self.grid[head] == Cell::Food {
+                        snake.body.push_front(snake.body[0]);
+                        snake.health = 100;
+                    } else {
+                        snake.health -= 1;
+                    };
+                    snake.body.push_back(head);
                 } else {
-                    snake.health -= 1;
-                };
-                snake.body.push_back(head);
-                survivors[snake.id as usize] = Some((head, snake.body.len()));
+                    snake.health = 0;
+                }
             }
         }
 
-        // check head to head
-        for i in 0..3 {
-            for j in i + 1..4 {
-                if let Some(((head_i, len_i), (head_j, len_j))) = survivors[i].zip(survivors[j]) {
-                    if head_i == head_j {
+        // Check head to head
+        // This is only accurate for head to head on two snakes but not more
+        for i in 0..self.snakes.len() - 1 {
+            if self.snakes[i].alive() {
+                for j in i + 1..self.snakes.len() {
+                    if self.snakes[j].alive() && self.snakes[i].head() == self.snakes[j].head() {
                         use std::cmp::Ordering;
-                        match len_i.cmp(&len_j) {
-                            Ordering::Less => survivors[i] = None,
-                            Ordering::Greater => survivors[j] = None,
+                        match self.snakes[i].body.len().cmp(&self.snakes[j].body.len()) {
+                            Ordering::Less => self.snakes[i].health = 0,
+                            Ordering::Greater => self.snakes[j].health = 0,
                             Ordering::Equal => {
-                                survivors[i] = None;
-                                survivors[j] = None;
+                                self.snakes[i].health = 0;
+                                self.snakes[j].health = 0;
                             }
                         }
                     }
@@ -139,15 +165,16 @@ impl Game {
             }
         }
 
-        // remove died snakes
-        for (i, survivor) in survivors.iter().enumerate() {
-            if let Some(survivor) = *survivor {
-                self.grid[survivor.0] = Cell::Occupied;
-            } else if let Some(pos) = self.snakes.iter().position(|s| s.id == i as u8) {
-                for &p in &self.snakes[pos].body {
-                    self.grid[p] = Cell::Free
+        // Clear died snakes
+        let grid = &mut self.grid;
+        for snake in &mut self.snakes {
+            if snake.alive() {
+                grid[snake.head()] = Cell::Occupied;
+            } else if !snake.body.is_empty() {
+                for &p in &snake.body {
+                    grid[p] = Cell::Free
                 }
-                self.snakes.remove(pos);
+                snake.body.clear();
             }
         }
     }
@@ -216,7 +243,7 @@ mod test {
         let mut game = Game::new(11, 11);
         game.reset(snakes.clone(), &[]);
         println!("{:?}", game.grid);
-        game.step([Right, Right, Up, Up]);
+        game.step(&[Right, Right]);
 
         println!("{:?}", game.grid);
         assert!(game.snake_is_alive(0));
@@ -226,7 +253,7 @@ mod test {
         assert_eq!(game.grid[Vec2D::new(6, 6)], Cell::Free);
         assert_eq!(game.grid[Vec2D::new(7, 8)], Cell::Occupied);
 
-        game.step([Right, Right, Up, Up]);
+        game.step(&[Right, Right]);
         println!("{:?}", game.grid);
         assert!(!game.snake_is_alive(0));
         assert_eq!(game.grid[Vec2D::new(5, 8)], Cell::Free);
@@ -234,7 +261,7 @@ mod test {
         assert_eq!(game.grid[Vec2D::new(8, 8)], Cell::Occupied);
 
         game.reset(snakes, &[]);
-        game.step([Right, Left, Up, Up]);
+        game.step(&[Right, Left]);
         println!("{:?}", game.grid);
         assert!(!game.snake_is_alive(0));
         assert!(!game.snake_is_alive(1));
@@ -290,14 +317,14 @@ mod test {
         let start = Instant::now();
         loop {
             use Direction::*;
-            game.step([Up, Up, Up, Up]);
-            game.step([Up, Up, Up, Up]);
-            game.step([Right, Up, Up, Up]);
-            game.step([Right, Up, Up, Up]);
-            game.step([Down, Up, Up, Up]);
-            game.step([Down, Up, Up, Up]);
-            game.step([Left, Up, Up, Up]);
-            game.step([Left, Up, Up, Up]);
+            game.step(&[Up]);
+            game.step(&[Up]);
+            game.step(&[Right]);
+            game.step(&[Right]);
+            game.step(&[Down]);
+            game.step(&[Down]);
+            game.step(&[Left]);
+            game.step(&[Left]);
             if !game.snake_is_alive(0) {
                 break;
             }
@@ -365,7 +392,7 @@ mod test {
                         .choose(&mut rng)
                         .unwrap_or(Direction::Up);
                 }
-                game.step(moves);
+                game.step(&moves);
 
                 // println!("{} {:?}", turn, game.grid);
 

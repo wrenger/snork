@@ -35,15 +35,15 @@ pub struct TreeConfig {
 impl Default for TreeConfig {
     fn default() -> Self {
         TreeConfig {
-            mobility: 1.0,
+            mobility: 0.7,
             mobility_decay: 0.0,
-            health: 1.0,
+            health: 0.012,
             health_decay: 0.0,
             len_advantage: 1.0,
             len_advantage_decay: 0.0,
-            food_ownership: 1.0,
+            food_ownership: 0.65,
             food_ownership_decay: 0.0,
-            centrality: 1.0,
+            centrality: 0.1,
             centrality_decay: 0.0,
         }
     }
@@ -98,6 +98,7 @@ impl TreeAgent {
             Outcome::Match => HeuristicResult::default(),
             Outcome::Winner(0) => HeuristicResult::max(),
             Outcome::Winner(_) => HeuristicResult::min(),
+            Outcome::None if !game.snake_is_alive(0) => HeuristicResult::min(),
             Outcome::None => {
                 flood_fill.flood_snakes(&game.grid, &game.snakes, 0);
                 let space = flood_fill.count_space_of(true);
@@ -206,7 +207,7 @@ impl Agent for TreeAgent {
 
                 if sender.send(result).is_err()
                     || result.is_none()
-                    || move_time * game_copy.snakes.len() as _ > remaining_time
+                    || move_time * 3 * game_copy.snakes.len() as _ > remaining_time
                 {
                     break;
                 }

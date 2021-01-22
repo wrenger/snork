@@ -17,36 +17,44 @@ const FCELL_OWNED: u8 = 0b0111_1111;
 /// - 7: you?
 /// - 6..0: num (free if n = 0, owned if n = 2^7 - 1, otherwise occupied)
 impl FCell {
-    pub fn free() -> FCell {
+    #[inline]
+    pub const fn free() -> FCell {
         FCell(0)
     }
 
-    pub fn with_owner(you: bool) -> FCell {
+    #[inline]
+    pub const fn with_owner(you: bool) -> FCell {
         FCell((you as u8) << 7 | FCELL_OWNED)
     }
 
-    pub fn with_occupier(you: bool, num: u8) -> FCell {
+    #[inline]
+    pub const fn with_occupier(you: bool, num: u8) -> FCell {
         FCell((you as u8) << 7 | num & FCELL_NUM)
     }
 
-    pub fn is_occupied(&self) -> bool {
+    #[inline]
+    pub const fn is_occupied(&self) -> bool {
         let num = self.0 & FCELL_NUM;
         num != 0 && num != FCELL_OWNED
     }
 
-    pub fn is_you(&self) -> bool {
+    #[inline]
+    pub const fn is_you(&self) -> bool {
         self.0 & FCELL_YOU != 0
     }
 
-    pub fn get_num(&self) -> u8 {
+    #[inline]
+    pub const fn get_num(&self) -> u8 {
         self.0 & FCELL_NUM
     }
 
-    pub fn is_free(&self) -> bool {
+    #[inline]
+    pub const fn is_free(&self) -> bool {
         self.0 == 0
     }
 
-    pub fn is_owned(&self) -> bool {
+    #[inline]
+    pub const fn is_owned(&self) -> bool {
         self.0 & FCELL_NUM == FCELL_OWNED
     }
 }
@@ -163,7 +171,7 @@ impl FloodFill {
     /// Prepare the board and compute flood fill.
     pub fn flood_snakes(&mut self, grid: &Grid, snakes: &[Snake], you_i: u8) {
         self.clear();
-        let mut snakes: Vec<&Snake> = snakes.iter().collect();
+        let mut snakes: Vec<&Snake> = snakes.iter().filter(|s| s.alive()).collect();
 
         // Prepare board with snakes (tail = 1, ..., head = n)
         for snake in &snakes {

@@ -161,7 +161,7 @@ fn play_game(
         if verbose {
             println!("Moves: {:?}", moves);
         }
-        game.step(moves);
+        game.step(&moves);
 
         if game.outcome() == Outcome::Winner(0) {
             println!("game: win after {} turns", turn);
