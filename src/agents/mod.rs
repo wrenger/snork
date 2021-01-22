@@ -34,10 +34,10 @@ impl Default for Config {
 impl Config {
     pub fn create_agent(&self, request: &GameRequest) -> Arc<Mutex<dyn Agent + Send>> {
         match self {
-            Config::Mobility(config) if request.board.width <= 15 && request.board.height <= 15 => {
+            Config::Mobility(config) if request.board.width <= 19 && request.board.height <= 19 => {
                 Arc::new(Mutex::new(MobilityAgent::new(request, &config)))
             }
-            Config::Tree(config) if request.board.width <= 15 && request.board.height <= 15 => {
+            Config::Tree(config) if request.board.width <= 19 && request.board.height <= 19 => {
                 Arc::new(Mutex::new(TreeAgent::new(request, &config)))
             }
             _ => Arc::new(Mutex::new(RandomAgent::default())),

@@ -6,7 +6,7 @@ use std::time::Instant;
 
 use super::Agent;
 use crate::env::*;
-use crate::game::{max_n, Comparable, FloodFill, Game, Outcome, Snake};
+use crate::game::{max_n, Comparable, FloodFill, Game, Outcome};
 
 use crate::util::argmax;
 
@@ -174,19 +174,8 @@ impl Agent for TreeAgent {
         let duration = Duration::from_millis(ms);
 
         let (sender, receiver) = mpsc::channel();
-        let mut snakes = Vec::with_capacity(4);
-        snakes.push(Snake::from(&request.you, 0));
-        snakes.extend(
-            request
-                .board
-                .snakes
-                .iter()
-                .filter(|s| s.id != request.you.id)
-                .enumerate()
-                .map(|(i, s)| Snake::from(s, i as u8 + 1)),
-        );
         let mut game = Game::new(request.board.width, request.board.height);
-        game.reset(snakes, &request.board.food);
+        game.reset_from_request(&request);
 
         let food = request.board.food.clone();
         let turn = request.turn;

@@ -78,19 +78,7 @@ impl MobilityAgent {
 
 impl Agent for MobilityAgent {
     fn step(&mut self, request: &GameRequest, _: u64) -> MoveResponse {
-        // Prepare grid
-        let mut snakes = Vec::with_capacity(0);
-        snakes.push(Snake::from(&request.you, 0));
-        snakes.extend(
-            request
-                .board
-                .snakes
-                .iter()
-                .filter(|s| s.id != request.you.id)
-                .enumerate()
-                .map(|(i, s)| Snake::from(s, i as u8 + 1)),
-        );
-        self.game.reset(snakes, &request.board.food);
+        self.game.reset_from_request(&request);
         let you = &self.game.snakes[0];
 
         // Flood fill heuristics

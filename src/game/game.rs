@@ -1,7 +1,8 @@
 use std::collections::VecDeque;
+use std::hash::{Hash, Hasher};
 
 use super::{Cell, Grid};
-use crate::env::{Direction, SnakeData, Vec2D};
+use crate::env::{Direction, GameRequest, SnakeData, Vec2D};
 
 #[derive(PartialEq, Debug, Clone, Copy)]
 pub enum Outcome {
@@ -34,6 +35,17 @@ impl Snake {
         *self.body.back().unwrap()
     }
 }
+impl Hash for Snake {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.id.hash(state)
+    }
+}
+impl PartialEq for Snake {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+impl Eq for Snake {}
 
 #[derive(Debug, Clone)]
 pub struct Game {
@@ -49,6 +61,44 @@ impl Game {
             snakes: Vec::with_capacity(4),
             grid: Grid::new(width, height),
         }
+    }
+
+    pub fn reset_from_request(&mut self, request: &GameRequest) {
+        let mut snakes = Vec::with_capacity(0);
+        snakes.push(Snake::from(&request.you, 0));
+        if request.board.snakes.len() > 4 {
+            use priority_queue::PriorityQueue;
+            let mut queue = PriorityQueue::new();
+            for snake in request
+                .board
+                .snakes
+                .iter()
+                .filter(|s| s.id != request.you.id)
+                .enumerate()
+                .map(|(i, s)| Snake::from(s, i as u8 + 1))
+            {
+                let body_dist = snake
+                    .body
+                    .iter()
+                    .map(|&p| (p - snakes[0].head()).manhattan())
+                    .min()
+                    .unwrap_or_default();
+                let head_dist = (snake.body[0] - snakes[0].head()).manhattan() / 2;
+                queue.push(snake, -(head_dist.max(body_dist) as i32));
+            }
+            snakes.extend(queue.into_iter().map(|(s, _)| s).take(3));
+        } else {
+            snakes.extend(
+                request
+                    .board
+                    .snakes
+                    .iter()
+                    .filter(|s| s.id != request.you.id)
+                    .enumerate()
+                    .map(|(i, s)| Snake::from(s, i as u8 + 1)),
+            );
+        }
+        self.reset(snakes, &request.board.food);
     }
 
     pub fn reset(&mut self, snakes: Vec<Snake>, food: &[Vec2D]) {
