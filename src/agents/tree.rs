@@ -120,7 +120,7 @@ impl TreeAgent {
                 let food_ownership = accessable_food / game.grid.width as f64;
 
                 // Centrality
-                let centrality = (game.snakes[0].head()
+                let centrality = 1.0 - (game.snakes[0].head()
                     - Vec2D::new(game.grid.width as i16 / 2, game.grid.height as i16 / 2))
                 .manhattan() as f64 / game.grid.width as f64;
 

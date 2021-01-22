@@ -1,6 +1,5 @@
 use super::Game;
 use crate::env::Direction;
-use std::thread;
 
 pub trait Comparable: Default + Copy + PartialOrd + std::fmt::Debug {
     fn max() -> Self;
