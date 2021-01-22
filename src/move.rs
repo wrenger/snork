@@ -17,6 +17,8 @@ struct Opts {
     config: Config,
     /// JSON Game request.
     request: env::GameRequest,
+    #[structopt(long, default_value = "200")]
+    runtime: usize,
 }
 
 impl FromStr for env::GameRequest {
@@ -27,7 +29,11 @@ impl FromStr for env::GameRequest {
 }
 
 fn main() {
-    let Opts { config, request } = Opts::from_args();
+    let Opts {
+        config,
+        request,
+        runtime,
+    } = Opts::from_args();
 
     let mut game = Game::new(request.board.width, request.board.height);
     let mut snakes = Vec::with_capacity(4);
@@ -49,7 +55,7 @@ fn main() {
 
     let agent = config.create_agent(&request);
 
-    let step = agent.lock().unwrap().step(&request, 200);
+    let step = agent.lock().unwrap().step(&request, runtime as _);
 
     println!("Step: {:?}", step);
 }

@@ -1,5 +1,6 @@
 use super::Game;
 use crate::env::Direction;
+use std::thread;
 
 pub trait Comparable: Default + Copy + PartialOrd + std::fmt::Debug {
     fn max() -> Self;
@@ -41,7 +42,6 @@ where
         // simulate
         let mut game = game.clone();
         game.step(actions);
-        // println!("{:?} {:?}", actions, game.grid);
 
         if current_depth + 1 >= depth {
             // eval
@@ -57,7 +57,7 @@ where
             result
         }
     } else if current_ply_depth == 0 {
-        let mut result = [T::default(); 4];
+        let mut result = [T::min(); 4];
         if game.snake_is_alive(current_ply_depth as u8) {
             for (i, d) in Direction::iter().enumerate() {
                 actions[current_ply_depth] = d;

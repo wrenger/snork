@@ -120,10 +120,9 @@ impl TreeAgent {
                 let food_ownership = accessable_food / game.grid.width as f64;
 
                 // Centrality
-                let center_offset = game.snakes[0].head()
-                    - Vec2D::new(game.grid.width as i16 / 2, game.grid.height as i16 / 2);
-                let centrality = center_offset.x.abs().min(center_offset.y.abs()) as f64
-                    / game.grid.width.max(game.grid.height) as f64;
+                let centrality = (game.snakes[0].head()
+                    - Vec2D::new(game.grid.width as i16 / 2, game.grid.height as i16 / 2))
+                .manhattan() as f64 / game.grid.width as f64;
 
                 HeuristicResult(
                     mobility * config.mobility * (-(turn as f64) * config.mobility_decay).exp(),
@@ -163,7 +162,7 @@ impl TreeAgent {
         );
 
         argmax(evaluation.iter())
-            .filter(|&d| evaluation[d] > HeuristicResult::default())
+            .filter(|&d| evaluation[d] >= HeuristicResult::default())
             .map(|d| Direction::from(d as u8))
     }
 }
@@ -194,8 +193,21 @@ impl Agent for TreeAgent {
         let game_copy = game.clone();
         let handle = thread::spawn(move || {
             for depth in 1..20 {
+                let move_start = Instant::now();
                 let result = TreeAgent::next_move(&game_copy, turn, &food, depth, &config);
-                if sender.send(result).is_err() {
+                let move_time = Instant::now() - move_start;
+
+                let runtime = Instant::now() - start;
+                let remaining_time = if runtime < duration {
+                    duration - runtime
+                } else {
+                    Duration::from_millis(0)
+                };
+
+                if sender.send(result).is_err()
+                    || result.is_none()
+                    || move_time * game_copy.snakes.len() as _ > remaining_time
+                {
                     break;
                 }
             }
