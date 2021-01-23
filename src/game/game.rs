@@ -68,6 +68,8 @@ impl Game {
         snakes.push(Snake::from(&request.you, 0));
         if request.board.snakes.len() > 4 {
             use priority_queue::PriorityQueue;
+            use std::cmp::Reverse;
+
             let mut queue = PriorityQueue::new();
             for snake in request
                 .board
@@ -83,10 +85,15 @@ impl Game {
                     .map(|&p| (p - snakes[0].head()).manhattan())
                     .min()
                     .unwrap_or_default();
-                let head_dist = (snake.body[0] - snakes[0].head()).manhattan() / 2;
-                queue.push(snake, -(head_dist.max(body_dist) as i32));
+                queue.push(snake, Reverse(body_dist));
             }
-            snakes.extend(queue.into_iter().map(|(s, _)| s).take(3));
+
+            for i in 1..4 {
+                if let Some((mut snake, _)) = queue.pop() {
+                    snake.id = i;
+                    snakes.push(snake);
+                }
+            }
         } else {
             snakes.extend(
                 request
