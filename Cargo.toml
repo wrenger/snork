@@ -22,10 +22,10 @@ path = "src/simulate.rs"
 [dependencies]
 actix-web = "3.3.2"
 actix-rt = "1.1.1"
-serde = "1.0.119"
+serde = "1.0.121"
 structopt = "0.3.21"
 priority-queue = "1.0.5"
-rand = {version = "0.8.1", features = ["small_rng"]}
+rand = {version = "0.8.2", features = ["small_rng"]}
 chashmap = "2.2.2"
 serde_json = "1.0.61"
 threadpool = "1.8.1"

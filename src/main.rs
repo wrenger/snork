@@ -31,12 +31,12 @@ pub const MAX_RUNTIME: Duration = Duration::from_secs(60 * 10);
 /// Running instance of an agent
 #[derive(Debug)]
 struct RunningInstance {
-    agent: Arc<Mutex<dyn Agent + Send>>,
+    agent: Arc<Mutex<dyn Agent + Send + 'static>>,
     start_time: Instant,
 }
 
 impl RunningInstance {
-    fn new(agent: Arc<Mutex<dyn Agent + Send>>) -> RunningInstance {
+    fn new(agent: Arc<Mutex<dyn Agent + Send + 'static>>) -> RunningInstance {
         RunningInstance {
             agent,
             start_time: Instant::now(),
@@ -44,46 +44,45 @@ impl RunningInstance {
     }
 }
 
+/// Runtime server configuration.
 struct ServerConfig {
     runtime: u64,
-    save_queue: Option<Sender<Option<GameRequest>>>,
     color: String,
     head: String,
     tail: String,
     config: Config,
+    running_agents: Arc<CHashMap<(String, String), RunningInstance>>,
+    save_queue: Option<Sender<Option<GameRequest>>>,
 }
 
 impl ServerConfig {
     fn new(
         runtime: u64,
-        save_queue: Option<Sender<Option<GameRequest>>>,
         color: String,
         head: String,
         tail: String,
         config: Config,
+        running_agents: Arc<CHashMap<(String, String), RunningInstance>>,
+        save_queue: Option<Sender<Option<GameRequest>>>,
     ) -> ServerConfig {
         ServerConfig {
             runtime,
-            save_queue,
             color,
             head,
             tail,
             config,
+            running_agents,
+            save_queue,
         }
     }
-}
 
-/// Container holding the server state and running agents
-#[derive(Debug)]
-struct ServerData {
-    running_agents: CHashMap<(String, String), RunningInstance>,
-}
-
-impl ServerData {
-    fn new() -> ServerData {
-        ServerData {
-            running_agents: CHashMap::new(),
+    fn clear_agents(&self) {
+        if !self.running_agents.is_empty() {
+            let now = Instant::now();
+            self.running_agents
+                .retain(|_, v| (now - v.start_time) < MAX_RUNTIME);
         }
+        println!("{} instances running", self.running_agents.len());
     }
 }
 
@@ -100,37 +99,24 @@ async fn index(config: web::Data<ServerConfig>) -> HttpResponse {
 }
 
 #[post("/start")]
-async fn start(
-    config: web::Data<ServerConfig>,
-    data: web::Data<ServerData>,
-    request: web::Json<GameRequest>,
-) -> HttpResponse {
+async fn start(data: web::Data<ServerConfig>, request: web::Json<GameRequest>) -> HttpResponse {
     println!(
         "start {} game {},{}",
         request.game.ruleset.name, request.game.id, request.you.id
     );
-    if !data.running_agents.is_empty() {
-        let now = Instant::now();
-        data.running_agents
-            .retain(|_, v| (now - v.start_time) < MAX_RUNTIME);
-    }
+    data.clear_agents();
 
     if data.running_agents.len() < MAX_AGENT_COUNT {
         data.running_agents.insert(
             (request.game.id.clone(), request.you.id.clone()),
-            RunningInstance::new(config.config.create_agent(&request)),
+            RunningInstance::new(data.config.create_agent(&request)),
         );
     }
-    println!("{} instances running", data.running_agents.len());
     HttpResponse::Ok().body("")
 }
 
 #[post("/move")]
-async fn game_move(
-    config: web::Data<ServerConfig>,
-    data: web::Data<ServerData>,
-    request: web::Json<GameRequest>,
-) -> HttpResponse {
+async fn game_move(data: web::Data<ServerConfig>, request: web::Json<GameRequest>) -> HttpResponse {
     println!(
         "move {} game {},{}",
         request.game.ruleset.name, request.game.id, request.you.id
@@ -141,12 +127,8 @@ async fn game_move(
         .get(&(request.game.id.clone(), request.you.id.clone()))
     {
         let timer = Instant::now();
-        let next_move = instance
-            .agent
-            .lock()
-            .unwrap()
-            .step(&request, config.runtime);
-        if let Some(save_queue) = &config.save_queue {
+        let next_move = instance.agent.lock().unwrap().step(&request, data.runtime);
+        if let Some(save_queue) = &data.save_queue {
             save_queue.send(Some(request.into_inner())).unwrap();
         }
         println!("response time {:?}ms", (Instant::now() - timer).as_millis());
@@ -157,7 +139,7 @@ async fn game_move(
 }
 
 #[post("/end")]
-async fn end(data: web::Data<ServerData>, request: web::Json<GameRequest>) -> HttpResponse {
+async fn end(data: web::Data<ServerConfig>, request: web::Json<GameRequest>) -> HttpResponse {
     println!(
         "end {} game {},{}",
         request.game.ruleset.name, request.game.id, request.you.id
@@ -172,12 +154,7 @@ async fn end(data: web::Data<ServerData>, request: web::Json<GameRequest>) -> Ht
     data.running_agents
         .remove(&(request.game.id.clone(), request.you.id.clone()));
 
-    if !data.running_agents.is_empty() {
-        let now = Instant::now();
-        data.running_agents
-            .retain(|_, v| (now - v.start_time) < MAX_RUNTIME);
-    }
-    println!("{} instances running", data.running_agents.len());
+    data.clear_agents();
     HttpResponse::Ok().body("")
 }
 
@@ -219,21 +196,22 @@ async fn main() -> std::io::Result<()> {
         tail,
         config,
     } = Opt::from_args();
+
     let save_queue = log_dir.map(savegame::worker);
-    let server_data = web::Data::new(ServerData::new());
+    let running_agents = Arc::new(CHashMap::new());
 
     let save_queue_copy = save_queue.clone();
     let result = HttpServer::new(move || {
         App::new()
             .data(ServerConfig::new(
                 runtime,
-                save_queue_copy.clone(),
                 color.clone(),
                 head.clone(),
                 tail.clone(),
                 config.clone(),
+                running_agents.clone(),
+                save_queue_copy.clone(),
             ))
-            .app_data(server_data.clone())
             .app_data(web::JsonConfig::default().error_handler(|err, _req| {
                 println!("ERROR: {}", err);
                 actix_web::error::InternalError::from_response(
@@ -258,4 +236,20 @@ async fn main() -> std::io::Result<()> {
     }
 
     result
+}
+
+#[cfg(test)]
+mod test {
+    #[test]
+    fn chashmap() {
+        use chashmap::CHashMap;
+        use std::sync::Arc;
+
+        let map = Arc::new(CHashMap::new());
+
+        let clone = map.clone();
+        clone.insert(String::from("hello"), 3);
+
+        assert!(map.get("hello").map(|v| *v == 3).unwrap_or_default());
+    }
 }

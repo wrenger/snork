@@ -95,6 +95,12 @@ impl Direction {
     }
 }
 
+impl Default for Direction {
+    fn default() -> Self {
+        Direction::Up
+    }
+}
+
 impl From<Vec2D> for Direction {
     fn from(p: Vec2D) -> Direction {
         if p.x < 0 {
@@ -192,7 +198,7 @@ impl IndexResponse {
     }
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Debug, Default)]
 pub struct MoveResponse {
     pub r#move: Direction,
     pub shout: String,
@@ -207,11 +213,5 @@ impl MoveResponse {
     }
     pub fn shout(r#move: Direction, shout: String) -> MoveResponse {
         MoveResponse { r#move, shout }
-    }
-}
-
-impl Default for MoveResponse {
-    fn default() -> MoveResponse {
-        MoveResponse::new(Direction::Up)
     }
 }

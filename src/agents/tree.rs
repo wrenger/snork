@@ -1,22 +1,18 @@
 use std::fmt;
-use std::sync::mpsc;
+use std::sync::mpsc::{self, Sender};
 use std::thread;
 use std::time::Duration;
 use std::time::Instant;
 
 use super::Agent;
 use crate::env::*;
-use crate::game::{max_n, Comparable, FloodFill, Game, Outcome};
+use crate::game::{alphabeta, max_n, Comparable, FloodFill, Game, Outcome};
 
 use crate::util::argmax;
 
 use rand::{rngs::SmallRng, seq::IteratorRandom, SeedableRng};
 
-#[derive(Debug, Default)]
-pub struct TreeAgent {
-    config: TreeConfig,
-}
-
+/// Configuration of the tree search heuristic.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(default)]
 pub struct TreeConfig {
@@ -49,28 +45,29 @@ impl Default for TreeConfig {
     }
 }
 
+/// Combines the different heuristics into a single value.
 #[derive(PartialEq, Default, Clone, Copy)]
-pub struct HeuristicResult(f64, f64, f64, f64, f64);
+pub struct Evaluation(f64, f64, f64, f64, f64);
 
-impl From<HeuristicResult> for f64 {
-    fn from(v: HeuristicResult) -> f64 {
+impl From<Evaluation> for f64 {
+    fn from(v: Evaluation) -> f64 {
         v.0 + v.1 + v.2 + v.3
     }
 }
-impl PartialOrd for HeuristicResult {
+impl PartialOrd for Evaluation {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         f64::from(*self).partial_cmp(&f64::from(*other))
     }
 }
-impl Comparable for HeuristicResult {
-    fn max() -> HeuristicResult {
-        HeuristicResult(std::f64::INFINITY, 0.0, 0.0, 0.0, 0.0)
+impl Comparable for Evaluation {
+    fn max() -> Evaluation {
+        Evaluation(std::f64::INFINITY, 0.0, 0.0, 0.0, 0.0)
     }
-    fn min() -> HeuristicResult {
-        HeuristicResult(-std::f64::INFINITY, 0.0, 0.0, 0.0, 0.0)
+    fn min() -> Evaluation {
+        Evaluation(-std::f64::INFINITY, 0.0, 0.0, 0.0, 0.0)
     }
 }
-impl fmt::Debug for HeuristicResult {
+impl fmt::Debug for Evaluation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
@@ -80,6 +77,12 @@ impl fmt::Debug for HeuristicResult {
     }
 }
 
+/// Tree search agent.
+#[derive(Debug, Default)]
+pub struct TreeAgent {
+    config: TreeConfig,
+}
+
 impl TreeAgent {
     pub fn new(_request: &GameRequest, config: &TreeConfig) -> TreeAgent {
         TreeAgent {
@@ -87,18 +90,19 @@ impl TreeAgent {
         }
     }
 
+    /// Heuristic function for the tree search.
     fn heuristic(
         food: &[Vec2D],
         flood_fill: &mut FloodFill,
         game: &Game,
         turn: usize,
         config: &TreeConfig,
-    ) -> HeuristicResult {
+    ) -> Evaluation {
         match game.outcome() {
-            Outcome::Match => HeuristicResult::default(),
-            Outcome::Winner(0) => HeuristicResult::max(),
-            Outcome::Winner(_) => HeuristicResult::min(),
-            Outcome::None if !game.snake_is_alive(0) => HeuristicResult::min(),
+            Outcome::Match => Evaluation::default(),
+            Outcome::Winner(0) => Evaluation::max(),
+            Outcome::Winner(_) => Evaluation::min(),
+            Outcome::None if !game.snake_is_alive(0) => Evaluation::min(),
             Outcome::None => {
                 flood_fill.flood_snakes(&game.grid, &game.snakes, 0);
                 let space = flood_fill.count_space_of(true);
@@ -121,11 +125,13 @@ impl TreeAgent {
                 let food_ownership = accessable_food / game.grid.width as f64;
 
                 // Centrality
-                let centrality = 1.0 - (game.snakes[0].head()
-                    - Vec2D::new(game.grid.width as i16 / 2, game.grid.height as i16 / 2))
-                .manhattan() as f64 / game.grid.width as f64;
+                let centrality = 1.0
+                    - (game.snakes[0].head()
+                        - Vec2D::new(game.grid.width as i16 / 2, game.grid.height as i16 / 2))
+                    .manhattan() as f64
+                        / game.grid.width as f64;
 
-                HeuristicResult(
+                Evaluation(
                     mobility * config.mobility * (-(turn as f64) * config.mobility_decay).exp(),
                     health * config.health * (-(turn as f64) * config.health_decay).exp(),
                     len_advantage
@@ -142,29 +148,86 @@ impl TreeAgent {
         }
     }
 
+    /// Performes a tree search and returns the maximized heuristic and move.
     fn next_move(
         game: &Game,
         turn: usize,
         food: &[Vec2D],
         depth: usize,
         config: &TreeConfig,
-    ) -> Option<Direction> {
+    ) -> (Direction, Evaluation) {
+        // Allocate and reuse flood fill memory
         let mut flood_fill = FloodFill::new(game.grid.width, game.grid.height);
 
         let start = Instant::now();
-        let evaluation = max_n(&game, depth, |game| {
-            TreeAgent::heuristic(&food, &mut flood_fill, game, turn + depth, config)
-        });
-        println!(
-            "max_n {} {:?}ms {:?}",
-            depth,
-            (Instant::now() - start).as_millis(),
+        if game.snakes.len() == 2 {
+            // Plain Alpha-Beta is faster for two agents
+            let evaluation = alphabeta(&game, depth, |game| {
+                TreeAgent::heuristic(&food, &mut flood_fill, game, turn + depth, config)
+            });
+            println!(
+                "alphabeta {} {:?}ms {:?}",
+                depth,
+                (Instant::now() - start).as_millis(),
+                evaluation
+            );
             evaluation
-        );
+        } else {
+            // MinMax for more than two agents
+            let evaluation = max_n(&game, depth, |game| {
+                TreeAgent::heuristic(&food, &mut flood_fill, game, turn + depth, config)
+            });
+            println!(
+                "max_n {} {:?}ms {:?}",
+                depth,
+                (Instant::now() - start).as_millis(),
+                evaluation
+            );
+            argmax(evaluation.iter())
+                .map(|d| (Direction::from(d as u8), evaluation[d]))
+                .unwrap_or_default()
+        }
+    }
 
-        argmax(evaluation.iter())
-            .filter(|&d| evaluation[d] >= HeuristicResult::default())
-            .map(|d| Direction::from(d as u8))
+    fn iterative_tree_search(
+        config: TreeConfig,
+        game: Game,
+        turn: usize,
+        food: Vec<Vec2D>,
+        start: Instant,
+        duration: Duration,
+        sender: Sender<Option<Direction>>,
+    ) {
+        // Iterative deepening
+        for depth in 1..20 {
+            let move_start = Instant::now();
+            let (dir, value) = TreeAgent::next_move(&game, turn, &food, depth, &config);
+            let move_time = Instant::now() - move_start;
+
+            let runtime = Instant::now() - start;
+            let remaining_time = if runtime < duration {
+                duration - runtime
+            } else {
+                Duration::from_millis(0)
+            };
+
+            // Return none to fallback to random possible move
+            let dir = if value > Evaluation::min() {
+                Some(dir)
+            } else {
+                None
+            };
+
+            if sender.send(dir).is_err()
+                // Terminate if we probably win/lose
+                || value >= Evaluation::max()
+                || value <= Evaluation::min()
+                // Terminate early if the next move probably needs to much time
+                || move_time * 3 * game.snakes.len() as _ > remaining_time
+            {
+                break;
+            }
+        }
     }
 }
 
@@ -173,7 +236,6 @@ impl Agent for TreeAgent {
         let start = Instant::now();
         let duration = Duration::from_millis(ms);
 
-        let (sender, receiver) = mpsc::channel();
         let mut game = Game::new(request.board.width, request.board.height);
         game.reset_from_request(&request);
 
@@ -181,28 +243,15 @@ impl Agent for TreeAgent {
         let turn = request.turn;
         let config = self.config.clone();
         let game_copy = game.clone();
+        let (sender, receiver) = mpsc::channel();
+        // Perform tree search in a separate thread so that it can be canceled on timeout
         let handle = thread::spawn(move || {
-            for depth in 1..20 {
-                let move_start = Instant::now();
-                let result = TreeAgent::next_move(&game_copy, turn, &food, depth, &config);
-                let move_time = Instant::now() - move_start;
-
-                let runtime = Instant::now() - start;
-                let remaining_time = if runtime < duration {
-                    duration - runtime
-                } else {
-                    Duration::from_millis(0)
-                };
-
-                if sender.send(result).is_err()
-                    || result.is_none()
-                    || move_time * 3 * game_copy.snakes.len() as _ > remaining_time
-                {
-                    break;
-                }
-            }
+            TreeAgent::iterative_tree_search(
+                config, game_copy, turn, food, start, duration, sender,
+            );
         });
 
+        // Receive and store last result
         let mut result = None;
         while let Some(current) = receiver
             .recv_timeout({

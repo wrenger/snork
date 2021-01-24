@@ -57,7 +57,7 @@ impl MobilityAgent {
         let you: &Snake = &self.game.snakes[0];
 
         use priority_queue::PriorityQueue;
-        let mut food_dirs: PriorityQueue<Direction, Reverse<usize>> = PriorityQueue::new();
+        let mut food_dirs = PriorityQueue::new();
         for &p in food {
             if let Some(path) = grid.a_star(you.head(), p, first_move_costs) {
                 if path.len() >= 2 {
@@ -98,8 +98,8 @@ impl Agent for MobilityAgent {
 
         // Avoid longer enemy heads
         let mut grid = self.game.grid.clone();
-        for (i, snake) in self.game.snakes.iter().enumerate() {
-            if 0 != i as u8 && snake.body.len() >= you.body.len() {
+        for snake in &self.game.snakes[1..] {
+            if snake.body.len() >= you.body.len() {
                 for d in Direction::iter() {
                     let p = snake.head().apply(d);
                     if grid.has(p) {
@@ -109,20 +109,20 @@ impl Agent for MobilityAgent {
             }
         }
 
-        // Heuristic for preferring high movement
-        let first_move_costs = [
-            (1.0 - space_after_move[0] as f64 / (grid.width * grid.height) as f64)
-                * self.config.first_move_cost,
-            (1.0 - space_after_move[1] as f64 / (grid.width * grid.height) as f64)
-                * self.config.first_move_cost,
-            (1.0 - space_after_move[2] as f64 / (grid.width * grid.height) as f64)
-                * self.config.first_move_cost,
-            (1.0 - space_after_move[3] as f64 / (grid.width * grid.height) as f64)
-                * self.config.first_move_cost,
-        ];
-
         // Find Food
         if you.body.len() < self.config.min_len || you.health < self.config.health_threshold {
+            // Heuristic for preferring high movement
+            let first_move_costs = [
+                (1.0 - space_after_move[0] / (grid.width * grid.height) as f64)
+                    * self.config.first_move_cost,
+                (1.0 - space_after_move[1] / (grid.width * grid.height) as f64)
+                    * self.config.first_move_cost,
+                (1.0 - space_after_move[2] / (grid.width * grid.height) as f64)
+                    * self.config.first_move_cost,
+                (1.0 - space_after_move[3] / (grid.width * grid.height) as f64)
+                    * self.config.first_move_cost,
+            ];
+
             if let Some(dir) = self.find_food(
                 &request.board.food,
                 &grid,
@@ -135,8 +135,7 @@ impl Agent for MobilityAgent {
 
         if let Some(dir) = argmax(space_after_move.iter()) {
             if space_after_move[dir] > 0.0 {
-                let d: Direction = unsafe { std::mem::transmute(dir as u8) };
-                return MoveResponse::new(d);
+                return MoveResponse::new(Direction::from(dir as u8));
             }
         }
 
