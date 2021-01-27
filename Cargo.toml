@@ -1,11 +1,11 @@
 [package]
+edition = "2018"
 name = "rusty"
 version = "0.1.0"
-authors = ["Lars Wrenger <lars@wrenger.net>"]
-edition = "2018"
+authors = ["Lars Wrenger <lars@wrenger.net>", "Julian Krohne <krohnejulian@yahoo.de>", "Julian Gercke <julian.gercke@gmx.de>"]
+description = "High performant battlesnake agents written in rust"
 default-run = "rusty"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+license = "MIT"
 
 [profile.release]
 lto = true
@@ -14,17 +14,19 @@ opt-level = 3
 [[bin]]
 name = "move"
 path = "src/move.rs"
+test = false
 
 [[bin]]
 name = "simulate"
 path = "src/simulate.rs"
+test = false
 
 [dependencies]
-actix-web = "3.3.2"
 actix-rt = "1.1.1"
-serde = "1.0.121"
-structopt = "0.3.21"
-rand = {version = "0.8.2", features = ["small_rng"]}
+actix-web = "3.3.2"
 chashmap = "2.2.2"
+rand = {version = "0.8.2", features = ["small_rng"]}
+serde = "1.0.121"
 serde_json = "1.0.61"
+structopt = "0.3.21"
 threadpool = "1.8.1"
