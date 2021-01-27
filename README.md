@@ -17,7 +17,7 @@ cargo run --release -- [-h] [-p <port>] [--config <json>]
 ## Simulating Configs
 
 ```bash
-cargo run --release --bin simulate -- '{"Tree":{}}' '{"Tree":{}}' '{"Tree":{}}' '{"Tree":{}}' -j 8 --game-count 8
+cargo run --release --bin simulate -- '{"Tree":{}}' '{"Tree":{"centrality":0}}' '{"Mobility":{}}' '{"Random":null}' -j 8 --game-count 8
 ```
 
 > Play `--game-count` games on `-j` threads.
@@ -25,7 +25,7 @@ cargo run --release --bin simulate -- '{"Tree":{}}' '{"Tree":{}}' '{"Tree":{}}' 
 The last line of the standard output contains the number of wins / total:
 
 ```
-Result: 0/8
+Result: 3/8
 ```
 
 ## Testing moves

@@ -1,4 +1,5 @@
 use std::cmp::Reverse;
+use std::collections::BinaryHeap;
 use std::time::Instant;
 
 use rand::seq::IteratorRandom;
@@ -7,6 +8,7 @@ use rand::{rngs::SmallRng, SeedableRng};
 use super::Agent;
 use crate::env::*;
 use crate::game::{max_n, Cell, FloodFill, Game, Grid, Snake};
+use crate::util::OrdPair;
 
 use crate::util::argmax;
 
@@ -56,18 +58,17 @@ impl MobilityAgent {
     ) -> Option<Direction> {
         let you: &Snake = &self.game.snakes[0];
 
-        use priority_queue::PriorityQueue;
-        let mut food_dirs = PriorityQueue::new();
+        let mut food_dirs = BinaryHeap::new();
         for &p in food {
             if let Some(path) = grid.a_star(you.head(), p, first_move_costs) {
                 if path.len() >= 2 {
                     let costs = path.len() + if self.flood_fill[p].is_you() { 0 } else { 5 };
-                    food_dirs.push(Direction::from(path[1] - path[0]), Reverse(costs));
+                    food_dirs.push(OrdPair(Reverse(costs), Direction::from(path[1] - path[0])));
                 }
             }
         }
 
-        while let Some((dir, _)) = food_dirs.pop() {
+        while let Some(OrdPair(_, dir)) = food_dirs.pop() {
             if space_after_move[dir as u8 as usize] as usize >= you.body.len() - 1 {
                 return Some(dir);
             }

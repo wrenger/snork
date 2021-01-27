@@ -1,9 +1,10 @@
 use std::cmp::Reverse;
+use std::collections::{BinaryHeap, HashMap};
 use std::f64;
-use std::ops::Index;
-use std::ops::IndexMut;
+use std::ops::{Index, IndexMut};
 
 use crate::env::{Direction, Vec2D};
+use crate::util::OrdPair;
 
 /// Represents a single tile of the board
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -79,9 +80,6 @@ impl Grid {
         target: Vec2D,
         first_move_heuristic: &[f64; 4],
     ) -> Option<Vec<Vec2D>> {
-        use priority_queue::PriorityQueue;
-        use std::collections::HashMap;
-
         fn make_path(data: &HashMap<Vec2D, (Vec2D, f64)>, target: Vec2D) -> Vec<Vec2D> {
             let mut path = Vec::new();
             let mut p = target;
@@ -93,12 +91,12 @@ impl Grid {
             path
         }
 
-        let mut queue = PriorityQueue::new();
+        let mut queue = BinaryHeap::new();
         let mut data: HashMap<Vec2D, (Vec2D, f64)> = HashMap::new();
         data.insert(start, (Vec2D::new(-1, -1), 0.0));
 
-        queue.push(start, Reverse(0));
-        while let Some((front, _)) = queue.pop() {
+        queue.push(OrdPair(Reverse(0), start));
+        while let Some(OrdPair(_, front)) = queue.pop() {
             let cost = data.get(&front).unwrap().1;
 
             if front == target {
@@ -119,7 +117,7 @@ impl Grid {
                         data.insert(neighbor, (front, neighbor_cost));
                         // queue does not accept float
                         let estimated_cost = neighbor_cost + (neighbor - start).manhattan() as f64;
-                        queue.push(neighbor, Reverse((estimated_cost * 10.0) as usize));
+                        queue.push(OrdPair(Reverse((estimated_cost * 10.0) as usize), neighbor));
                     }
                 }
             }

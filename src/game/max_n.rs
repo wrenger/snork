@@ -186,6 +186,7 @@ where
 mod test {
 
     #[test]
+    #[ignore]
     fn max_n() {
         use super::super::{FloodFill, Snake};
         use super::*;
@@ -240,6 +241,7 @@ mod test {
     }
 
     #[test]
+    #[ignore]
     fn duel() {
         use super::super::{FloodFill, Snake};
         use super::*;

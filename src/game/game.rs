@@ -1,8 +1,10 @@
-use std::collections::VecDeque;
+use std::cmp::Reverse;
+use std::collections::{BinaryHeap, VecDeque};
 use std::hash::{Hash, Hasher};
 
 use super::{Cell, Grid};
 use crate::env::{Direction, GameRequest, SnakeData, Vec2D};
+use crate::util::OrdPair;
 
 #[derive(PartialEq, Debug, Clone, Copy)]
 pub enum Outcome {
@@ -67,10 +69,7 @@ impl Game {
         let mut snakes = Vec::with_capacity(0);
         snakes.push(Snake::from(&request.you, 0));
         if request.board.snakes.len() > 4 {
-            use priority_queue::PriorityQueue;
-            use std::cmp::Reverse;
-
-            let mut queue = PriorityQueue::new();
+            let mut queue = BinaryHeap::new();
             for snake in request
                 .board
                 .snakes
@@ -85,11 +84,11 @@ impl Game {
                     .map(|&p| (p - snakes[0].head()).manhattan())
                     .min()
                     .unwrap_or_default();
-                queue.push(snake, Reverse(body_dist));
+                queue.push(OrdPair(Reverse(body_dist), snake));
             }
 
             for i in 1..4 {
-                if let Some((mut snake, _)) = queue.pop() {
+                if let Some(OrdPair(_, mut snake)) = queue.pop() {
                     snake.id = i;
                     snakes.push(snake);
                 }

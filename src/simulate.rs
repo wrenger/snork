@@ -151,12 +151,14 @@ fn play_game(
         let mut request = game_to_request(&game, turn);
         let mut moves = [Direction::Up; 4];
         for snake in &game.snakes {
-            request.you = snake_data(snake);
-            moves[snake.id as usize] = agents[snake.id as usize]
-                .lock()
-                .unwrap()
-                .step(&request, runtime as _)
-                .r#move;
+            if snake.alive() {
+                request.you = snake_data(snake);
+                moves[snake.id as usize] = agents[snake.id as usize]
+                    .lock()
+                    .unwrap()
+                    .step(&request, runtime as _)
+                    .r#move;
+            }
         }
         if verbose {
             println!("Moves: {:?}", moves);
