@@ -4,12 +4,14 @@ fn approx_cmp<T: PartialOrd>(a: &T, b: &T) -> Ordering {
     a.partial_cmp(b).unwrap_or(Ordering::Equal)
 }
 
+/// Returns the index of the larges element in the sequence.
 pub fn argmax<T: PartialOrd>(iter: impl Iterator<Item = T>) -> Option<usize> {
     iter.enumerate()
         .max_by(|(_, a), (_, b)| approx_cmp(a, b))
         .map(|(idx, _)| idx)
 }
 
+/// Wrapper for a key-value pair that is ordable by the key.
 #[derive(Debug)]
 pub struct OrdPair<K: Ord, V>(pub K, pub V);
 

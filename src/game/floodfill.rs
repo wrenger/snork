@@ -5,6 +5,11 @@ use std::ops::{Index, IndexMut};
 use super::{Cell, Grid, Snake};
 use crate::env::{Direction, Vec2D};
 
+/// Floodfill Cell that stores the important data in a single Byte.
+///
+/// Bitfield:
+/// - 7: you?
+/// - 6..0: num (free if n = 0, owned if n = 2^7 - 1, otherwise occupied)
 #[derive(Clone, Copy)]
 pub struct FCell(u8);
 
@@ -12,10 +17,6 @@ const FCELL_YOU: u8 = 0b1000_0000;
 const FCELL_NUM: u8 = 0b0111_1111;
 const FCELL_OWNED: u8 = 0b0111_1111;
 
-/// Flood Fill Cell
-/// Bitfield:
-/// - 7: you?
-/// - 6..0: num (free if n = 0, owned if n = 2^7 - 1, otherwise occupied)
 impl FCell {
     #[inline]
     pub const fn free() -> FCell {
@@ -78,6 +79,9 @@ impl std::fmt::Debug for FCell {
     }
 }
 
+/// Grid that performs the floodfill algorithm asses area control.
+///
+/// This struct also contains all necessary buffers for the floodfill algorithm.
 pub struct FloodFill {
     cells: Vec<FCell>,
     queue: VecDeque<(bool, u8, u8, Vec2D)>,
@@ -95,10 +99,12 @@ impl FloodFill {
         }
     }
 
+    /// Returns if `p` is within the boundaries of the board.
     pub fn has(&self, p: Vec2D) -> bool {
         0 <= p.x && p.x < self.width as _ && 0 <= p.y && p.y < self.height as _
     }
 
+    /// Counts the space of you or the enemies.
     pub fn count_space_of(&self, you: bool) -> usize {
         self.cells
             .iter()
@@ -106,6 +112,7 @@ impl FloodFill {
             .count()
     }
 
+    /// Clears the board so that it can be reused for another floodfill computation.
     pub fn clear(&mut self) {
         for c in &mut self.cells {
             *c = FCell::free();
@@ -169,6 +176,8 @@ impl FloodFill {
     }
 
     /// Prepare the board and compute flood fill.
+    /// It is assumed that the snake at position 0 is the evaluated agent and
+    /// the other snakes are the enemies.
     pub fn flood_snakes(&mut self, grid: &Grid, snakes: &[Snake], you_i: u8) {
         self.clear();
         let mut snakes: Vec<&Snake> = snakes.iter().filter(|s| s.alive()).collect();

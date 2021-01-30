@@ -51,7 +51,7 @@ pub struct Evaluation(f64, f64, f64, f64, f64);
 
 impl From<Evaluation> for f64 {
     fn from(v: Evaluation) -> f64 {
-        v.0 + v.1 + v.2 + v.3
+        v.0 + v.1 + v.2 + v.3 + v.4
     }
 }
 impl PartialOrd for Evaluation {

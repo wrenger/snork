@@ -6,6 +6,8 @@ use super::{Cell, Grid};
 use crate::env::{Direction, GameRequest, SnakeData, Vec2D};
 use crate::util::OrdPair;
 
+/// The outcome of a simulated game.
+/// If the game did not end the outcome is `None`.
 #[derive(PartialEq, Debug, Clone, Copy)]
 pub enum Outcome {
     None,
@@ -13,6 +15,7 @@ pub enum Outcome {
     Winner(u8),
 }
 
+/// Reduced representation of a snake.
 #[derive(Debug, Clone)]
 pub struct Snake {
     pub id: u8,
@@ -49,6 +52,8 @@ impl PartialEq for Snake {
 }
 impl Eq for Snake {}
 
+/// Game represents holds the complete game state.
+/// This also provides methods to execute moves and evaluate their outcome.
 #[derive(Debug, Clone)]
 pub struct Game {
     /// All snakes. Dead ones have health = 0 and no body.
@@ -65,6 +70,7 @@ impl Game {
         }
     }
 
+    /// Loads the game state from the provided request.
     pub fn reset_from_request(&mut self, request: &GameRequest) {
         let mut snakes = Vec::with_capacity(0);
         snakes.push(Snake::from(&request.you, 0));
@@ -107,6 +113,7 @@ impl Game {
         self.reset(snakes, &request.board.food);
     }
 
+    /// Resets the game state.
     pub fn reset(&mut self, snakes: Vec<Snake>, food: &[Vec2D]) {
         self.grid.clear();
         self.grid.add_food(food);
@@ -118,6 +125,8 @@ impl Game {
         self.snakes = snakes
     }
 
+    /// Returns if the game has ended and which snake is the winner or if the
+    /// game was a match.
     pub fn outcome(&self) -> Outcome {
         let mut living_snakes = 0;
         let mut survivor = 0;
@@ -134,10 +143,13 @@ impl Game {
         }
     }
 
+    /// Returns if a snake is alive.
     pub fn snake_is_alive(&self, snake: u8) -> bool {
         snake < self.snakes.len() as u8 && self.snakes[snake as usize].alive()
     }
 
+    /// Returns all valid moves that do not immediately kill the snake.
+    /// Head to head collisions are not considered.
     pub fn valid_moves(&self, snake: u8) -> ValidMoves {
         if self.snake_is_alive(snake) {
             ValidMoves::new(self, &self.snakes[snake as usize])
@@ -146,6 +158,8 @@ impl Game {
         }
     }
 
+    /// Returns if a move will not immediately kill the snake.
+    /// Head to head collisions are not considered.
     pub fn move_is_valid(&self, snake: u8, dir: Direction) -> bool {
         if self.snake_is_alive(snake) {
             let snake = &self.snakes[snake as usize];
@@ -167,7 +181,8 @@ impl Game {
                     .any(|s| p == s.body[0] && p != s.body[1]))
     }
 
-    /// Moves the given snake in the given direction
+    /// Executed the provided moves for each living agent.
+    /// This method also checks for eating and collision with walls or other snakes.
     pub fn step(&mut self, moves: &[Direction]) {
         assert!(moves.len() >= self.snakes.len());
 
@@ -236,6 +251,7 @@ impl Game {
     }
 }
 
+/// Iterator over all possible moves of a snake.
 pub struct ValidMoves<'a> {
     game: &'a Game,
     snake: Option<&'a Snake>,

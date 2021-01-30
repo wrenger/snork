@@ -31,7 +31,10 @@ impl std::fmt::Debug for Cell {
     }
 }
 
-/// The game state including up to four snakes.
+/// The board representation as grid of free and occupied cells.
+///
+/// This is allows fast access to specific positions on the grid and
+/// if they are occupied by enemies or food.
 #[derive(Clone)]
 pub struct Grid {
     pub width: usize,
@@ -40,6 +43,7 @@ pub struct Grid {
 }
 
 impl Grid {
+    /// Creates a new grid with the provided dimensions.
     pub fn new(width: usize, height: usize) -> Grid {
         Grid {
             width,
@@ -48,12 +52,14 @@ impl Grid {
         }
     }
 
+    /// Clears the grid.
     pub fn clear(&mut self) {
         for c in &mut self.cells {
             *c = Cell::Free;
         }
     }
 
+    /// Adds the snakes as obstacles to the grid.
     pub fn add_snake(&mut self, body: impl Iterator<Item = Vec2D>) {
         for p in body {
             if self.has(p) {
@@ -62,6 +68,7 @@ impl Grid {
         }
     }
 
+    /// Adds the provided food to the grid.
     pub fn add_food(&mut self, food: &[Vec2D]) {
         for &p in food {
             if self.has(p) && self[p] != Cell::Occupied {
@@ -70,10 +77,13 @@ impl Grid {
         }
     }
 
+    /// Returns if `p` is within the boundaries of this grid.
     pub fn has(&self, p: Vec2D) -> bool {
         0 <= p.x && p.x < self.width as _ && 0 <= p.y && p.y < self.height as _
     }
 
+    /// Performes an A* search that applies the `first_move_heuristic` as
+    /// additional costs for the first move.
     pub fn a_star(
         &self,
         start: Vec2D,
