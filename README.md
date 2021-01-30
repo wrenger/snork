@@ -3,7 +3,7 @@
 Fast [battlesnake](https://play.battlesnake.com) agents written in rust.
 
 This project has be developed as part of an AI games curse at the Leibniz University Hannover.
-During this phase our tree agent (names "ich heisse marvin") managed to reach the second place in the global and dual arenas.
+During this phase our tree agent ("ich heisse marvin") managed to reach the second place in the global and dual arenas.
 We even surpassed the best snake ([Kreuzotter](https://github.com/m-schier/battlesnake-2019)) of our university from the last year.
 
 ## Content
