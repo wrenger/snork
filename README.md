@@ -85,7 +85,7 @@ cargo run --release --bin move -- <json> [--config <json>] [--runtime]
 ### Running tests & benchmarks
 
 There are multiple tests for the different modules that can be run as shown below.
-For more information on uni-testing in rust see https://doc.rust-lang.org/book/ch11-01-writing-tests.html.
+For more information on unit-testing in rust see https://doc.rust-lang.org/book/ch11-01-writing-tests.html.
 
 ```bash
 cargo test -- [--nocapture] [testname]
