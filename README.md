@@ -2,8 +2,8 @@
 
 Fast [battlesnake](https://play.battlesnake.com) agents written in rust.
 
-This project has be developed as part of an AI games curse at the Leibniz University Hannover.
-During this phase our tree agent ("ich heisse marvin") managed to reach the second place in the global and dual arenas.
+This project has been developed as part of an AI games curse at the Leibniz University Hannover.
+During this phase our tree agent ("ich heisse marvin") managed to score the second place in the global and dual arenas.
 We even surpassed the best snake ([Kreuzotter](https://github.com/m-schier/battlesnake-2019)) of our university from the last year.
 
 ## Content
@@ -12,13 +12,13 @@ This repository contains a webserver that runs with the battlesnake api version 
 and abstractions for the used data types ([src/env.rs](src/env.rs)).
 
 We developed multiple different agents ([src/agents](src/agents)),
-from a simple random agent, a very fast and performant area control agent,
+from a simple random agent, a very fast area control agent,
 to a minimax tree search agent, that combines multiple heuristics to find the best possible moves.
 These heuristics are configurable and the impact of specific variables and
 their influence over time can be specified on startup.
 This allowed us to perform parameter optimization (bayesian optimization) to further improve the heuristic.
 
-We also developed a fast simulator that allows us to execute moves and analyze their outcomes.
+We also developed a fast simulator to execute moves and analyze their outcomes.
 
 ## Usage
 
@@ -92,7 +92,7 @@ cargo test -- [--nocapture] [testname]
 ```
 
 There are a number of benchmark tests that ignored when running normal unit tests, because they have a longer runtime.
-These test are expected to be execute with the release config that include a number of compiler and linker optimizations.
+These test are expected to be executed with the release config that include a number of compiler and linker optimizations.
 
 ```bash
 cargo test --release -- --ignored --nocapture [testname]
