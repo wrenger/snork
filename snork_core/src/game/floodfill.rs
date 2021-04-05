@@ -176,9 +176,9 @@ impl FloodFill {
     }
 
     /// Prepare the board and compute flood fill.
-    /// It is assumed that the snake at position 0 is the evaluated agent and
-    /// the other snakes are the enemies.
-    pub fn flood_snakes(&mut self, grid: &Grid, snakes: &[Snake], you_i: u8) {
+    /// It is assumed that the snake at position and id 0 is the evaluated
+    /// agent and the other snakes are the enemies.
+    pub fn flood_snakes(&mut self, grid: &Grid, snakes: &[Snake]) {
         self.clear();
         let mut snakes: Vec<&Snake> = snakes.iter().filter(|s| s.alive()).collect();
 
@@ -190,17 +190,17 @@ impl FloodFill {
                 } else {
                     FCELL_OWNED
                 };
-                self[*p] = FCell::with_occupier(snake.id == you_i, num)
+                self[*p] = FCell::with_occupier(snake.id == 0, num)
             }
         }
 
         // Longer or equally long snakes first
-        snakes.sort_by_key(|s| Reverse(2 * s.body.len() - (s.id == you_i) as usize));
+        snakes.sort_by_key(|s| Reverse(2 * s.body.len() - (s.id == 0) as usize));
         self.flood(
             grid,
             snakes
                 .iter()
-                .flat_map(|s| Direction::iter().map(move |d| (s.id == you_i, s.head().apply(d)))),
+                .flat_map(|s| Direction::iter().map(move |d| (s.id == 0, s.head().apply(d)))),
         );
     }
 }
@@ -300,7 +300,7 @@ mod test {
             100,
         )];
 
-        floodfill.flood_snakes(&grid, &snakes, 0);
+        floodfill.flood_snakes(&grid, &snakes);
         println!("Filled {} {:?}", floodfill.count_space_of(true), floodfill);
         assert_eq!(floodfill.count_space_of(true), 11 * 11);
     }
@@ -329,7 +329,7 @@ mod test {
             100,
         )];
 
-        floodfill.flood_snakes(&grid, &snakes, 0);
+        floodfill.flood_snakes(&grid, &snakes);
         println!("Filled {} {:?}", floodfill.count_space_of(true), floodfill);
         assert_eq!(floodfill.count_space_of(true), 2);
     }
@@ -357,7 +357,7 @@ mod test {
             100,
         )];
 
-        floodfill.flood_snakes(&grid, &snakes, 0);
+        floodfill.flood_snakes(&grid, &snakes);
         println!("Filled {} {:?}", floodfill.count_space_of(true), floodfill);
         assert_eq!(floodfill.count_space_of(true), 1);
 
@@ -377,7 +377,7 @@ mod test {
         )];
 
         floodfill.clear();
-        floodfill.flood_snakes(&grid, &snakes, 0);
+        floodfill.flood_snakes(&grid, &snakes);
         println!("Filled {} {:?}", floodfill.count_space_of(true), floodfill);
         assert_eq!(floodfill.count_space_of(true), 11 * 11);
     }
@@ -408,7 +408,7 @@ mod test {
                 100,
             ),
         ];
-        floodfill.flood_snakes(&grid, &snakes, 0);
+        floodfill.flood_snakes(&grid, &snakes);
         println!("Filled {} {:?}", floodfill.count_space_of(true), floodfill);
         assert_eq!(floodfill.count_space_of(true), 24);
     }

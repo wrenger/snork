@@ -8,9 +8,7 @@ use rand::{rngs::SmallRng, SeedableRng};
 use super::Agent;
 use crate::env::*;
 use crate::game::{max_n, Cell, FloodFill, Game, Grid, Snake};
-use crate::util::OrdPair;
-
-use crate::util::argmax;
+use crate::util::{argmax, OrdPair};
 
 #[derive(Debug)]
 pub struct MobilityAgent {
@@ -26,7 +24,7 @@ pub struct MobilityConfig {
     health_threshold: u8,
     /// [0, width * height]
     min_len: usize,
-    /// [0, 10]
+    /// [0, 3]
     first_move_cost: f64,
 }
 
@@ -87,7 +85,7 @@ impl Agent for MobilityAgent {
         let flood_fill = &mut self.flood_fill;
         let space_after_move = max_n(&self.game, 1, |game| {
             if game.snake_is_alive(0) {
-                flood_fill.flood_snakes(&game.grid, &game.snakes, 0);
+                flood_fill.flood_snakes(&game.grid, &game.snakes);
                 flood_fill.count_space_of(true) as f64
             } else {
                 0.0
@@ -95,7 +93,7 @@ impl Agent for MobilityAgent {
         });
         println!("max_n {:?}ms", (Instant::now() - start).as_millis());
         self.flood_fill
-            .flood_snakes(&self.game.grid, &self.game.snakes, 0);
+            .flood_snakes(&self.game.grid, &self.game.snakes);
 
         // Avoid longer enemy heads
         let mut grid = self.game.grid.clone();

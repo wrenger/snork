@@ -1,12 +1,8 @@
 use structopt::StructOpt;
 
-mod agents;
-use agents::*;
-mod env;
-use env::*;
-mod game;
-use game::*;
-mod util;
+use snork_core::agents::*;
+use snork_core::env::*;
+use snork_core::game::*;
 
 use rand::prelude::*;
 use rand::seq::IteratorRandom;

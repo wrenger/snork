@@ -104,7 +104,7 @@ impl TreeAgent {
             Outcome::Winner(_) => Evaluation::min(),
             Outcome::None if !game.snake_is_alive(0) => Evaluation::min(),
             Outcome::None => {
-                flood_fill.flood_snakes(&game.grid, &game.snakes, 0);
+                flood_fill.flood_snakes(&game.grid, &game.snakes);
                 let space = flood_fill.count_space_of(true);
                 let mobility = space as f64 / (game.grid.width * game.grid.height) as f64;
 

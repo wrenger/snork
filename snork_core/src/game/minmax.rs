@@ -229,7 +229,7 @@ mod test {
         let mut flood_fill = FloodFill::new(game.grid.width, game.grid.height);
         let moves = max_n(&game, 2, |game| {
             if game.snake_is_alive(0) {
-                flood_fill.flood_snakes(&game.grid, &game.snakes, 0);
+                flood_fill.flood_snakes(&game.grid, &game.snakes);
                 flood_fill.count_space_of(true) as f64
             } else {
                 0.0
@@ -275,7 +275,7 @@ mod test {
         let mut flood_fill = FloodFill::new(game.grid.width, game.grid.height);
         let moves = max_n(&game, 6, |game| {
             if game.snake_is_alive(0) {
-                flood_fill.flood_snakes(&game.grid, &game.snakes, 0);
+                flood_fill.flood_snakes(&game.grid, &game.snakes);
                 flood_fill.count_space_of(true) as f64
             } else {
                 -f64::INFINITY
@@ -289,7 +289,7 @@ mod test {
         let mut flood_fill = FloodFill::new(game.grid.width, game.grid.height);
         let moves = alphabeta(&game, 6, |game| {
             if game.snake_is_alive(0) {
-                flood_fill.flood_snakes(&game.grid, &game.snakes, 0);
+                flood_fill.flood_snakes(&game.grid, &game.snakes);
                 flood_fill.count_space_of(true) as f64
             } else {
                 -f64::INFINITY

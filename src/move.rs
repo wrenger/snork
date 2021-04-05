@@ -1,13 +1,8 @@
-use std::str::FromStr;
-
 use structopt::StructOpt;
 
-mod agents;
-use agents::*;
-mod env;
-mod game;
-use game::*;
-mod util;
+use snork_core::agents::*;
+use snork_core::env;
+use snork_core::game::*;
 
 #[derive(structopt::StructOpt)]
 #[structopt(name = "rusty snake move", about = "Simulate a move for an agent.")]
@@ -16,16 +11,10 @@ struct Opts {
     #[structopt(long, default_value)]
     config: Config,
     /// JSON Game request.
+    #[structopt(parse(try_from_str = serde_json::from_str))]
     request: env::GameRequest,
     #[structopt(long, default_value = "200")]
     runtime: usize,
-}
-
-impl FromStr for env::GameRequest {
-    type Err = serde_json::Error;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        serde_json::from_str(s)
-    }
 }
 
 fn main() {
@@ -50,7 +39,7 @@ fn main() {
     game.reset(snakes, &request.board.food);
     println!("{:?}", game.grid);
     let mut flood_fill = FloodFill::new(request.board.width, request.board.height);
-    flood_fill.flood_snakes(&game.grid, &game.snakes, 0);
+    flood_fill.flood_snakes(&game.grid, &game.snakes);
     println!("{:?}", flood_fill);
 
     let agent = config.create_agent(&request);

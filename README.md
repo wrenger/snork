@@ -88,12 +88,12 @@ There are multiple tests for the different modules that can be run as shown belo
 For more information on unit-testing in rust see https://doc.rust-lang.org/book/ch11-01-writing-tests.html.
 
 ```bash
-cargo test -- [--nocapture] [testname]
+cargo test -p snork_core -- [--nocapture] [testname]
 ```
 
 There are a number of benchmark tests that ignored when running normal unit tests, because they have a longer runtime.
 These test are expected to be executed with the release config that include a number of compiler and linker optimizations.
 
 ```bash
-cargo test --release -- --ignored --nocapture [testname]
+cargo test -p snork_core --release -- --ignored --nocapture [testname]
 ```
