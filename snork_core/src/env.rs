@@ -1,7 +1,17 @@
+/// # Battlesnake API Types:
+///
+/// This module contains the types for (de)serializing the battlesnake game
+/// requests.
+///
+/// See: https://docs.battlesnake.com/references/api
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 use std::fmt::Debug;
 use std::ops::{Add, Neg, Sub};
 
+pub const API_VERSION: &str = "1";
+
+/// Position in the a 2D grid.
 #[derive(Serialize, Deserialize, Default, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Vec2D {
     pub x: i16,
@@ -17,8 +27,14 @@ impl Vec2D {
         self + d.into()
     }
 
-    pub fn manhattan(&self) -> u64 {
+    /// Returns the manhattan distance to (0,0)
+    pub fn manhattan(self) -> u64 {
         self.x.abs() as u64 + self.y.abs() as u64
+    }
+
+    /// Returns whether the vector is inside a rectangle from (0,0) to (width-1,height-1)
+    pub fn within(self, width: usize, height: usize) -> bool {
+        self.x >= 0 && self.x < width as _ && self.y >= 0 && self.y < height as _
     }
 }
 
@@ -72,13 +88,20 @@ impl Neg for Vec2D {
     }
 }
 
+/// The Direction is returned as part of a MoveResponse.
+///
+/// The Y-Axis is positive in the up direction, and X-Axis is positive to the right.
 #[derive(Serialize, Debug, Clone, Copy, Hash, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 #[repr(u8)]
 pub enum Direction {
+    /// Positive Y
     Up,
+    /// Positive X
     Right,
+    /// Negative Y
     Down,
+    /// Negative X
     Left,
 }
 
@@ -92,6 +115,16 @@ impl Direction {
         ]
         .iter()
         .copied()
+    }
+
+    /// Returns the invert direction (eg. Left for Right)
+    pub fn invert(&self) -> Direction {
+        match self {
+            Direction::Up => Direction::Down,
+            Direction::Right => Direction::Left,
+            Direction::Down => Direction::Up,
+            Direction::Left => Direction::Right,
+        }
     }
 }
 
@@ -122,11 +155,15 @@ impl From<u8> for Direction {
     }
 }
 
+/// Game Object describing the game being played.
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct GameData {
+    /// A unique identifier for this Game.
     pub id: String,
+    /// Information about the ruleset being used to run this game.
     #[serde(default)]
     pub ruleset: Ruleset,
+    /// How much time your snake has to respond to requests for this Game in milliseconds.
     pub timeout: i64,
 }
 
@@ -137,6 +174,7 @@ pub struct Ruleset {
     pub version: String,
 }
 
+/// Object describing a snake.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SnakeData {
     pub id: String,
@@ -154,6 +192,16 @@ impl PartialEq for SnakeData {
     }
 }
 
+/// The game board is represented by a standard 2D grid, oriented with (0,0) in the bottom left.
+/// The Y-Axis is positive in the up direction, and X-Axis is positive to the right.
+///
+/// Thus a board with width `w` and hight `m` is represented as shown below.
+/// ```txt
+/// (  0,m-1)    (w-1,h-1)
+///     ^       .
+///     |   .
+/// (  0,  0) -> (w-1,  0)
+/// ```
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Board {
     pub height: usize,
@@ -163,30 +211,38 @@ pub struct Board {
     pub snakes: Vec<SnakeData>,
 }
 
+/// The game data that is send on the `start`, `move` and `end` requests.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GameRequest {
+    /// Game Object describing the game being played.
     pub game: GameData,
+    /// Turn number for this move.
     pub turn: usize,
+    /// Board Object describing the game board on this turn.
     pub board: Board,
+    /// Battlesnake Object describing your Battlesnake.
     pub you: SnakeData,
 }
 
+/// This response configures the battlesnake and its appearance.
 #[derive(Serialize, Debug)]
 pub struct IndexResponse {
-    pub apiversion: &'static str,
-    pub author: &'static str,
-    pub color: String,
-    pub head: String,
-    pub tail: String,
+    pub apiversion: Cow<'static, str>,
+    pub author: Cow<'static, str>,
+    pub color: Cow<'static, str>,
+    pub head: Cow<'static, str>,
+    pub tail: Cow<'static, str>,
+    pub version: Cow<'static, str>,
 }
 
 impl IndexResponse {
     pub fn new(
-        apiversion: &'static str,
-        author: &'static str,
-        color: String,
-        head: String,
-        tail: String,
+        apiversion: Cow<'static, str>,
+        author: Cow<'static, str>,
+        color: Cow<'static, str>,
+        head: Cow<'static, str>,
+        tail: Cow<'static, str>,
+        version: Cow<'static, str>,
     ) -> IndexResponse {
         IndexResponse {
             apiversion,
@@ -194,10 +250,12 @@ impl IndexResponse {
             color,
             head,
             tail,
+            version,
         }
     }
 }
 
+/// Game response with the direction in which a snake has decided to move.
 #[derive(Serialize, Debug, Default)]
 pub struct MoveResponse {
     pub r#move: Direction,

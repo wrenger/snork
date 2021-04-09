@@ -7,12 +7,12 @@ use std::time::{Duration, Instant};
 use chashmap::CHashMap;
 
 use snork_core::agents::*;
-use snork_core::env::{GameRequest, IndexResponse, MoveResponse};
+use snork_core::env::{GameRequest, IndexResponse, MoveResponse, API_VERSION};
 
 use actix_web::{get, post, web, App, HttpResponse, HttpServer};
 use structopt::StructOpt;
 
-pub const API_VERSION: &str = "1";
+pub const PACKAGE_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const AUTHOR: &str = "l4r0x";
 
 /// Max number of parallel agent instances
@@ -82,11 +82,12 @@ impl ServerConfig {
 async fn index(config: web::Data<ServerConfig>) -> HttpResponse {
     println!("index");
     HttpResponse::Ok().json(IndexResponse::new(
-        API_VERSION,
-        AUTHOR,
-        config.color.clone(),
-        config.head.clone(),
-        config.tail.clone(),
+        API_VERSION.into(),
+        AUTHOR.into(),
+        config.color.clone().into(),
+        config.head.clone().into(),
+        config.tail.clone().into(),
+        PACKAGE_VERSION.into(),
     ))
 }
 
