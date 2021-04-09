@@ -52,13 +52,24 @@ impl MobilityAgent {
         food: &[Vec2D],
         grid: &Grid,
         space_after_move: &[f64; 4],
-        first_move_costs: &[f64; 4],
     ) -> Option<Direction> {
         let you: &Snake = &self.game.snakes[0];
 
+        // Heuristic for preferring high movement
+        let first_move_costs = [
+            (1.0 - space_after_move[0] / (grid.width * grid.height) as f64)
+                * self.config.first_move_cost,
+            (1.0 - space_after_move[1] / (grid.width * grid.height) as f64)
+                * self.config.first_move_cost,
+            (1.0 - space_after_move[2] / (grid.width * grid.height) as f64)
+                * self.config.first_move_cost,
+            (1.0 - space_after_move[3] / (grid.width * grid.height) as f64)
+                * self.config.first_move_cost,
+        ];
+
         let mut food_dirs = BinaryHeap::new();
         for &p in food {
-            if let Some(path) = grid.a_star(you.head(), p, first_move_costs) {
+            if let Some(path) = grid.a_star(you.head(), p, &first_move_costs) {
                 if path.len() >= 2 {
                     let costs = path.len() + if self.flood_fill[p].is_you() { 0 } else { 5 };
                     food_dirs.push(OrdPair(Reverse(costs), Direction::from(path[1] - path[0])));
@@ -110,24 +121,7 @@ impl Agent for MobilityAgent {
 
         // Find Food
         if you.body.len() < self.config.min_len || you.health < self.config.health_threshold {
-            // Heuristic for preferring high movement
-            let first_move_costs = [
-                (1.0 - space_after_move[0] / (grid.width * grid.height) as f64)
-                    * self.config.first_move_cost,
-                (1.0 - space_after_move[1] / (grid.width * grid.height) as f64)
-                    * self.config.first_move_cost,
-                (1.0 - space_after_move[2] / (grid.width * grid.height) as f64)
-                    * self.config.first_move_cost,
-                (1.0 - space_after_move[3] / (grid.width * grid.height) as f64)
-                    * self.config.first_move_cost,
-            ];
-
-            if let Some(dir) = self.find_food(
-                &request.board.food,
-                &grid,
-                &space_after_move,
-                &first_move_costs,
-            ) {
+            if let Some(dir) = self.find_food(&request.board.food, &grid, &space_after_move) {
                 return MoveResponse::new(dir);
             }
         }
