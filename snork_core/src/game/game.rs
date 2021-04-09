@@ -70,6 +70,85 @@ impl Game {
         }
     }
 
+    /// Parses textual human readable board representation used in test.
+    #[cfg(test)]
+    pub fn parse(txt: &str) -> Option<Game> {
+        let txt = txt.trim();
+
+        #[derive(PartialEq)]
+        enum RawCell {
+            Free,
+            Food,
+            Head(u8),
+            Body(Direction),
+            Tail,
+        }
+        let raw_cells: Vec<RawCell> = txt
+            .lines()
+            .rev()
+            .flat_map(|l| {
+                l.split_whitespace().flat_map(|s| {
+                    s.chars().next().map(|c| match c {
+                        'x' => RawCell::Food,
+                        '0'..='9' => RawCell::Head(c.to_digit(10).unwrap() as u8),
+                        '+' => RawCell::Tail,
+                        '^' => RawCell::Body(Direction::Up),
+                        '>' => RawCell::Body(Direction::Right),
+                        'v' => RawCell::Body(Direction::Down),
+                        '<' => RawCell::Body(Direction::Left),
+                        _ => RawCell::Free,
+                    })
+                })
+            })
+            .collect();
+        let height = txt.lines().count();
+
+        if raw_cells.len() % height != 0 {
+            return None;
+        }
+        let width = raw_cells.len() / height;
+
+        let mut grid = Grid::new(width, height);
+        for (i, cell) in raw_cells.iter().enumerate() {
+            grid[Vec2D::new((i % width) as _, (i / width) as _)] = match cell {
+                RawCell::Free => Cell::Free,
+                RawCell::Food => Cell::Food,
+                _ => Cell::Occupied,
+            }
+        }
+
+        let mut snakes = Vec::new();
+        for i in 0..=9 {
+            if let Some(p) = raw_cells.iter().position(|c| *c == RawCell::Head(i)) {
+                let mut p = Vec2D::new((p % width) as _, (p / width) as _);
+                let mut body = VecDeque::new();
+                body.push_front(p);
+                while let Some(next) = Direction::iter().find_map(|d| {
+                    let next = p.apply(d);
+                    if next.within(width, height)
+                        && raw_cells[(next.x + next.y * width as i16) as usize]
+                            == RawCell::Body(d.invert())
+                    {
+                        Some(next)
+                    } else {
+                        None
+                    }
+                }) {
+                    p = next;
+                    body.push_front(p);
+                }
+                while body.len() < 3 {
+                    body.push_front(body[0]);
+                }
+                snakes.push(Snake::new(i as _, body, 100));
+            } else {
+                break;
+            }
+        }
+
+        Some(Game { grid, snakes })
+    }
+
     /// Loads the game state from the provided request.
     pub fn reset_from_request(&mut self, request: &GameRequest) {
         let mut snakes = Vec::with_capacity(0);
@@ -297,46 +376,104 @@ impl<'a> Iterator for ValidMoves<'a> {
 mod test {
 
     #[test]
+    fn game_parse() {
+        use super::*;
+        let game = Game::parse(
+            r#"
+            . . . . . . . . . . .
+            . . . . . . . . x . .
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            . . . . . 0 < < . . .
+            . . . . . . . ^ . . .
+            . . . . . > > ^ . . .
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            v . . . . . . . . . .
+            1 . . . . . . . . . ."#,
+        )
+        .unwrap();
+
+        assert_eq!(game.grid.width, 11);
+        assert_eq!(game.grid.height, 11);
+        assert_eq!(game.grid[Vec2D::new(5, 6)], Cell::Occupied);
+        assert_eq!(game.grid[Vec2D::new(8, 9)], Cell::Food);
+        assert_eq!(game.snakes.len(), 2);
+
+        let snake = &game.snakes[0];
+        assert_eq!(snake.head(), Vec2D::new(5, 6));
+        assert_eq!(
+            snake.body,
+            VecDeque::from(vec![
+                Vec2D::new(5, 4),
+                Vec2D::new(6, 4),
+                Vec2D::new(7, 4),
+                Vec2D::new(7, 5),
+                Vec2D::new(7, 6),
+                Vec2D::new(6, 6),
+                Vec2D::new(5, 6),
+            ])
+        );
+
+        let snake = &game.snakes[1];
+        assert_eq!(snake.head(), Vec2D::new(0, 0));
+        assert_eq!(
+            snake.body,
+            VecDeque::from(vec![Vec2D::new(0, 1), Vec2D::new(0, 1), Vec2D::new(0, 0),])
+        );
+
+        println!("{:?}", game.grid);
+    }
+
+    #[test]
     fn game_step() {
         use super::*;
         use Direction::*;
-        let snakes = vec![
-            Snake::new(
-                0,
-                vec![Vec2D::new(4, 6), Vec2D::new(4, 7), Vec2D::new(4, 8)].into(),
-                100,
-            ),
-            Snake::new(
-                1,
-                vec![Vec2D::new(6, 6), Vec2D::new(6, 7), Vec2D::new(6, 8)].into(),
-                100,
-            ),
-        ];
-        let mut game = Game::new(11, 11);
-        game.reset(snakes.clone(), &[]);
-        println!("{:?}", game.grid);
-        game.step(&[Right, Right]);
 
-        println!("{:?}", game.grid);
-        assert!(game.snake_is_alive(0));
-        assert!(game.snake_is_alive(1));
-        assert_eq!(game.grid[Vec2D::new(4, 6)], Cell::Free);
-        assert_eq!(game.grid[Vec2D::new(5, 8)], Cell::Occupied);
-        assert_eq!(game.grid[Vec2D::new(6, 6)], Cell::Free);
-        assert_eq!(game.grid[Vec2D::new(7, 8)], Cell::Occupied);
+        let mut game = Game::parse(
+            r#"
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            . . . . 0 . 1 . . . .
+            . . . . ^ . ^ . . . .
+            . . . . ^ . ^ . . . .
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            . . . . . . . . . . ."#,
+        )
+        .unwrap();
 
-        game.step(&[Right, Right]);
-        println!("{:?}", game.grid);
-        assert!(!game.snake_is_alive(0));
-        assert_eq!(game.grid[Vec2D::new(5, 8)], Cell::Free);
-        assert!(game.snake_is_alive(1));
-        assert_eq!(game.grid[Vec2D::new(8, 8)], Cell::Occupied);
+        {
+            // Both right
+            let mut game = game.clone();
+            game.step(&[Right, Right]);
+            println!("{:?}", game.grid);
+            assert!(game.snake_is_alive(0));
+            assert!(game.snake_is_alive(1));
+            assert_eq!(game.grid[Vec2D::new(4, 6)], Cell::Free);
+            assert_eq!(game.grid[Vec2D::new(5, 8)], Cell::Occupied);
+            assert_eq!(game.grid[Vec2D::new(6, 6)], Cell::Free);
+            assert_eq!(game.grid[Vec2D::new(7, 8)], Cell::Occupied);
 
-        game.reset(snakes, &[]);
-        game.step(&[Right, Left]);
-        println!("{:?}", game.grid);
-        assert!(!game.snake_is_alive(0));
-        assert!(!game.snake_is_alive(1));
+            // Snake 0 runs into 1
+            game.step(&[Right, Right]);
+            println!("{:?}", game.grid);
+            assert!(!game.snake_is_alive(0));
+            assert_eq!(game.grid[Vec2D::new(5, 8)], Cell::Free);
+            assert!(game.snake_is_alive(1));
+            assert_eq!(game.grid[Vec2D::new(8, 8)], Cell::Occupied);
+        }
+
+        {
+            // Head to head equal len
+            game.step(&[Right, Left]);
+            println!("{:?}", game.grid);
+            assert!(!game.snake_is_alive(0));
+            assert!(!game.snake_is_alive(1));
+        }
     }
 
     #[test]
@@ -344,20 +481,30 @@ mod test {
         use super::*;
         use Direction::*;
 
-        let snakes = vec![
-            Snake::new(
-                0,
-                vec![Vec2D::new(4, 1), Vec2D::new(4, 0), Vec2D::new(5, 0)].into(),
-                100,
-            ),
-            Snake::new(
-                1,
-                vec![Vec2D::new(6, 0), Vec2D::new(6, 1), Vec2D::new(5, 1)].into(),
-                100,
-            ),
-        ];
-        let mut game = Game::new(11, 11);
-        game.reset(snakes, &[]);
+        let game = Game::parse(
+            r#"
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            . . . . v 1 < . . . .
+            . . . . > 0 ^ . . . ."#,
+        )
+        .unwrap();
+
+        assert_eq!(
+            game.snakes[0].body,
+            VecDeque::from(vec![Vec2D::new(4, 1), Vec2D::new(4, 0), Vec2D::new(5, 0)])
+        );
+        assert_eq!(
+            game.snakes[1].body,
+            VecDeque::from(vec![Vec2D::new(6, 0), Vec2D::new(6, 1), Vec2D::new(5, 1)])
+        );
 
         println!("{:?}", game.grid);
         assert!([Right].iter().cloned().eq(game.valid_moves(0)));
@@ -368,89 +515,72 @@ mod test {
     fn bench_step_circle() {
         use super::*;
         use std::time::Instant;
-        let snakes = vec![Snake::new(
-            0,
-            vec![
-                Vec2D::new(6, 6),
-                Vec2D::new(6, 6),
-                Vec2D::new(6, 6),
-                Vec2D::new(5, 6),
-                Vec2D::new(4, 6),
-                Vec2D::new(4, 7),
-                Vec2D::new(4, 8),
-            ]
-            .into(),
-            100,
-        )];
-        let mut game = Game::new(11, 11);
-        game.reset(snakes, &[]);
-        println!("{:?}", game.grid);
+
+        let mut game = Game::parse(
+            r#"
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            . . . . 0 > v . . . .
+            . . . . ^ . v . . . .
+            . . . . ^ < < . . . .
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            . . . . . . . . . . ."#,
+        )
+        .unwrap();
 
         let start = Instant::now();
+        let mut steps = 0;
         loop {
             use Direction::*;
-            game.step(&[Up]);
-            game.step(&[Up]);
             game.step(&[Right]);
             game.step(&[Right]);
             game.step(&[Down]);
             game.step(&[Down]);
             game.step(&[Left]);
             game.step(&[Left]);
+            game.step(&[Up]);
+            game.step(&[Up]);
             if !game.snake_is_alive(0) {
                 break;
             }
+            steps += 8;
         }
-        println!("Dead after {}us", (Instant::now() - start).as_nanos());
+        println!(
+            "Dead after {} steps, {}us",
+            steps,
+            (Instant::now() - start).as_nanos()
+        );
     }
 
     #[test]
     #[ignore]
     fn bench_step_random() {
         use super::*;
-        use rand::{
-            distributions::{Distribution, Uniform},
-            seq::IteratorRandom,
-        };
+        use rand::seq::IteratorRandom;
         use std::time::{Duration, Instant};
         const SIMULATION_TIME: usize = 200;
 
-        let snakes = vec![
-            Snake::new(
-                0,
-                vec![Vec2D::new(6, 7), Vec2D::new(6, 7), Vec2D::new(6, 7)].into(),
-                100,
-            ),
-            Snake::new(
-                1,
-                vec![Vec2D::new(3, 2), Vec2D::new(3, 2), Vec2D::new(3, 2)].into(),
-                100,
-            ),
-            Snake::new(
-                2,
-                vec![Vec2D::new(7, 3), Vec2D::new(7, 3), Vec2D::new(7, 3)].into(),
-                100,
-            ),
-            Snake::new(
-                3,
-                vec![Vec2D::new(3, 8), Vec2D::new(3, 8), Vec2D::new(3, 8)].into(),
-                100,
-            ),
-        ];
+        let game = Game::parse(
+            r#"
+            . . . . . . . x . . .
+            x . . . . . . . . x .
+            . . x 3 . . . . . . .
+            . . . . . . 0 x . . .
+            . . x . . . . . . . .
+            . . . . . x . . . x .
+            . x . . x . . . . . .
+            . . . . . . . 2 . x .
+            . . . 1 . . . x . . .
+            x . . x . . . . . . .
+            . . . . . x . . x . ."#,
+        )
+        .unwrap();
+
         let mut rng = rand::thread_rng();
-        let mut game = Game::new(11, 11);
-        game.reset(snakes, &[]);
-
-        let dist = Uniform::from(0..11);
-        for _ in 0..20 {
-            let p = Vec2D::new(dist.sample(&mut rng), dist.sample(&mut rng));
-            if game.grid[p] == Cell::Free {
-                game.grid[p] = Cell::Food;
-            }
-        }
-
-        println!("{:?}", game.grid);
-
         let start = Instant::now();
         let mut game_num = 0_usize;
         loop {

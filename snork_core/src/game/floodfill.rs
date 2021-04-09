@@ -280,27 +280,49 @@ mod test {
     #[test]
     fn flood_snakes_follow_tail() {
         use super::*;
-        let grid = Grid::new(11, 11);
-        let mut floodfill = FloodFill::new(grid.width, grid.height);
-        let snakes = [Snake::new(
-            0,
-            vec![
-                Vec2D::new(0, 0),
-                Vec2D::new(0, 1),
-                Vec2D::new(0, 2),
-                Vec2D::new(1, 2),
-                Vec2D::new(2, 2),
-                Vec2D::new(3, 2),
-                Vec2D::new(3, 1),
-                Vec2D::new(3, 0),
-                Vec2D::new(2, 0),
-                Vec2D::new(1, 0),
-            ]
-            .into(),
-            100,
-        )];
+        use crate::game::Game;
 
-        floodfill.flood_snakes(&grid, &snakes);
+        let game = Game::parse(
+            r#"
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            > > > v . . . . . . .
+            ^ . . v . . . . . . .
+            ^ 0 < < . . . . . . ."#,
+        )
+        .unwrap();
+
+        let mut floodfill = FloodFill::new(game.grid.width, game.grid.height);
+        floodfill.flood_snakes(&game.grid, &game.snakes);
+
+        println!("Filled {} {:?}", floodfill.count_space_of(true), floodfill);
+        assert_eq!(floodfill.count_space_of(true), 11 * 11);
+
+        let game = Game::parse(
+            r#"
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            v . . . . . . . . . .
+            v . . . . . . . . . .
+            > > > v . . . . . . .
+            . . . v . . . . . . .
+            . 0 < < . . . . . . ."#,
+        )
+        .unwrap();
+
+        let mut floodfill = FloodFill::new(game.grid.width, game.grid.height);
+        floodfill.flood_snakes(&game.grid, &game.snakes);
+
         println!("Filled {} {:?}", floodfill.count_space_of(true), floodfill);
         assert_eq!(floodfill.count_space_of(true), 11 * 11);
     }
@@ -308,107 +330,103 @@ mod test {
     #[test]
     fn flood_snakes_bite_tail() {
         use super::*;
-        let grid = Grid::new(11, 11);
-        let mut floodfill = FloodFill::new(grid.width, grid.height);
-        let snakes = [Snake::new(
-            0,
-            vec![
-                Vec2D::new(0, 0),
-                Vec2D::new(0, 0),
-                Vec2D::new(0, 1),
-                Vec2D::new(0, 2),
-                Vec2D::new(1, 2),
-                Vec2D::new(2, 2),
-                Vec2D::new(3, 2),
-                Vec2D::new(3, 1),
-                Vec2D::new(3, 0),
-                Vec2D::new(2, 0),
-                Vec2D::new(1, 0),
-            ]
-            .into(),
-            100,
-        )];
+        use crate::game::Game;
 
-        floodfill.flood_snakes(&grid, &snakes);
+        let game = Game::parse(
+            r#"
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            v . . . . . . . . . .
+            v . . . . . . . . . .
+            v . . . . . . . . . .
+            > > > v . . . . . . .
+            . . . v . . . . . . .
+            . 0 < < . . . . . . ."#,
+        )
+        .unwrap();
+
+        let mut floodfill = FloodFill::new(game.grid.width, game.grid.height);
+        floodfill.flood_snakes(&game.grid, &game.snakes);
+
         println!("Filled {} {:?}", floodfill.count_space_of(true), floodfill);
-        assert_eq!(floodfill.count_space_of(true), 2);
+        assert_eq!(floodfill.count_space_of(true), 4);
     }
 
     #[test]
     fn flood_snakes_bite_food() {
         use super::*;
-        let mut grid = Grid::new(11, 11);
-        grid[Vec2D::new(1, 0)] = Cell::Food;
-        println!("{:?}", grid);
-        let mut floodfill = FloodFill::new(grid.width, grid.height);
-        let snakes = [Snake::new(
-            0,
-            vec![
-                Vec2D::new(0, 0),
-                Vec2D::new(0, 0),
-                Vec2D::new(0, 1),
-                Vec2D::new(1, 1),
-                Vec2D::new(2, 1),
-                Vec2D::new(3, 1),
-                Vec2D::new(3, 0),
-                Vec2D::new(2, 0),
-            ]
-            .into(),
-            100,
-        )];
+        use crate::game::Game;
 
-        floodfill.flood_snakes(&grid, &snakes);
-        println!("Filled {} {:?}", floodfill.count_space_of(true), floodfill);
-        assert_eq!(floodfill.count_space_of(true), 1);
+        let game = Game::parse(
+            r#"
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            v . . . . . . . . . .
+            > > v . . . . . . . .
+            . 0 < . . . . . . . ."#,
+        )
+        .unwrap();
 
-        let snakes = [Snake::new(
-            0,
-            vec![
-                Vec2D::new(0, 0),
-                Vec2D::new(0, 1),
-                Vec2D::new(1, 1),
-                Vec2D::new(2, 1),
-                Vec2D::new(3, 1),
-                Vec2D::new(3, 0),
-                Vec2D::new(2, 0),
-            ]
-            .into(),
-            100,
-        )];
+        let mut floodfill = FloodFill::new(game.grid.width, game.grid.height);
+        floodfill.flood_snakes(&game.grid, &game.snakes);
 
-        floodfill.clear();
-        floodfill.flood_snakes(&grid, &snakes);
         println!("Filled {} {:?}", floodfill.count_space_of(true), floodfill);
         assert_eq!(floodfill.count_space_of(true), 11 * 11);
+
+        let game = Game::parse(
+            r#"
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            v . . . . . . . . . .
+            > > v . . . . . . . .
+            x 0 < . . . . . . . ."#,
+        )
+        .unwrap();
+
+        floodfill.clear();
+        floodfill.flood_snakes(&game.grid, &game.snakes);
+        println!("Filled {} {:?}", floodfill.count_space_of(true), floodfill);
+        assert_eq!(floodfill.count_space_of(true), 1);
     }
 
     #[test]
     fn flood_snakes_enemy() {
         use super::*;
-        let mut grid = Grid::new(11, 11);
-        grid[Vec2D::new(1, 0)] = Cell::Food;
-        println!("{:?}", grid);
-        let mut floodfill = FloodFill::new(grid.width, grid.height);
-        let snakes = [
-            Snake::new(
-                0,
-                vec![
-                    Vec2D::new(1, 2),
-                    Vec2D::new(1, 1),
-                    Vec2D::new(2, 1),
-                    Vec2D::new(2, 0),
-                    Vec2D::new(1, 0),
-                ]
-                .into(),
-                100,
-            ),
-            Snake::new(
-                1,
-                vec![Vec2D::new(0, 1), Vec2D::new(0, 2), Vec2D::new(0, 3)].into(),
-                100,
-            ),
-        ];
-        floodfill.flood_snakes(&grid, &snakes);
+        use crate::game::Game;
+
+        let game = Game::parse(
+            r#"
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            1 . . . . . . . . . .
+            ^ v . . . . . . . . .
+            ^ > v . . . . . . . .
+            . 0 < . . . . . . . ."#,
+        )
+        .unwrap();
+
+        let mut floodfill = FloodFill::new(game.grid.width, game.grid.height);
+        floodfill.flood_snakes(&game.grid, &game.snakes);
         println!("Filled {} {:?}", floodfill.count_space_of(true), floodfill);
         assert_eq!(floodfill.count_space_of(true), 24);
     }

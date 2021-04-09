@@ -52,6 +52,19 @@ impl Grid {
         }
     }
 
+    /// Creates a grid from a `cells` buffer.
+    /// If the buffer is not dividable by `height` the buffer is truncated
+    /// accordingly.
+    pub fn from(mut cells: Vec<Cell>, height: usize) -> Grid {
+        let width = cells.len() / height;
+        cells.truncate(width * height);
+        Grid {
+            width,
+            height,
+            cells,
+        }
+    }
+
     /// Clears the grid.
     pub fn clear(&mut self) {
         for c in &mut self.cells {
