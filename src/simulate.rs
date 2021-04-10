@@ -49,7 +49,7 @@ fn init_game(width: usize, height: usize, num_agents: usize) -> Game {
         .collect();
 
     let mut game = Game::new(width, height);
-    game.reset(snakes, &[]);
+    game.reset(snakes, &[], &[]);
 
     // Spawn 1 food 2 steps away from each snake
     for snake in game.snakes.clone() {

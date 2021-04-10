@@ -105,11 +105,26 @@ impl FloodFill {
     }
 
     /// Counts the space of you or the enemies.
-    pub fn count_space_of(&self, you: bool) -> usize {
+    pub fn count_space(&self, you: bool) -> usize {
         self.cells
             .iter()
             .filter(|&c| c.is_owned() && c.is_you() == you)
             .count()
+    }
+
+    /// Counts the space of you or the enemies weighted by the weight function.
+    pub fn count_space_weighted<F: FnMut(Vec2D) -> f64>(&self, you: bool, mut weight: F) -> f64 {
+        self.cells
+            .iter()
+            .enumerate()
+            .map(|(i, c)| {
+                if c.is_owned() && c.is_you() == you {
+                    weight(Vec2D::new((i % self.width) as i16, (i / self.width) as i16))
+                } else {
+                    0.0
+                }
+            })
+            .sum()
     }
 
     /// Clears the board so that it can be reused for another floodfill computation.
@@ -248,8 +263,8 @@ mod test {
 
         let mut floodfill = FloodFill::new(grid.width, grid.height);
         floodfill.flood(&grid, [(true, Vec2D::new(0, 0))].iter().cloned());
-        println!("Filled {} {:?}", floodfill.count_space_of(true), floodfill);
-        assert_eq!(floodfill.count_space_of(true), 11 * 11);
+        println!("Filled {} {:?}", floodfill.count_space(true), floodfill);
+        assert_eq!(floodfill.count_space(true), 11 * 11);
 
         let grid = Grid::new(11, 11);
         floodfill.clear();
@@ -259,8 +274,8 @@ mod test {
                 .iter()
                 .cloned(),
         );
-        println!("Filled {} {:?}", floodfill.count_space_of(true), floodfill);
-        assert_eq!(floodfill.count_space_of(true), 66);
+        println!("Filled {} {:?}", floodfill.count_space(true), floodfill);
+        assert_eq!(floodfill.count_space(true), 66);
         let grid = Grid::new(11, 11);
         floodfill.clear();
         floodfill.flood(
@@ -273,8 +288,8 @@ mod test {
             .iter()
             .cloned(),
         );
-        println!("Filled {} {:?}", floodfill.count_space_of(true), floodfill);
-        assert_eq!(floodfill.count_space_of(true), 61);
+        println!("Filled {} {:?}", floodfill.count_space(true), floodfill);
+        assert_eq!(floodfill.count_space(true), 61);
     }
 
     #[test]
@@ -301,8 +316,8 @@ mod test {
         let mut floodfill = FloodFill::new(game.grid.width, game.grid.height);
         floodfill.flood_snakes(&game.grid, &game.snakes);
 
-        println!("Filled {} {:?}", floodfill.count_space_of(true), floodfill);
-        assert_eq!(floodfill.count_space_of(true), 11 * 11);
+        println!("Filled {} {:?}", floodfill.count_space(true), floodfill);
+        assert_eq!(floodfill.count_space(true), 11 * 11);
 
         let game = Game::parse(
             r#"
@@ -323,8 +338,8 @@ mod test {
         let mut floodfill = FloodFill::new(game.grid.width, game.grid.height);
         floodfill.flood_snakes(&game.grid, &game.snakes);
 
-        println!("Filled {} {:?}", floodfill.count_space_of(true), floodfill);
-        assert_eq!(floodfill.count_space_of(true), 11 * 11);
+        println!("Filled {} {:?}", floodfill.count_space(true), floodfill);
+        assert_eq!(floodfill.count_space(true), 11 * 11);
     }
 
     #[test]
@@ -351,8 +366,8 @@ mod test {
         let mut floodfill = FloodFill::new(game.grid.width, game.grid.height);
         floodfill.flood_snakes(&game.grid, &game.snakes);
 
-        println!("Filled {} {:?}", floodfill.count_space_of(true), floodfill);
-        assert_eq!(floodfill.count_space_of(true), 4);
+        println!("Filled {} {:?}", floodfill.count_space(true), floodfill);
+        assert_eq!(floodfill.count_space(true), 4);
     }
 
     #[test]
@@ -379,8 +394,8 @@ mod test {
         let mut floodfill = FloodFill::new(game.grid.width, game.grid.height);
         floodfill.flood_snakes(&game.grid, &game.snakes);
 
-        println!("Filled {} {:?}", floodfill.count_space_of(true), floodfill);
-        assert_eq!(floodfill.count_space_of(true), 11 * 11);
+        println!("Filled {} {:?}", floodfill.count_space(true), floodfill);
+        assert_eq!(floodfill.count_space(true), 11 * 11);
 
         let game = Game::parse(
             r#"
@@ -400,8 +415,8 @@ mod test {
 
         floodfill.clear();
         floodfill.flood_snakes(&game.grid, &game.snakes);
-        println!("Filled {} {:?}", floodfill.count_space_of(true), floodfill);
-        assert_eq!(floodfill.count_space_of(true), 1);
+        println!("Filled {} {:?}", floodfill.count_space(true), floodfill);
+        assert_eq!(floodfill.count_space(true), 1);
     }
 
     #[test]
@@ -427,7 +442,7 @@ mod test {
 
         let mut floodfill = FloodFill::new(game.grid.width, game.grid.height);
         floodfill.flood_snakes(&game.grid, &game.snakes);
-        println!("Filled {} {:?}", floodfill.count_space_of(true), floodfill);
-        assert_eq!(floodfill.count_space_of(true), 24);
+        println!("Filled {} {:?}", floodfill.count_space(true), floodfill);
+        assert_eq!(floodfill.count_space(true), 24);
     }
 }

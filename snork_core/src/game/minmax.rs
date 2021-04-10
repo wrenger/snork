@@ -223,14 +223,14 @@ mod test {
         ];
 
         let mut game = Game::new(11, 11);
-        game.reset(snakes, &[]);
+        game.reset(snakes, &[], &[]);
         println!("{:?}", game.grid);
         let start = Instant::now();
         let mut flood_fill = FloodFill::new(game.grid.width, game.grid.height);
         let moves = max_n(&game, 2, |game| {
             if game.snake_is_alive(0) {
                 flood_fill.flood_snakes(&game.grid, &game.snakes);
-                flood_fill.count_space_of(true) as f64
+                flood_fill.count_space(true) as f64
             } else {
                 0.0
             }
@@ -268,7 +268,7 @@ mod test {
         ];
 
         let mut game = Game::new(11, 11);
-        game.reset(snakes, &[]);
+        game.reset(snakes, &[], &[]);
         println!("{:?}", game.grid);
 
         let start = Instant::now();
@@ -276,7 +276,7 @@ mod test {
         let moves = max_n(&game, 6, |game| {
             if game.snake_is_alive(0) {
                 flood_fill.flood_snakes(&game.grid, &game.snakes);
-                flood_fill.count_space_of(true) as f64
+                flood_fill.count_space(true) as f64
             } else {
                 -f64::INFINITY
             }
@@ -290,7 +290,7 @@ mod test {
         let moves = alphabeta(&game, 6, |game| {
             if game.snake_is_alive(0) {
                 flood_fill.flood_snakes(&game.grid, &game.snakes);
-                flood_fill.count_space_of(true) as f64
+                flood_fill.count_space(true) as f64
             } else {
                 -f64::INFINITY
             }

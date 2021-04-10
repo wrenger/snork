@@ -189,13 +189,16 @@ impl Game {
                     .map(|(i, s)| Snake::from(s, i as u8 + 1)),
             );
         }
-        self.reset(snakes, &request.board.food);
+        self.reset(snakes, &request.board.food, &request.board.hazards);
     }
 
     /// Resets the game state.
-    pub fn reset(&mut self, snakes: Vec<Snake>, food: &[Vec2D]) {
+    pub fn reset(&mut self, snakes: Vec<Snake>, food: &[Vec2D], hazards: &[Vec2D]) {
         self.grid.clear();
         self.grid.add_food(food);
+        if !hazards.is_empty() {
+            self.grid.add_hazards(hazards);
+        }
 
         for (i, snake) in snakes.iter().enumerate() {
             assert_eq!(snake.id, i as u8);

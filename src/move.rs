@@ -36,7 +36,7 @@ fn main() {
             .enumerate()
             .map(|(i, s)| Snake::from(s, i as u8 + 1)),
     );
-    game.reset(snakes, &request.board.food);
+    game.reset(snakes, &request.board.food, &request.board.hazards);
     println!("{:?}", game.grid);
     let mut flood_fill = FloodFill::new(request.board.width, request.board.height);
     flood_fill.flood_snakes(&game.grid, &game.snakes);

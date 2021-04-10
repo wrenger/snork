@@ -6,6 +6,8 @@ use std::ops::{Index, IndexMut};
 use crate::env::{Direction, Vec2D};
 use crate::util::OrdPair;
 
+pub const HAZARD_COSTS: usize = 15;
+
 /// Represents a single tile of the board
 #[derive(Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
@@ -24,9 +26,9 @@ impl Default for Cell {
 impl std::fmt::Debug for Cell {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match *self {
-            Cell::Free => write!(f, "__"),
-            Cell::Food => write!(f, "()"),
-            Cell::Occupied => write!(f, "[]"),
+            Cell::Free => write!(f, "_"),
+            Cell::Food => write!(f, "o"),
+            Cell::Occupied => write!(f, "X"),
         }
     }
 }
@@ -40,6 +42,7 @@ pub struct Grid {
     pub width: usize,
     pub height: usize,
     pub cells: Vec<Cell>,
+    pub hazards: Vec<bool>,
 }
 
 impl Grid {
@@ -49,6 +52,7 @@ impl Grid {
             width,
             height,
             cells: vec![Cell::default(); width * height],
+            hazards: Vec::new(),
         }
     }
 
@@ -62,6 +66,7 @@ impl Grid {
             width,
             height,
             cells,
+            hazards: Vec::new(),
         }
     }
 
@@ -90,9 +95,29 @@ impl Grid {
         }
     }
 
+    /// Adds the provided hazards to the grid.
+    pub fn add_hazards(&mut self, hazards: &[Vec2D]) {
+        if self.hazards.is_empty() {
+            self.hazards = vec![false; self.width * self.height];
+        }
+        for &p in hazards {
+            if self.has(p) {
+                self.hazards[p.x as usize + p.y as usize * self.width] = true;
+            }
+        }
+    }
+
+    /// Returns if the cell is hazardous.
+    pub fn is_hazardous(&self, p: Vec2D) -> bool {
+        !self.hazards.is_empty()
+            && self.has(p)
+            && self.hazards[p.x as usize + p.y as usize * self.width]
+    }
+
     /// Returns if `p` is within the boundaries of this grid.
+    #[inline]
     pub fn has(&self, p: Vec2D) -> bool {
-        0 <= p.x && p.x < self.width as _ && 0 <= p.y && p.y < self.height as _
+        p.within(self.width, self.height)
     }
 
     /// Performes an A* search that applies the `first_move_heuristic` as
@@ -128,11 +153,13 @@ impl Grid {
 
             for d in Direction::iter() {
                 let neighbor = front.apply(d);
-                let neighbor_cost = if front == start {
-                    cost + 1.0 + first_move_heuristic[d as usize]
-                } else {
-                    cost + 1.0
-                };
+                let mut neighbor_cost = cost + 1.0;
+                if self.is_hazardous(neighbor) {
+                    neighbor_cost += HAZARD_COSTS as f64;
+                }
+                if front == start {
+                    neighbor_cost += first_move_heuristic[d as usize]
+                }
 
                 if self.has(neighbor) && self[neighbor] != Cell::Occupied {
                     let cost_so_far = data.get(&neighbor).map(|(_, c)| *c).unwrap_or(f64::MAX);
@@ -156,7 +183,7 @@ impl Index<Vec2D> for Grid {
     fn index(&self, p: Vec2D) -> &Self::Output {
         assert!(0 <= p.x && p.x < self.width as _);
         assert!(0 <= p.y && p.y < self.height as _);
-        &self.cells[(p.x as usize % self.width + p.y as usize * self.width) as usize]
+        &self.cells[(p.x as usize + p.y as usize * self.width) as usize]
     }
 }
 
@@ -164,7 +191,7 @@ impl IndexMut<Vec2D> for Grid {
     fn index_mut(&mut self, p: Vec2D) -> &mut Self::Output {
         assert!(0 <= p.x && p.x < self.width as _);
         assert!(0 <= p.y && p.y < self.height as _);
-        &mut self.cells[(p.x as usize % self.width + p.y as usize * self.width) as usize]
+        &mut self.cells[(p.x as usize + p.y as usize * self.width) as usize]
     }
 }
 
@@ -174,7 +201,12 @@ impl std::fmt::Debug for Grid {
         for y in 0..self.height as i16 {
             write!(f, "  ")?;
             for x in 0..self.width as i16 {
-                write!(f, "{:?} ", self[Vec2D::new(x, self.height as i16 - y - 1)])?;
+                let p = Vec2D::new(x, self.height as i16 - y - 1);
+                if self.is_hazardous(p) {
+                    write!(f, "#{:?} ", self[p])?;
+                } else {
+                    write!(f, "_{:?} ", self[p])?;
+                }
             }
             writeln!(f)?;
         }
@@ -208,5 +240,17 @@ mod test {
         assert_eq!(path.len(), 3);
         assert_eq!(path[0], Vec2D::new(0, 0));
         assert_eq!(path[2], Vec2D::new(1, 1));
+    }
+
+    #[test]
+    fn grid_a_star_hazards() {
+        use super::*;
+        let mut grid = Grid::new(5, 5);
+        grid.add_hazards(&[Vec2D::new(2, 0), Vec2D::new(2, 1), Vec2D::new(2, 2), Vec2D::new(2, 3)]);
+        let path = grid.a_star(Vec2D::new(0, 2), Vec2D::new(4, 2), &[1.0, 1.0, 1.0, 1.0]).unwrap();
+        println!("{:?}", path);
+        assert_eq!(path.len(), 9);
+        assert_eq!(path[0], Vec2D::new(0, 2));
+        assert_eq!(path[path.len() - 1], Vec2D::new(4, 2));
     }
 }

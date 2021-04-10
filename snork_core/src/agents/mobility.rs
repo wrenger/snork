@@ -7,7 +7,7 @@ use rand::{rngs::SmallRng, SeedableRng};
 
 use super::Agent;
 use crate::env::*;
-use crate::game::{max_n, Cell, FloodFill, Game, Grid, Snake};
+use crate::game::{max_n, Cell, FloodFill, Game, Grid, Snake, HAZARD_COSTS};
 use crate::util::{argmax, OrdPair};
 
 #[derive(Debug)]
@@ -26,6 +26,8 @@ pub struct MobilityConfig {
     min_len: usize,
     /// [0, 3]
     first_move_cost: f64,
+    /// [0, 100]
+    hazard_penalty: f64,
 }
 
 impl Default for MobilityConfig {
@@ -34,6 +36,7 @@ impl Default for MobilityConfig {
             health_threshold: 35,
             min_len: 10,
             first_move_cost: 1.0,
+            hazard_penalty: 10.0,
         }
     }
 }
@@ -94,10 +97,22 @@ impl Agent for MobilityAgent {
         // Flood fill heuristics
         let start = Instant::now();
         let flood_fill = &mut self.flood_fill;
+        let hazard_penalty = self.config.hazard_penalty;
         let space_after_move = max_n(&self.game, 1, |game| {
             if game.snake_is_alive(0) {
                 flood_fill.flood_snakes(&game.grid, &game.snakes);
-                flood_fill.count_space_of(true) as f64
+                let space = flood_fill.count_space_weighted(true, |p| {
+                    if game.grid.is_hazardous(p) {
+                        1.0 / HAZARD_COSTS as f64
+                    } else {
+                        1.0
+                    }
+                }) as f64;
+                if game.grid.is_hazardous(game.snakes[0].head()) {
+                    space - hazard_penalty
+                } else {
+                    space
+                }
             } else {
                 0.0
             }
