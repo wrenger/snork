@@ -1,6 +1,9 @@
 use std::cmp::Reverse;
 use std::collections::{BinaryHeap, VecDeque};
+use std::fmt::{self, Debug};
 use std::hash::{Hash, Hasher};
+
+use owo_colors::{OwoColorize, Style};
 
 use super::{Cell, Grid};
 use crate::env::{Direction, GameRequest, SnakeData, Vec2D};
@@ -54,7 +57,7 @@ impl Eq for Snake {}
 
 /// Game represents holds the complete game state.
 /// This also provides methods to execute moves and evaluate their outcome.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Game {
     /// All snakes. Dead ones have health = 0 and no body.
     /// The ids have to be the same as the indices!
@@ -68,85 +71,6 @@ impl Game {
             snakes: Vec::with_capacity(4),
             grid: Grid::new(width, height),
         }
-    }
-
-    /// Parses textual human readable board representation used in test.
-    #[cfg(test)]
-    pub fn parse(txt: &str) -> Option<Game> {
-        let txt = txt.trim();
-
-        #[derive(PartialEq)]
-        enum RawCell {
-            Free,
-            Food,
-            Head(u8),
-            Body(Direction),
-            Tail,
-        }
-        let raw_cells: Vec<RawCell> = txt
-            .lines()
-            .rev()
-            .flat_map(|l| {
-                l.split_whitespace().flat_map(|s| {
-                    s.chars().next().map(|c| match c {
-                        'x' => RawCell::Food,
-                        '0'..='9' => RawCell::Head(c.to_digit(10).unwrap() as u8),
-                        '+' => RawCell::Tail,
-                        '^' => RawCell::Body(Direction::Up),
-                        '>' => RawCell::Body(Direction::Right),
-                        'v' => RawCell::Body(Direction::Down),
-                        '<' => RawCell::Body(Direction::Left),
-                        _ => RawCell::Free,
-                    })
-                })
-            })
-            .collect();
-        let height = txt.lines().count();
-
-        if raw_cells.len() % height != 0 {
-            return None;
-        }
-        let width = raw_cells.len() / height;
-
-        let mut grid = Grid::new(width, height);
-        for (i, cell) in raw_cells.iter().enumerate() {
-            grid[Vec2D::new((i % width) as _, (i / width) as _)] = match cell {
-                RawCell::Free => Cell::Free,
-                RawCell::Food => Cell::Food,
-                _ => Cell::Occupied,
-            }
-        }
-
-        let mut snakes = Vec::new();
-        for i in 0..=9 {
-            if let Some(p) = raw_cells.iter().position(|c| *c == RawCell::Head(i)) {
-                let mut p = Vec2D::new((p % width) as _, (p / width) as _);
-                let mut body = VecDeque::new();
-                body.push_front(p);
-                while let Some(next) = Direction::iter().find_map(|d| {
-                    let next = p.apply(d);
-                    if next.within(width, height)
-                        && raw_cells[(next.x + next.y * width as i16) as usize]
-                            == RawCell::Body(d.invert())
-                    {
-                        Some(next)
-                    } else {
-                        None
-                    }
-                }) {
-                    p = next;
-                    body.push_front(p);
-                }
-                while body.len() < 3 {
-                    body.push_front(body[0]);
-                }
-                snakes.push(Snake::new(i as _, body, 100));
-            } else {
-                break;
-            }
-        }
-
-        Some(Game { grid, snakes })
     }
 
     /// Loads the game state from the provided request.
@@ -299,7 +223,7 @@ impl Game {
         }
 
         // Check head to head
-        // This is only accurate for head to head on two snakes but not more
+        // Warning: This is only accurate for head to head on two snakes but not more
         for i in 0..self.snakes.len() - 1 {
             if self.snakes[i].alive() {
                 for j in i + 1..self.snakes.len() {
@@ -330,6 +254,182 @@ impl Game {
                 snake.body.clear();
             }
         }
+    }
+}
+
+impl Game {
+    /// Parses textual human readable board representation used in test.
+    #[cfg(test)]
+    pub fn parse(txt: &str) -> Option<Game> {
+        let txt = txt.trim();
+
+        #[derive(PartialEq)]
+        enum RawCell {
+            Free,
+            Food,
+            Head(u8),
+            Body(Direction),
+        }
+
+        let raw_cells: Vec<RawCell> = txt
+            .lines()
+            .rev()
+            .flat_map(|l| {
+                l.split_whitespace().flat_map(|s| {
+                    s.chars().next().map(|c| match c {
+                        'o' => RawCell::Food,
+                        '0'..='9' => RawCell::Head(c.to_digit(10).unwrap() as u8),
+                        '^' => RawCell::Body(Direction::Up),
+                        '>' => RawCell::Body(Direction::Right),
+                        'v' => RawCell::Body(Direction::Down),
+                        '<' => RawCell::Body(Direction::Left),
+                        _ => RawCell::Free,
+                    })
+                })
+            })
+            .collect();
+        let height = txt.lines().count();
+
+        if raw_cells.len() % height != 0 {
+            return None;
+        }
+        let width = raw_cells.len() / height;
+
+        let mut grid = Grid::new(width, height);
+        for (i, cell) in raw_cells.iter().enumerate() {
+            grid[Vec2D::new((i % width) as _, (i / width) as _)] = match cell {
+                RawCell::Free => Cell::Free,
+                RawCell::Food => Cell::Food,
+                _ => Cell::Occupied,
+            }
+        }
+
+        let mut snakes = Vec::new();
+        for i in 0..=9 {
+            if let Some(p) = raw_cells.iter().position(|c| *c == RawCell::Head(i)) {
+                let mut p = Vec2D::new((p % width) as _, (p / width) as _);
+                let mut body = VecDeque::new();
+                body.push_front(p);
+                while let Some(next) = Direction::iter().find_map(|d| {
+                    let next = p.apply(d);
+                    if next.within(width, height)
+                        && raw_cells[(next.x + next.y * width as i16) as usize]
+                            == RawCell::Body(d.invert())
+                    {
+                        Some(next)
+                    } else {
+                        None
+                    }
+                }) {
+                    p = next;
+                    body.push_front(p);
+                }
+                while body.len() < 3 {
+                    body.push_front(body[0]);
+                }
+                snakes.push(Snake::new(i as _, body, 100));
+            } else {
+                break;
+            }
+        }
+
+        Some(Game { grid, snakes })
+    }
+}
+
+impl Debug for Game {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        #[derive(Clone, Copy, PartialEq, Eq)]
+        enum FmtCell {
+            Free,
+            Food,
+            Tail(Direction, u8),
+            Head(u8),
+        }
+        fn id_color(id: u8) -> Style {
+            match id {
+                0 => Style::new().green(),
+                1 => Style::new().yellow(),
+                2 => Style::new().blue(),
+                3 => Style::new().magenta(),
+                _ => Style::new().cyan(),
+            }
+        }
+        impl Debug for FmtCell {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                match self {
+                    FmtCell::Free => write!(f, "."),
+                    FmtCell::Food => write!(f, "{}", "o".red()),
+                    FmtCell::Tail(dir, id) => match dir {
+                        Direction::Up => write!(f, "{}", "v".style(id_color(*id))),
+                        Direction::Right => write!(f, "{}", ">".style(id_color(*id))),
+                        Direction::Down => write!(f, "{}", "^".style(id_color(*id))),
+                        Direction::Left => write!(f, "{}", "<".style(id_color(*id))),
+                    },
+                    FmtCell::Head(id) => write!(f, "{}", id.style(id_color(*id))),
+                }
+            }
+        }
+
+        let mut cells = vec![(FmtCell::Free, false); self.grid.width * self.grid.height];
+
+        for y in 0..self.grid.width {
+            for x in 0..self.grid.height {
+                let cell = &mut cells[y * self.grid.width + x];
+                cell.0 = match self.grid[Vec2D::new(x as _, y as _)] {
+                    Cell::Food => FmtCell::Food,
+                    _ => FmtCell::Free,
+                };
+                cell.1 = self.grid.is_hazardous(Vec2D::new(x as _, y as _));
+            }
+        }
+
+        for snake in &self.snakes {
+            let mut last_body = *snake.body.front().unwrap();
+
+            for next_body in snake.body.iter().skip(1).copied() {
+                cells[last_body.y as usize * self.grid.width + last_body.x as usize].0 =
+                    FmtCell::Tail(Direction::from(next_body - last_body), snake.id);
+
+                last_body = next_body;
+            }
+
+            cells[last_body.y as usize * self.grid.width + last_body.x as usize].0 =
+                FmtCell::Head(snake.id);
+        }
+
+        writeln!(f, "Game {{")?;
+
+        // Grid
+        for y in 0..self.grid.width {
+            write!(f, "  ")?;
+            for x in 0..self.grid.height {
+                let (cell, hazard) = cells[y * self.grid.width + x];
+                if hazard {
+                    write!(f, "{:?} ", cell.on_bright_black())?;
+                } else {
+                    write!(f, "{:?} ", cell)?;
+                }
+            }
+            writeln!(f)?;
+        }
+
+        // Snakes
+        write!(f, "  Snakes: [")?;
+        let mut first = true;
+        for snake in &self.snakes {
+            if !first {
+                write!(f, ", ")?;
+            } else {
+                first = false;
+            }
+            write!(f, "({}: {})", snake.id, snake.health)?;
+        }
+        writeln!(f, "]")?;
+
+        writeln!(f, "}}")?;
+
+        Ok(())
     }
 }
 
@@ -384,7 +484,7 @@ mod test {
         let game = Game::parse(
             r#"
             . . . . . . . . . . .
-            . . . . . . . . x . .
+            . . . . . . . . o . .
             . . . . . . . . . . .
             . . . . . . . . . . .
             . . . . . 0 < < . . .
@@ -569,17 +669,17 @@ mod test {
 
         let game = Game::parse(
             r#"
-            . . . . . . . x . . .
-            x . . . . . . . . x .
-            . . x 3 . . . . . . .
-            . . . . . . 0 x . . .
-            . . x . . . . . . . .
-            . . . . . x . . . x .
-            . x . . x . . . . . .
-            . . . . . . . 2 . x .
-            . . . 1 . . . x . . .
-            x . . x . . . . . . .
-            . . . . . x . . x . ."#,
+            . . . . . . . o . . .
+            o . . . . . . . . o .
+            . . o 3 . . . . . . .
+            . . . . . . 0 o . . .
+            . . o . . . . . . . .
+            . . . . . o . . . o .
+            . o . . o . . . . . .
+            . . . . . . . 2 . o .
+            . . . 1 . . . o . . .
+            o . . o . . . . . . .
+            . . . . . o . . o . ."#,
         )
         .unwrap();
 
