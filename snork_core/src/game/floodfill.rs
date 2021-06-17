@@ -5,6 +5,8 @@ use std::ops::{Index, IndexMut};
 use super::{Cell, Grid, Snake};
 use crate::env::{Direction, Vec2D};
 
+use owo_colors::{OwoColorize, Style};
+
 /// Floodfill Cell that stores the important data in a single Byte.
 ///
 /// Bitfield:
@@ -63,17 +65,17 @@ impl FCell {
 impl std::fmt::Debug for FCell {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if self.is_free() {
-            write!(f, "___")
+            write!(f, "__")
         } else {
-            if self.is_you() {
-                write!(f, "+")?;
+            let style = if self.is_you() {
+                Style::new().green()
             } else {
-                write!(f, "#")?;
-            }
+                Style::new().red()
+            };
             if self.is_occupied() {
-                write!(f, "{:0>2}", self.get_num())
+                write!(f, "{:0>2}", self.get_num().style(style))
             } else {
-                write!(f, "..")
+                write!(f, "{}", "..".style(style))
             }
         }
     }
@@ -240,7 +242,7 @@ impl IndexMut<Vec2D> for FloodFill {
 
 impl std::fmt::Debug for FloodFill {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "Grid {{")?;
+        writeln!(f, "FloodFill {{")?;
         for y in 0..self.height as i16 {
             write!(f, "  ")?;
             for x in 0..self.width as i16 {

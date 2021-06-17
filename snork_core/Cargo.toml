@@ -11,3 +11,4 @@ readme = "../README.md"
 rand = {version = "0.8", features = ["small_rng"]}
 serde = "1.0"
 serde_json = "1.0"
+owo-colors = "2.0"

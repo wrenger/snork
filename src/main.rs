@@ -208,10 +208,8 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::JsonConfig::default().error_handler(|err, _req| {
                 println!("ERROR: {}", err);
                 actix_web::error::InternalError::from_response(
-                    "",
-                    HttpResponse::BadRequest()
-                        .content_type("application/json")
-                        .body(format!(r#"{{"error":"{}"}}"#, err)),
+                    err,
+                    HttpResponse::Conflict().finish(),
                 )
                 .into()
             }))

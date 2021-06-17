@@ -7,7 +7,7 @@ use rand::{rngs::SmallRng, SeedableRng};
 
 use super::Agent;
 use crate::env::*;
-use crate::game::{max_n, Cell, FloodFill, Game, Grid, Snake, HAZARD_COSTS};
+use crate::game::{max_n, Cell, FloodFill, Game, Grid, Snake};
 use crate::util::{argmax, OrdPair};
 
 #[derive(Debug)]
@@ -27,7 +27,7 @@ pub struct MobilityConfig {
     /// [0, 3]
     first_move_cost: f64,
     /// [0, 100]
-    hazard_penalty: f64,
+    hazard_damage: u8,
 }
 
 impl Default for MobilityConfig {
@@ -36,15 +36,17 @@ impl Default for MobilityConfig {
             health_threshold: 35,
             min_len: 10,
             first_move_cost: 1.0,
-            hazard_penalty: 10.0,
+            hazard_damage: 15,
         }
     }
 }
 
 impl MobilityAgent {
     pub fn new(request: &GameRequest, config: &MobilityConfig) -> MobilityAgent {
+        let mut game = Game::new(request.board.width, request.board.width);
+        game.grid.hazard_damage = config.hazard_damage;
         MobilityAgent {
-            game: Game::new(request.board.width, request.board.width),
+            game,
             flood_fill: FloodFill::new(request.board.width, request.board.width),
             config: config.clone(),
         }
@@ -97,19 +99,18 @@ impl Agent for MobilityAgent {
         // Flood fill heuristics
         let start = Instant::now();
         let flood_fill = &mut self.flood_fill;
-        let hazard_penalty = self.config.hazard_penalty;
         let space_after_move = max_n(&self.game, 1, |game| {
             if game.snake_is_alive(0) {
                 flood_fill.flood_snakes(&game.grid, &game.snakes);
                 let space = flood_fill.count_space_weighted(true, |p| {
                     if game.grid.is_hazardous(p) {
-                        1.0 / HAZARD_COSTS as f64
+                        1.0 / game.grid.hazard_damage as f64
                     } else {
                         1.0
                     }
                 }) as f64;
                 if game.grid.is_hazardous(game.snakes[0].head()) {
-                    space - hazard_penalty
+                    space - game.grid.hazard_damage as f64
                 } else {
                     space
                 }
@@ -137,16 +138,19 @@ impl Agent for MobilityAgent {
         // Find Food
         if you.body.len() < self.config.min_len || you.health < self.config.health_threshold {
             if let Some(dir) = self.find_food(&request.board.food, &grid, &space_after_move) {
+                println!(">>> find food");
                 return MoveResponse::new(dir);
             }
         }
 
         if let Some(dir) = argmax(space_after_move.iter()) {
             if space_after_move[dir] > 0.0 {
+                println!(">>> max space");
                 return MoveResponse::new(Direction::from(dir as u8));
             }
         }
 
+        println!(">>> random");
         let mut rng = SmallRng::from_entropy();
         MoveResponse::new(
             self.game

@@ -57,7 +57,7 @@ impl Eq for Snake {}
 #[derive(Debug, Clone)]
 pub struct Game {
     /// All snakes. Dead ones have health = 0 and no body.
-    /// The ids are have to match the index!
+    /// The ids have to be the same as the indices!
     pub snakes: Vec<Snake>,
     pub grid: Grid,
 }

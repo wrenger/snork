@@ -1,12 +1,14 @@
 use std::cmp::Reverse;
 use std::collections::{BinaryHeap, HashMap};
-use std::f64;
+use std::{f64, usize};
 use std::ops::{Index, IndexMut};
 
 use crate::env::{Direction, Vec2D};
 use crate::util::OrdPair;
 
-pub const HAZARD_COSTS: usize = 15;
+use owo_colors::OwoColorize;
+
+const HAZARD_DAMAGE: u8 = 15;
 
 /// Represents a single tile of the board
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -26,9 +28,9 @@ impl Default for Cell {
 impl std::fmt::Debug for Cell {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match *self {
-            Cell::Free => write!(f, "_"),
-            Cell::Food => write!(f, "o"),
-            Cell::Occupied => write!(f, "X"),
+            Cell::Free => write!(f, "."),
+            Cell::Food => write!(f, "{}", "o".red()),
+            Cell::Occupied => write!(f, "{}", "X".blue()),
         }
     }
 }
@@ -43,6 +45,7 @@ pub struct Grid {
     pub height: usize,
     pub cells: Vec<Cell>,
     pub hazards: Vec<bool>,
+    pub hazard_damage: u8,
 }
 
 impl Grid {
@@ -53,6 +56,7 @@ impl Grid {
             height,
             cells: vec![Cell::default(); width * height],
             hazards: Vec::new(),
+            hazard_damage: HAZARD_DAMAGE,
         }
     }
 
@@ -67,6 +71,7 @@ impl Grid {
             height,
             cells,
             hazards: Vec::new(),
+            hazard_damage: HAZARD_DAMAGE,
         }
     }
 
@@ -155,7 +160,7 @@ impl Grid {
                 let neighbor = front.apply(d);
                 let mut neighbor_cost = cost + 1.0;
                 if self.is_hazardous(neighbor) {
-                    neighbor_cost += HAZARD_COSTS as f64;
+                    neighbor_cost += self.hazard_damage as f64;
                 }
                 if front == start {
                     neighbor_cost += first_move_heuristic[d as usize]
@@ -203,9 +208,9 @@ impl std::fmt::Debug for Grid {
             for x in 0..self.width as i16 {
                 let p = Vec2D::new(x, self.height as i16 - y - 1);
                 if self.is_hazardous(p) {
-                    write!(f, "#{:?} ", self[p])?;
+                    write!(f, "{:?} ", self[p].on_bright_black())?;
                 } else {
-                    write!(f, "_{:?} ", self[p])?;
+                    write!(f, "{:?} ", self[p])?;
                 }
             }
             writeln!(f)?;
