@@ -6,7 +6,7 @@ use std::hash::{Hash, Hasher};
 use owo_colors::{OwoColorize, Style};
 
 use super::{Cell, Grid};
-use crate::env::{Direction, GameRequest, SnakeData, Vec2D};
+use crate::env::{Direction, GameRequest, SnakeData, Vec2D, HAZARD_DAMAGE};
 use crate::util::OrdPair;
 
 /// The outcome of a simulated game.
@@ -208,7 +208,13 @@ impl Game {
             if snake.alive() {
                 let dir = moves[snake.id as usize];
                 let head = snake.head().apply(dir);
-                if self.grid.has(head) && snake.health > 0 && !self.grid[head].owned() {
+                let costs = if self.grid[head].hazard() {
+                    HAZARD_DAMAGE as u8
+                } else {
+                    1
+                };
+
+                if self.grid.has(head) && snake.health >= costs && !self.grid[head].owned() {
                     if self.grid[head].food() {
                         snake.body.push_front(snake.body[0]);
                         snake.health = 100;

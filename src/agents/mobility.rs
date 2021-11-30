@@ -26,8 +26,6 @@ pub struct MobilityConfig {
     min_len: usize,
     /// [0, 3]
     first_move_cost: f64,
-    /// [0, 100]
-    hazard_damage: u8,
 }
 
 impl Default for MobilityConfig {
@@ -36,17 +34,14 @@ impl Default for MobilityConfig {
             health_threshold: 35,
             min_len: 10,
             first_move_cost: 1.0,
-            hazard_damage: 15,
         }
     }
 }
 
 impl MobilityAgent {
     pub fn new(request: &GameRequest, config: &MobilityConfig) -> MobilityAgent {
-        let mut game = Game::new(request.board.width, request.board.width);
-        game.grid.hazard_damage = config.hazard_damage;
         MobilityAgent {
-            game,
+            game: Game::new(request.board.width, request.board.width),
             flood_fill: FloodFill::new(request.board.width, request.board.width),
             config: config.clone(),
         }
@@ -104,13 +99,13 @@ impl Agent for MobilityAgent {
                 flood_fill.flood_snakes(&game.grid, &game.snakes);
                 let space = flood_fill.count_space_weighted(true, |p| {
                     if game.grid.is_hazardous(p) {
-                        1.0 / game.grid.hazard_damage as f64
+                        1.0 / HAZARD_DAMAGE as f64
                     } else {
                         1.0
                     }
                 }) as f64;
                 if game.grid.is_hazardous(game.snakes[0].head()) {
-                    space - game.grid.hazard_damage as f64
+                    space - HAZARD_DAMAGE as f64
                 } else {
                     space
                 }

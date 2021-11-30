@@ -3,10 +3,8 @@ use std::collections::{BinaryHeap, HashMap};
 use std::ops::{Index, IndexMut};
 use std::{f64, usize};
 
-use crate::env::{Direction, Vec2D};
+use crate::env::{Direction, Vec2D, HAZARD_DAMAGE};
 use crate::util::OrdPair;
-
-const HAZARD_DAMAGE: u8 = 15;
 
 const FOOD: usize = 0;
 const OWNED: usize = 1;
@@ -92,8 +90,6 @@ pub struct Grid {
     pub width: usize,
     pub height: usize,
     pub cells: Vec<Cell>,
-    pub hazards: Vec<bool>,
-    pub hazard_damage: u8,
 }
 
 impl Grid {
@@ -103,8 +99,6 @@ impl Grid {
             width,
             height,
             cells: vec![Cell::default(); width * height],
-            hazards: Vec::new(),
-            hazard_damage: HAZARD_DAMAGE,
         }
     }
 
@@ -118,8 +112,6 @@ impl Grid {
             width,
             height,
             cells,
-            hazards: Vec::new(),
-            hazard_damage: HAZARD_DAMAGE,
         }
     }
 
@@ -150,21 +142,16 @@ impl Grid {
 
     /// Adds the provided hazards to the grid.
     pub fn add_hazards(&mut self, hazards: &[Vec2D]) {
-        if self.hazards.is_empty() {
-            self.hazards = vec![false; self.width * self.height];
-        }
         for &p in hazards {
             if self.has(p) {
-                self.hazards[p.x as usize + p.y as usize * self.width] = true;
+                self[p].set_hazard(true);
             }
         }
     }
 
     /// Returns if the cell is hazardous.
     pub fn is_hazardous(&self, p: Vec2D) -> bool {
-        !self.hazards.is_empty()
-            && self.has(p)
-            && self.hazards[p.x as usize + p.y as usize * self.width]
+        self.has(p) && self[p].hazard()
     }
 
     /// Returns if `p` is within the boundaries of this grid.
@@ -208,7 +195,7 @@ impl Grid {
                 let neighbor = front.apply(d);
                 let mut neighbor_cost = cost + 1.0;
                 if self.is_hazardous(neighbor) {
-                    neighbor_cost += self.hazard_damage as f64;
+                    neighbor_cost += HAZARD_DAMAGE as f64;
                 }
                 if front == start {
                     neighbor_cost += first_move_heuristic[d as usize]
