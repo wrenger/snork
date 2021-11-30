@@ -7,7 +7,7 @@ use rand::{rngs::SmallRng, SeedableRng};
 
 use super::Agent;
 use crate::env::*;
-use crate::game::{max_n, Cell, FloodFill, Game, Grid, Snake};
+use crate::game::{max_n, FloodFill, Game, Grid, Snake};
 use crate::util::{argmax, OrdPair};
 
 #[derive(Debug)]
@@ -129,7 +129,7 @@ impl Agent for MobilityAgent {
                 for d in Direction::iter() {
                     let p = snake.head().apply(d);
                     if grid.has(p) {
-                        grid[p] = Cell::Occupied;
+                        grid[p].set_owned(true);
                     }
                 }
             }
@@ -161,35 +161,4 @@ impl Agent for MobilityAgent {
     }
 
     fn end(&mut self, _: &GameRequest) {}
-}
-
-#[cfg(test)]
-mod test {
-    #[test]
-    #[ignore]
-    fn bench_mobility() {
-        use super::*;
-        use std::time::Instant;
-
-        let game_req: GameRequest = serde_json::from_str(
-            r#"{"game":{"id":"bcb8c2e8-4fb7-485b-9ade-9df947dd9623","ruleset":{"name":"standard","version":"v1.0.15"},"timeout":500},"turn":69,"board":{"height":11,"width":11,"food":[{"x":7,"y":9},{"x":1,"y":0}],"hazards":[],"snakes":[{"id":"gs_3MjqcwQJxYG7VrvjbbkRW9JB","name":"Nessegrev-flood","health":85,"body":[{"x":7,"y":10},{"x":8,"y":10},{"x":8,"y":9},{"x":9,"y":9},{"x":10,"y":9},{"x":10,"y":8},{"x":10,"y":7}],"shout":""},{"id":"gs_c9JrKQcQqHHPJFm43W47RKMd","name":"Rufio the Tenacious","health":80,"body":[{"x":5,"y":8},{"x":4,"y":8},{"x":4,"y":9},{"x":3,"y":9},{"x":2,"y":9},{"x":2,"y":8},{"x":2,"y":7}],"shout":""},{"id":"gs_ffjK7pqCwVXYGtwhWtk3vtJX","name":"marrrvin","health":89,"body":[{"x":8,"y":7},{"x":8,"y":8},{"x":7,"y":8},{"x":7,"y":7},{"x":7,"y":6},{"x":6,"y":6},{"x":5,"y":6},{"x":5,"y":5},{"x":6,"y":5}],"shout":""},{"id":"gs_Kr6BCBwbDpdGDpWbw9vMS6qV","name":"kostka","health":93,"body":[{"x":7,"y":2},{"x":7,"y":3},{"x":6,"y":3},{"x":5,"y":3},{"x":4,"y":3},{"x":3,"y":3}],"shout":""}]},"you":{"id":"gs_ffjK7pqCwVXYGtwhWtk3vtJX","name":"marrrvin","health":89,"body":[{"x":8,"y":7},{"x":8,"y":8},{"x":7,"y":8},{"x":7,"y":7},{"x":7,"y":6},{"x":6,"y":6},{"x":5,"y":6},{"x":5,"y":5},{"x":6,"y":5}],"shout":""}}"#
-        ).unwrap();
-
-        let mut agent = MobilityAgent::new(&game_req, &MobilityConfig::default());
-
-        const COUNT: usize = 1000;
-
-        let start = Instant::now();
-        for _ in 0..COUNT {
-            let d = agent.step(&game_req, 200);
-            assert_eq!(d.r#move, Direction::Down);
-        }
-        let end = Instant::now();
-        let runtime = (end - start).as_millis();
-        println!(
-            "Runtime: total={}ms, avg={}ms",
-            runtime,
-            runtime as f64 / COUNT as f64
-        )
-    }
 }

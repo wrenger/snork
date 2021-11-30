@@ -179,7 +179,7 @@ impl Game {
         let p = snake.head().apply(dir);
         // Free or occupied by tail (free in the next turn)
         self.grid.has(p)
-            && (self.grid[p] != Cell::Occupied
+            && (!self.grid[p].owned()
                 || self
                     .snakes
                     .iter()
@@ -198,7 +198,7 @@ impl Game {
                 let tail = snake.body.pop_front().unwrap();
                 let new_tail = snake.body[0];
                 if tail != new_tail {
-                    self.grid[tail] = Cell::Free;
+                    self.grid[tail] = Cell::empty();
                 }
             }
         }
@@ -208,8 +208,8 @@ impl Game {
             if snake.alive() {
                 let dir = moves[snake.id as usize];
                 let head = snake.head().apply(dir);
-                if self.grid.has(head) && snake.health > 0 && self.grid[head] != Cell::Occupied {
-                    if self.grid[head] == Cell::Food {
+                if self.grid.has(head) && snake.health > 0 && !self.grid[head].owned() {
+                    if self.grid[head].food() {
                         snake.body.push_front(snake.body[0]);
                         snake.health = 100;
                     } else {
@@ -246,10 +246,11 @@ impl Game {
         let grid = &mut self.grid;
         for snake in &mut self.snakes {
             if snake.alive() {
-                grid[snake.head()] = Cell::Occupied;
+                grid[snake.head()].set_owned(true);
+                grid[snake.head()].set_food(false);
             } else if !snake.body.is_empty() {
                 for &p in &snake.body {
-                    grid[p] = Cell::Free
+                    grid[p] = Cell::empty();
                 }
                 snake.body.clear();
             }
@@ -259,7 +260,6 @@ impl Game {
 
 impl Game {
     /// Parses textual human readable board representation used in test.
-    #[cfg(test)]
     pub fn parse(txt: &str) -> Option<Game> {
         let txt = txt.trim();
 
@@ -298,9 +298,9 @@ impl Game {
         let mut grid = Grid::new(width, height);
         for (i, cell) in raw_cells.iter().enumerate() {
             grid[Vec2D::new((i % width) as _, (i / width) as _)] = match cell {
-                RawCell::Free => Cell::Free,
-                RawCell::Food => Cell::Food,
-                _ => Cell::Occupied,
+                RawCell::Free => Cell::empty(),
+                RawCell::Food => Cell::new(true, false, false),
+                _ => Cell::new(false, true, false),
             }
         }
 
@@ -376,9 +376,10 @@ impl Debug for Game {
         for y in 0..self.grid.width {
             for x in 0..self.grid.height {
                 let cell = &mut cells[y * self.grid.width + x];
-                cell.0 = match self.grid[Vec2D::new(x as _, y as _)] {
-                    Cell::Food => FmtCell::Food,
-                    _ => FmtCell::Free,
+                cell.0 = if self.grid[Vec2D::new(x as _, y as _)].food() {
+                    FmtCell::Food
+                } else {
+                    FmtCell::Free
                 };
                 cell.1 = self.grid.is_hazardous(Vec2D::new(x as _, y as _));
             }
@@ -499,8 +500,8 @@ mod test {
 
         assert_eq!(game.grid.width, 11);
         assert_eq!(game.grid.height, 11);
-        assert_eq!(game.grid[Vec2D::new(5, 6)], Cell::Occupied);
-        assert_eq!(game.grid[Vec2D::new(8, 9)], Cell::Food);
+        assert!(game.grid[Vec2D::new(5, 6)].owned());
+        assert!(game.grid[Vec2D::new(8, 9)].food());
         assert_eq!(game.snakes.len(), 2);
 
         let snake = &game.snakes[0];
@@ -556,18 +557,18 @@ mod test {
             println!("{:?}", game.grid);
             assert!(game.snake_is_alive(0));
             assert!(game.snake_is_alive(1));
-            assert_eq!(game.grid[Vec2D::new(4, 6)], Cell::Free);
-            assert_eq!(game.grid[Vec2D::new(5, 8)], Cell::Occupied);
-            assert_eq!(game.grid[Vec2D::new(6, 6)], Cell::Free);
-            assert_eq!(game.grid[Vec2D::new(7, 8)], Cell::Occupied);
+            assert!(!game.grid[Vec2D::new(4, 6)].owned());
+            assert!(game.grid[Vec2D::new(5, 8)].owned());
+            assert!(!game.grid[Vec2D::new(6, 6)].owned());
+            assert!(game.grid[Vec2D::new(7, 8)].owned());
 
             // Snake 0 runs into 1
             game.step(&[Right, Right]);
             println!("{:?}", game.grid);
             assert!(!game.snake_is_alive(0));
-            assert_eq!(game.grid[Vec2D::new(5, 8)], Cell::Free);
+            assert!(!game.grid[Vec2D::new(5, 8)].owned());
             assert!(game.snake_is_alive(1));
-            assert_eq!(game.grid[Vec2D::new(8, 8)], Cell::Occupied);
+            assert!(game.grid[Vec2D::new(8, 8)].owned());
         }
 
         {
@@ -611,113 +612,5 @@ mod test {
 
         println!("{:?}", game.grid);
         assert!([Right].iter().cloned().eq(game.valid_moves(0)));
-    }
-
-    #[test]
-    #[ignore]
-    fn bench_step_circle() {
-        use super::*;
-        use std::time::Instant;
-
-        let mut game = Game::parse(
-            r#"
-            . . . . . . . . . . .
-            . . . . . . . . . . .
-            . . . . 0 > v . . . .
-            . . . . ^ . v . . . .
-            . . . . ^ < < . . . .
-            . . . . . . . . . . .
-            . . . . . . . . . . .
-            . . . . . . . . . . .
-            . . . . . . . . . . .
-            . . . . . . . . . . .
-            . . . . . . . . . . ."#,
-        )
-        .unwrap();
-
-        let start = Instant::now();
-        let mut steps = 0;
-        loop {
-            use Direction::*;
-            game.step(&[Right]);
-            game.step(&[Right]);
-            game.step(&[Down]);
-            game.step(&[Down]);
-            game.step(&[Left]);
-            game.step(&[Left]);
-            game.step(&[Up]);
-            game.step(&[Up]);
-            if !game.snake_is_alive(0) {
-                break;
-            }
-            steps += 8;
-        }
-        println!(
-            "Dead after {} steps, {}us",
-            steps,
-            (Instant::now() - start).as_nanos()
-        );
-    }
-
-    #[test]
-    #[ignore]
-    fn bench_step_random() {
-        use super::*;
-        use rand::seq::IteratorRandom;
-        use std::time::{Duration, Instant};
-        const SIMULATION_TIME: usize = 200;
-
-        let game = Game::parse(
-            r#"
-            . . . . . . . o . . .
-            o . . . . . . . . o .
-            . . o 3 . . . . . . .
-            . . . . . . 0 o . . .
-            . . o . . . . . . . .
-            . . . . . o . . . o .
-            . o . . o . . . . . .
-            . . . . . . . 2 . o .
-            . . . 1 . . . o . . .
-            o . . o . . . . . . .
-            . . . . . o . . o . ."#,
-        )
-        .unwrap();
-
-        let mut rng = rand::thread_rng();
-        let start = Instant::now();
-        let mut game_num = 0_usize;
-        loop {
-            let mut turn = 0;
-            let mut game = game.clone();
-            loop {
-                let mut moves = [Direction::Up; 4];
-                for i in 0..4 {
-                    moves[i as usize] = game
-                        .valid_moves(i)
-                        .choose(&mut rng)
-                        .unwrap_or(Direction::Up);
-                }
-                game.step(&moves);
-
-                // println!("{} {:?}", turn, game.grid);
-
-                if game.outcome() != Outcome::None {
-                    println!(
-                        "game {}: {:?} after {} turns",
-                        game_num,
-                        game.outcome(),
-                        turn
-                    );
-                    break;
-                }
-                turn += 1;
-            }
-            game_num += 1;
-
-            if Instant::now() > start + Duration::from_millis(SIMULATION_TIME as _) {
-                break;
-            }
-        }
-        println!("Played {} games in {}ms", game_num, SIMULATION_TIME);
     }
 }

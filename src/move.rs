@@ -1,8 +1,13 @@
 use structopt::StructOpt;
 
-use snork_core::agents::*;
-use snork_core::env;
-use snork_core::game::*;
+mod agents;
+mod game;
+mod env;
+mod savegame;
+mod util;
+
+use agents::*;
+use game::*;
 
 #[derive(structopt::StructOpt)]
 #[structopt(name = "rusty snake move", about = "Simulate a move for an agent.")]

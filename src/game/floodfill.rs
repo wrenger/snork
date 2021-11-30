@@ -2,7 +2,7 @@ use std::cmp::Reverse;
 use std::collections::VecDeque;
 use std::ops::{Index, IndexMut};
 
-use super::{Cell, Grid, Snake};
+use super::{Grid, Snake};
 use crate::env::{Direction, Vec2D};
 
 use owo_colors::{OwoColorize, Style};
@@ -164,7 +164,7 @@ impl FloodFill {
         for (you, p) in heads {
             if self.has(p) {
                 let num = 1;
-                let food = if grid[p] == Cell::Food { 1 } else { 0 };
+                let food = if grid[p].food() { 1 } else { 0 };
                 let cell = self[p];
                 if owns(cell, you, num, food) {
                     // println!(">> ({}, {}, {}, {:?}), {:?}", you, num, food, p, cell);
@@ -178,7 +178,7 @@ impl FloodFill {
             for dir in Direction::iter() {
                 let p = p.apply(dir);
                 if self.has(p) {
-                    if grid[p] == Cell::Food {
+                    if grid[p].food() {
                         food += 1;
                     }
                     let cell = self[p];

@@ -1,36 +1,84 @@
 use std::cmp::Reverse;
 use std::collections::{BinaryHeap, HashMap};
-use std::{f64, usize};
 use std::ops::{Index, IndexMut};
+use std::{f64, usize};
 
 use crate::env::{Direction, Vec2D};
 use crate::util::OrdPair;
 
-use owo_colors::OwoColorize;
-
 const HAZARD_DAMAGE: u8 = 15;
 
-/// Represents a single tile of the board
-#[derive(Clone, Copy, PartialEq, Eq)]
-#[repr(u8)]
-pub enum Cell {
-    Free,
-    Food,
-    Occupied,
-}
+const FOOD: usize = 0;
+const OWNED: usize = 1;
+const HAZARD: usize = 2;
 
-impl Default for Cell {
-    fn default() -> Cell {
-        Cell::Free
+/// Represents a single tile of the board
+#[derive(Clone, Copy, PartialEq, Eq, Default)]
+pub struct Cell(u8);
+
+impl Cell {
+    #[inline(always)]
+    pub const fn empty() -> Self {
+        Self(0)
+    }
+    #[inline(always)]
+    pub const fn new(food: bool, owned: bool, hazard: bool) -> Self {
+        Self((food as u8) << FOOD | (owned as u8) << OWNED | (hazard as u8) << HAZARD)
+    }
+    #[inline(always)]
+    pub const fn food(self) -> bool {
+        self.0 & (1 << FOOD) != 0
+    }
+    #[inline(always)]
+    pub fn set_food(&mut self, food: bool) {
+        if food {
+            self.0 |= 1 << FOOD;
+        } else {
+            self.0 &= !(1 << FOOD);
+        }
+    }
+    #[inline(always)]
+    pub const fn owned(self) -> bool {
+        self.0 & (1 << OWNED) != 0
+    }
+    #[inline(always)]
+    pub fn set_owned(&mut self, owned: bool) {
+        if owned {
+            self.0 |= 1 << OWNED;
+        } else {
+            self.0 &= !(1 << OWNED);
+        }
+    }
+    #[inline(always)]
+    pub const fn hazard(self) -> bool {
+        self.0 & (1 << HAZARD) != 0
+    }
+    #[inline(always)]
+    pub fn set_hazard(&mut self, hazard: bool) {
+        if hazard {
+            self.0 |= 1 << HAZARD;
+        } else {
+            self.0 &= !(1 << HAZARD);
+        }
     }
 }
 
 impl std::fmt::Debug for Cell {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match *self {
-            Cell::Free => write!(f, "."),
-            Cell::Food => write!(f, "{}", "o".red()),
-            Cell::Occupied => write!(f, "{}", "X".blue()),
+        use owo_colors::{OwoColorize, Style};
+
+        let style = if self.hazard() {
+            Style::new().on_bright_black()
+        } else {
+            Style::new()
+        };
+
+        if self.owned() {
+            write!(f, "{}", "X".blue().style(style))
+        } else if self.food() {
+            write!(f, "{}", "o".red().style(style))
+        } else {
+            write!(f, "{}", ".".style(style))
         }
     }
 }
@@ -78,7 +126,7 @@ impl Grid {
     /// Clears the grid.
     pub fn clear(&mut self) {
         for c in &mut self.cells {
-            *c = Cell::Free;
+            *c = Cell::new(false, false, false);
         }
     }
 
@@ -86,7 +134,7 @@ impl Grid {
     pub fn add_snake(&mut self, body: impl Iterator<Item = Vec2D>) {
         for p in body {
             if self.has(p) {
-                self[p] = Cell::Occupied;
+                self[p].set_owned(true);
             }
         }
     }
@@ -94,8 +142,8 @@ impl Grid {
     /// Adds the provided food to the grid.
     pub fn add_food(&mut self, food: &[Vec2D]) {
         for &p in food {
-            if self.has(p) && self[p] != Cell::Occupied {
-                self[p] = Cell::Food;
+            if self.has(p) {
+                self[p].set_food(true);
             }
         }
     }
@@ -166,7 +214,7 @@ impl Grid {
                     neighbor_cost += first_move_heuristic[d as usize]
                 }
 
-                if self.has(neighbor) && self[neighbor] != Cell::Occupied {
+                if self.has(neighbor) && !self[neighbor].owned() {
                     let cost_so_far = data.get(&neighbor).map(|(_, c)| *c).unwrap_or(f64::MAX);
                     if neighbor_cost < cost_so_far {
                         data.insert(neighbor, (front, neighbor_cost));
@@ -202,6 +250,8 @@ impl IndexMut<Vec2D> for Grid {
 
 impl std::fmt::Debug for Grid {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use owo_colors::OwoColorize;
+
         writeln!(f, "Grid {{")?;
         for y in 0..self.height as i16 {
             write!(f, "  ")?;
@@ -251,8 +301,15 @@ mod test {
     fn grid_a_star_hazards() {
         use super::*;
         let mut grid = Grid::new(5, 5);
-        grid.add_hazards(&[Vec2D::new(2, 0), Vec2D::new(2, 1), Vec2D::new(2, 2), Vec2D::new(2, 3)]);
-        let path = grid.a_star(Vec2D::new(0, 2), Vec2D::new(4, 2), &[1.0, 1.0, 1.0, 1.0]).unwrap();
+        grid.add_hazards(&[
+            Vec2D::new(2, 0),
+            Vec2D::new(2, 1),
+            Vec2D::new(2, 2),
+            Vec2D::new(2, 3),
+        ]);
+        let path = grid
+            .a_star(Vec2D::new(0, 2), Vec2D::new(4, 2), &[1.0, 1.0, 1.0, 1.0])
+            .unwrap();
         println!("{:?}", path);
         assert_eq!(path.len(), 9);
         assert_eq!(path[0], Vec2D::new(0, 2));

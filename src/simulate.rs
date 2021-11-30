@@ -1,8 +1,14 @@
 use structopt::StructOpt;
 
-use snork_core::agents::*;
-use snork_core::env::*;
-use snork_core::game::*;
+mod agents;
+mod env;
+mod game;
+mod savegame;
+mod util;
+
+use agents::*;
+use env::*;
+use game::*;
 
 use rand::prelude::*;
 use rand::seq::IteratorRandom;
@@ -65,10 +71,10 @@ fn init_game(width: usize, height: usize, num_agents: usize) -> Game {
         ]
         .iter()
         .map(|&p| snake.head() + p)
-        .filter(|&p| game.grid.has(p) && game.grid[p] == Cell::Free)
+        .filter(|&p| game.grid.has(p) && !game.grid[p].owned())
         .choose(&mut rng);
         if let Some(p) = p {
-            game.grid[p] = Cell::Food;
+            game.grid[p].set_food(true);
         }
     }
 
@@ -94,7 +100,7 @@ fn game_to_request(game: &Game, turn: usize) -> GameRequest {
         .iter()
         .enumerate()
         .filter_map(|(i, c)| {
-            if *c == Cell::Food {
+            if c.food() {
                 Some(Vec2D::new(
                     (i % game.grid.width) as i16,
                     (i / game.grid.width) as i16,
@@ -176,10 +182,10 @@ fn play_game(
                 .grid
                 .cells
                 .iter_mut()
-                .filter(|c| **c == Cell::Free)
+                .filter(|c| c.food())
                 .choose(&mut rng)
             {
-                *cell = Cell::Food;
+                cell.set_food(true);
             }
         }
     }
