@@ -10,55 +10,57 @@ use owo_colors::{OwoColorize, Style};
 /// Floodfill Cell that stores the important data in a single Byte.
 ///
 /// Bitfield:
-/// - 7: you?
-/// - 6..0: num (free if n = 0, owned if n = 2^7 - 1, otherwise occupied)
+/// - 15: you?
+/// - 14: owned?
+/// - 13: occupied?
+/// - 11..0: num (head distance if occupied, health if owned)
 #[derive(Clone, Copy)]
-pub struct FCell(u8);
+pub struct FCell(u16);
 
-const FCELL_YOU: u8 = 0b1000_0000;
-const FCELL_NUM: u8 = 0b0111_1111;
-const FCELL_OWNED: u8 = 0b0111_1111;
+const FCELL_YOU: usize = 15;
+const FCELL_OWNED: usize = 14;
+const FCELL_OCCUPIED: usize = 13;
+const FCELL_NUM: usize = 12;
 
 impl FCell {
-    #[inline]
+    #[inline(always)]
     pub const fn free() -> FCell {
         FCell(0)
     }
 
-    #[inline]
-    pub const fn with_owner(you: bool) -> FCell {
-        FCell((you as u8) << 7 | FCELL_OWNED)
+    #[inline(always)]
+    pub const fn with_owner(you: bool, health: u8) -> FCell {
+        FCell((you as u16) << FCELL_YOU | 1 << FCELL_OWNED | health as u16 & ((1 << FCELL_NUM) - 1))
     }
 
-    #[inline]
-    pub const fn with_occupier(you: bool, num: u8) -> FCell {
-        FCell((you as u8) << 7 | num & FCELL_NUM)
+    #[inline(always)]
+    pub const fn with_occupier(you: bool, num: u16) -> FCell {
+        FCell((you as u16) << FCELL_YOU | 1 << FCELL_OCCUPIED | num & ((1 << FCELL_NUM) - 1))
     }
 
-    #[inline]
-    pub const fn is_occupied(&self) -> bool {
-        let num = self.0 & FCELL_NUM;
-        num != 0 && num != FCELL_OWNED
-    }
-
-    #[inline]
-    pub const fn is_you(&self) -> bool {
-        self.0 & FCELL_YOU != 0
-    }
-
-    #[inline]
-    pub const fn get_num(&self) -> u8 {
-        self.0 & FCELL_NUM
-    }
-
-    #[inline]
+    #[inline(always)]
     pub const fn is_free(&self) -> bool {
         self.0 == 0
     }
 
-    #[inline]
+    #[inline(always)]
+    pub const fn is_you(&self) -> bool {
+        self.0 & (1 << FCELL_YOU) != 0
+    }
+
+    #[inline(always)]
     pub const fn is_owned(&self) -> bool {
-        self.0 & FCELL_NUM == FCELL_OWNED
+        self.0 & (1 << FCELL_OWNED) != 0
+    }
+
+    #[inline(always)]
+    pub const fn get_num(&self) -> u16 {
+        self.0 & ((1 << FCELL_NUM) - 1)
+    }
+
+    #[inline(always)]
+    pub const fn is_occupied(&self) -> bool {
+        self.0 & (1 << FCELL_OCCUPIED) != 0
     }
 }
 
@@ -72,10 +74,15 @@ impl std::fmt::Debug for FCell {
             } else {
                 Style::new().red()
             };
+            let style = if self.is_owned() {
+                style.on_bright_black()
+            } else {
+                style
+            };
             if self.is_occupied() {
                 write!(f, "{:0>2}", self.get_num().style(style))
             } else {
-                write!(f, "{}", "..".style(style))
+                write!(f, "{:0>2}", self.get_num().style(style))
             }
         }
     }
@@ -85,13 +92,13 @@ impl std::fmt::Debug for FCell {
 struct SnakePos {
     p: Vec2D,
     you: bool,
-    distance: u8,
-    food: u8,
+    distance: u16,
+    food: u16,
     health: u8,
 }
 
 impl SnakePos {
-    fn new(p: Vec2D, you: bool, distance: u8, food: u8, health: u8) -> Self {
+    fn new(p: Vec2D, you: bool, distance: u16, food: u16, health: u8) -> Self {
         Self {
             p,
             you,
@@ -125,6 +132,15 @@ impl FloodFill {
     /// Returns if `p` is within the boundaries of the board.
     pub fn has(&self, p: Vec2D) -> bool {
         0 <= p.x && p.x < self.width as _ && 0 <= p.y && p.y < self.height as _
+    }
+
+    /// Counts the total health of you or the enemies.
+    pub fn count_health(&self, you: bool) -> usize {
+        self.cells
+            .iter()
+            .filter(|&c| c.is_owned() && c.is_you() == you)
+            .map(|&c| c.get_num() as usize)
+            .sum()
     }
 
     /// Counts the space of you or the enemies.
@@ -172,14 +188,15 @@ impl FloodFill {
         assert_eq!(self.height, grid.height);
 
         #[inline]
-        fn owns(cell: FCell, you: bool, num: u8, food: u8) -> bool {
+        fn owns(cell: FCell, you: bool, num: u16, food: u16, health: u8) -> bool {
             cell.is_free()
                 || (cell.is_occupied()
                     // follow your tail
                     && ((cell.is_you() == you && cell.get_num() <= num - food)
                         // follow enemy tail
                         // distance of 1 as buffer for eating
-                        || (cell.is_you() != you && (cell.get_num() <= 1 || cell.get_num() <= num - you as u8))))
+                        || (cell.is_you() != you && (cell.get_num() <= 1 || cell.get_num() <= num - you as u16))))
+                || (cell.is_owned() && cell.is_you() == you && cell.get_num() < health as u16)
         }
 
         for (p, you, health) in heads {
@@ -187,9 +204,9 @@ impl FloodFill {
                 let num = 1;
                 let food = if grid[p].food() { 1 } else { 0 };
                 let cell = self[p];
-                if owns(cell, you, num, food) {
+                if owns(cell, you, num, food, health) {
                     // println!(">> ({}, {}, {}, {:?}), {:?}", you, num, food, p, cell);
-                    self[p] = FCell::with_owner(you);
+                    self[p] = FCell::with_owner(you, health);
                     self.queue
                         .push_back(SnakePos::new(p, you, num + 1, food, health));
                 }
@@ -217,13 +234,13 @@ impl FloodFill {
                         health.saturating_sub(1)
                     };
 
-                    if health > 0 && owns(self[p], you, distance, food) {
-                        self[p] = FCell::with_owner(you);
+                    if health > 0 && owns(self[p], you, distance, food, health) {
+                        self[p] = FCell::with_owner(you, health);
                         self.queue.push_back(SnakePos::new(
                             p,
                             you,
                             distance + 1,
-                            food + g_cell.food() as u8,
+                            food + g_cell.food() as u16,
                             health,
                         ));
                     }
@@ -243,13 +260,13 @@ impl FloodFill {
                         health.saturating_sub(HAZARD_DAMAGE as u8)
                     };
 
-                    if health > 0 && owns(self[p], you, distance, food) {
-                        self[p] = FCell::with_owner(you);
+                    if health > 0 && owns(self[p], you, distance, food, health) {
+                        self[p] = FCell::with_owner(you, health);
                         self.queue.push_back(SnakePos::new(
                             p,
                             you,
                             distance + 1,
-                            food + g_cell.food() as u8,
+                            food + g_cell.food() as u16,
                             health,
                         ));
                     }
@@ -268,11 +285,7 @@ impl FloodFill {
         // Prepare board with snakes (tail = 1, ..., head = n)
         for snake in &snakes {
             for (i, p) in snake.body.iter().enumerate() {
-                let num = if (i as u8) < FCELL_OWNED {
-                    i as u8 + 1
-                } else {
-                    FCELL_OWNED
-                };
+                let num = (i + 1).min(1 << FCELL_NUM - 1) as _;
                 self[*p] = FCell::with_occupier(snake.id == 0, num)
             }
         }
@@ -575,6 +588,6 @@ mod test {
         let mut floodfill = FloodFill::new(game.grid.width, game.grid.height);
         floodfill.flood_snakes(&game.grid, &game.snakes);
         println!("Filled {} {:?}", floodfill.count_space(true), floodfill);
-        assert_eq!(floodfill.count_space(true), 95);
+        assert_eq!(floodfill.count_space(true), 97);
     }
 }
