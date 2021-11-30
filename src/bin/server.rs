@@ -6,14 +6,8 @@ use std::time::{Duration, Instant};
 
 use chashmap::CHashMap;
 
-mod agents;
-mod game;
-mod env;
-mod savegame;
-mod util;
-
-use agents::*;
-use env::{GameRequest, IndexResponse, MoveResponse, API_VERSION};
+use snork::agents::*;
+use snork::env::{GameRequest, IndexResponse, MoveResponse, API_VERSION};
 
 use actix_web::{get, post, web, App, HttpResponse, HttpServer};
 use structopt::StructOpt;
@@ -196,7 +190,7 @@ async fn main() -> std::io::Result<()> {
         config,
     } = Opt::from_args();
 
-    let save_queue = log_dir.map(savegame::worker);
+    let save_queue = log_dir.map(snork::savegame::worker);
     let running_agents = Arc::new(CHashMap::new());
 
     let save_queue_copy = save_queue.clone();

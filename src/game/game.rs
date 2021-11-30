@@ -208,7 +208,7 @@ impl Game {
             if snake.alive() {
                 let dir = moves[snake.id as usize];
                 let head = snake.head().apply(dir);
-                let costs = if self.grid[head].hazard() {
+                let costs = if self.grid.is_hazardous(head) {
                     HAZARD_DAMAGE as u8
                 } else {
                     1

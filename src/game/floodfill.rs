@@ -3,7 +3,7 @@ use std::collections::VecDeque;
 use std::ops::{Index, IndexMut};
 
 use super::{Grid, Snake};
-use crate::env::{Direction, Vec2D};
+use crate::env::{Direction, Vec2D, HAZARD_DAMAGE};
 
 use owo_colors::{OwoColorize, Style};
 
@@ -81,12 +81,33 @@ impl std::fmt::Debug for FCell {
     }
 }
 
+#[derive(Debug)]
+struct SnakePos {
+    p: Vec2D,
+    you: bool,
+    distance: u8,
+    food: u8,
+    health: u8,
+}
+
+impl SnakePos {
+    fn new(p: Vec2D, you: bool, distance: u8, food: u8, health: u8) -> Self {
+        Self {
+            p,
+            you,
+            distance,
+            food,
+            health,
+        }
+    }
+}
+
 /// Grid that performs the floodfill algorithm asses area control.
 ///
 /// This struct also contains all necessary buffers for the floodfill algorithm.
 pub struct FloodFill {
     cells: Vec<FCell>,
-    queue: VecDeque<(bool, u8, u8, Vec2D)>,
+    queue: VecDeque<SnakePos>,
     pub width: usize,
     pub height: usize,
 }
@@ -146,7 +167,7 @@ impl FloodFill {
     /// This allows the snake to follow its tail or enemy tails.
     ///
     /// Food on the way is been accounted for the own tail.
-    pub fn flood(&mut self, grid: &Grid, heads: impl Iterator<Item = (bool, Vec2D)>) {
+    pub fn flood(&mut self, grid: &Grid, heads: impl Iterator<Item = (Vec2D, bool, u8)>) {
         assert_eq!(self.width, grid.width);
         assert_eq!(self.height, grid.height);
 
@@ -161,7 +182,7 @@ impl FloodFill {
                         || (cell.is_you() != you && (cell.get_num() <= 1 || cell.get_num() <= num - you as u8))))
         }
 
-        for (you, p) in heads {
+        for (p, you, health) in heads {
             if self.has(p) {
                 let num = 1;
                 let food = if grid[p].food() { 1 } else { 0 };
@@ -169,23 +190,68 @@ impl FloodFill {
                 if owns(cell, you, num, food) {
                     // println!(">> ({}, {}, {}, {:?}), {:?}", you, num, food, p, cell);
                     self[p] = FCell::with_owner(you);
-                    self.queue.push_back((you, num + 1, food, p));
+                    self.queue
+                        .push_back(SnakePos::new(p, you, num + 1, food, health));
                 }
             }
         }
 
-        while let Some((you, num, mut food, p)) = self.queue.pop_front() {
-            for dir in Direction::iter() {
-                let p = p.apply(dir);
+        while let Some(SnakePos {
+            p,
+            you,
+            distance,
+            food,
+            health,
+        }) = self.queue.pop_front()
+        {
+            for p in Direction::iter().map(|d| p.apply(d)) {
                 if self.has(p) {
-                    if grid[p].food() {
-                        food += 1;
+                    let g_cell = grid[p];
+                    if g_cell.hazard() {
+                        continue;
                     }
-                    let cell = self[p];
-                    // println!("({}, {}, {}, {:?}), {:?}", you, num, food, p, cell);
-                    if owns(cell, you, num, food) {
+
+                    let health = if g_cell.food() {
+                        100
+                    } else {
+                        health.saturating_sub(1)
+                    };
+
+                    if health > 0 && owns(self[p], you, distance, food) {
                         self[p] = FCell::with_owner(you);
-                        self.queue.push_back((you, num + 1, food, p));
+                        self.queue.push_back(SnakePos::new(
+                            p,
+                            you,
+                            distance + 1,
+                            food + g_cell.food() as u8,
+                            health,
+                        ));
+                    }
+                }
+            }
+
+            for p in Direction::iter().map(|d| p.apply(d)) {
+                if self.has(p) {
+                    let g_cell = grid[p];
+                    if !g_cell.hazard() {
+                        continue;
+                    }
+
+                    let health = if g_cell.food() {
+                        100
+                    } else {
+                        health.saturating_sub(HAZARD_DAMAGE as u8)
+                    };
+
+                    if health > 0 && owns(self[p], you, distance, food) {
+                        self[p] = FCell::with_owner(you);
+                        self.queue.push_back(SnakePos::new(
+                            p,
+                            you,
+                            distance + 1,
+                            food + g_cell.food() as u8,
+                            health,
+                        ));
                     }
                 }
             }
@@ -215,9 +281,9 @@ impl FloodFill {
         snakes.sort_by_key(|s| Reverse(2 * s.body.len() - (s.id == 0) as usize));
         self.flood(
             grid,
-            snakes
-                .iter()
-                .flat_map(|s| Direction::iter().map(move |d| (s.id == 0, s.head().apply(d)))),
+            snakes.iter().flat_map(|s| {
+                Direction::iter().map(move |d| (s.head().apply(d), s.id == 0, s.health - 1))
+            }),
         );
     }
 }
@@ -264,7 +330,7 @@ mod test {
         let grid = Grid::new(11, 11);
 
         let mut floodfill = FloodFill::new(grid.width, grid.height);
-        floodfill.flood(&grid, [(true, Vec2D::new(0, 0))].iter().cloned());
+        floodfill.flood(&grid, [(Vec2D::new(0, 0), true, 100)].iter().cloned());
         println!("Filled {} {:?}", floodfill.count_space(true), floodfill);
         assert_eq!(floodfill.count_space(true), 11 * 11);
 
@@ -272,9 +338,12 @@ mod test {
         floodfill.clear();
         floodfill.flood(
             &grid,
-            [(true, Vec2D::new(0, 0)), (false, Vec2D::new(10, 10))]
-                .iter()
-                .cloned(),
+            [
+                (Vec2D::new(0, 0), true, 100),
+                (Vec2D::new(10, 10), false, 100),
+            ]
+            .iter()
+            .cloned(),
         );
         println!("Filled {} {:?}", floodfill.count_space(true), floodfill);
         assert_eq!(floodfill.count_space(true), 66);
@@ -283,9 +352,9 @@ mod test {
         floodfill.flood(
             &grid,
             [
-                (false, Vec2D::new(0, 0)),
-                (false, Vec2D::new(10, 10)),
-                (true, Vec2D::new(5, 5)),
+                (Vec2D::new(0, 0), false, 100),
+                (Vec2D::new(10, 10), false, 100),
+                (Vec2D::new(5, 5), true, 100),
             ]
             .iter()
             .cloned(),
@@ -446,5 +515,66 @@ mod test {
         floodfill.flood_snakes(&game.grid, &game.snakes);
         println!("Filled {} {:?}", floodfill.count_space(true), floodfill);
         assert_eq!(floodfill.count_space(true), 24);
+    }
+
+    #[test]
+    fn flood_snakes_low_health() {
+        use super::*;
+        use crate::game::Game;
+
+        let mut game = Game::parse(
+            r#"
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            . . . . . 0 . . . . .
+            . . . . . ^ . . . . .
+            . . . . . ^ . . . . .
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            . . . . . . . . . . ."#,
+        )
+        .unwrap();
+        game.snakes[0].health = 6;
+
+        let mut floodfill = FloodFill::new(game.grid.width, game.grid.height);
+        floodfill.flood_snakes(&game.grid, &game.snakes);
+        println!("Filled {} {:?}", floodfill.count_space(true), floodfill);
+        assert_eq!(floodfill.count_space(true), 59);
+    }
+
+    #[test]
+    fn flood_snakes_hazard() {
+        use super::*;
+        use crate::game::Game;
+
+        let mut game = Game::parse(
+            r#"
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            . . . . . 0 . . . . .
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            . . . . . . . . . . .
+            . . . . . . . . . . ."#,
+        )
+        .unwrap();
+        game.snakes[0].health = 50;
+        for y in 0..game.grid.height {
+            for x in game.grid.width / 2 + 1..game.grid.width {
+                game.grid[Vec2D::new(x as _, y as _)].set_hazard(true);
+            }
+        }
+
+        let mut floodfill = FloodFill::new(game.grid.width, game.grid.height);
+        floodfill.flood_snakes(&game.grid, &game.snakes);
+        println!("Filled {} {:?}", floodfill.count_space(true), floodfill);
+        assert_eq!(floodfill.count_space(true), 95);
     }
 }

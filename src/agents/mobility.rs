@@ -97,14 +97,9 @@ impl Agent for MobilityAgent {
         let space_after_move = max_n(&self.game, 1, |game| {
             if game.snake_is_alive(0) {
                 flood_fill.flood_snakes(&game.grid, &game.snakes);
-                let space = flood_fill.count_space_weighted(true, |p| {
-                    if game.grid.is_hazardous(p) {
-                        1.0 / HAZARD_DAMAGE as f64
-                    } else {
-                        1.0
-                    }
-                }) as f64;
-                if game.grid.is_hazardous(game.snakes[0].head()) {
+                let space = flood_fill.count_space(true) as f64;
+                let cell = game.grid[game.snakes[0].head()];
+                if cell.hazard() && !cell.food() {
                     space - HAZARD_DAMAGE as f64
                 } else {
                     space

@@ -1,13 +1,8 @@
 use structopt::StructOpt;
 
-mod agents;
-mod game;
-mod env;
-mod savegame;
-mod util;
-
-use agents::*;
-use game::*;
+use snork::env::GameRequest;
+use snork::agents::*;
+use snork::game::*;
 
 #[derive(structopt::StructOpt)]
 #[structopt(name = "rusty snake move", about = "Simulate a move for an agent.")]
@@ -17,7 +12,7 @@ struct Opts {
     config: Config,
     /// JSON Game request.
     #[structopt(parse(try_from_str = serde_json::from_str))]
-    request: env::GameRequest,
+    request: GameRequest,
     #[structopt(long, default_value = "200")]
     runtime: usize,
 }

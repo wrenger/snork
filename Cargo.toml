@@ -26,21 +26,14 @@ name = "benchmarks"
 harness = false
 test = false
 
-[lib]
-bench = false
-test = false
+[[bin]]
+name = "server"
 
 [[bin]]
 name = "move"
-path = "src/move.rs"
-bench = false
-test = false
 
 [[bin]]
 name = "simulate"
-path = "src/simulate.rs"
-bench = false
-test = false
 
 [profile.release]
 lto = true
