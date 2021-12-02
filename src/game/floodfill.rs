@@ -67,7 +67,7 @@ impl FCell {
 impl std::fmt::Debug for FCell {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if self.is_free() {
-            write!(f, "__")
+            write!(f, "___")
         } else {
             let style = if self.is_you() {
                 Style::new().green()
@@ -80,9 +80,9 @@ impl std::fmt::Debug for FCell {
                 style
             };
             if self.is_occupied() {
-                write!(f, "{:0>2}", self.get_num().style(style))
+                write!(f, "{:0>3}", self.get_num().style(style))
             } else {
-                write!(f, "{:0>2}", self.get_num().style(style))
+                write!(f, "{:0>3}", self.get_num().style(style))
             }
         }
     }
@@ -152,13 +152,21 @@ impl FloodFill {
     }
 
     /// Counts the space of you or the enemies weighted by the weight function.
-    pub fn count_space_weighted<F: FnMut(Vec2D) -> f64>(&self, you: bool, mut weight: F) -> f64 {
+    pub fn count_space_weighted<F: FnMut(Vec2D, FCell) -> f64>(
+        &self,
+        you: bool,
+        mut weight: F,
+    ) -> f64 {
         self.cells
             .iter()
+            .cloned()
             .enumerate()
             .map(|(i, c)| {
                 if c.is_owned() && c.is_you() == you {
-                    weight(Vec2D::new((i % self.width) as i16, (i / self.width) as i16))
+                    weight(
+                        Vec2D::new((i % self.width) as i16, (i / self.width) as i16),
+                        c,
+                    )
                 } else {
                     0.0
                 }
@@ -183,7 +191,11 @@ impl FloodFill {
     /// This allows the snake to follow its tail or enemy tails.
     ///
     /// Food on the way is been accounted for the own tail.
-    pub fn flood(&mut self, grid: &Grid, heads: impl Iterator<Item = (Vec2D, bool, u8)>) {
+    pub fn flood(
+        &mut self,
+        grid: &Grid,
+        heads: impl Iterator<Item = (Vec2D, bool, u8)>,
+    ) -> Vec<u16> {
         assert_eq!(self.width, grid.width);
         assert_eq!(self.height, grid.height);
 
@@ -199,13 +211,29 @@ impl FloodFill {
                 || (cell.is_owned() && cell.is_you() == you && cell.get_num() < health as u16)
         }
 
+        let mut food_distances = Vec::new();
+
         for (p, you, health) in heads {
             if self.has(p) {
                 let num = 1;
-                let food = if grid[p].food() { 1 } else { 0 };
                 let cell = self[p];
+                let g_cell = grid[p];
+
+                let health = if g_cell.food() {
+                    if you && !cell.is_owned() {
+                        food_distances.push(1)
+                    }
+                    100
+                } else {
+                    health.saturating_sub(if g_cell.hazard() {
+                        HAZARD_DAMAGE as u8
+                    } else {
+                        1
+                    })
+                };
+
+                let food = g_cell.food() as u16;
                 if owns(cell, you, num, food, health) {
-                    // println!(">> ({}, {}, {}, {:?}), {:?}", you, num, food, p, cell);
                     self[p] = FCell::with_owner(you, health);
                     self.queue
                         .push_back(SnakePos::new(p, you, num + 1, food, health));
@@ -224,61 +252,38 @@ impl FloodFill {
             for p in Direction::iter().map(|d| p.apply(d)) {
                 if self.has(p) {
                     let g_cell = grid[p];
-                    if g_cell.hazard() {
-                        continue;
-                    }
+                    let cell = self[p];
 
                     let health = if g_cell.food() {
+                        if you && !cell.is_owned() {
+                            food_distances.push(distance)
+                        }
                         100
                     } else {
-                        health.saturating_sub(1)
+                        health.saturating_sub(if g_cell.hazard() {
+                            HAZARD_DAMAGE as u8
+                        } else {
+                            1
+                        })
                     };
 
-                    if health > 0 && owns(self[p], you, distance, food, health) {
+                    let food = food + g_cell.food() as u16;
+
+                    if health > 0 && owns(cell, you, distance, food, health) {
                         self[p] = FCell::with_owner(you, health);
-                        self.queue.push_back(SnakePos::new(
-                            p,
-                            you,
-                            distance + 1,
-                            food + g_cell.food() as u16,
-                            health,
-                        ));
-                    }
-                }
-            }
-
-            for p in Direction::iter().map(|d| p.apply(d)) {
-                if self.has(p) {
-                    let g_cell = grid[p];
-                    if !g_cell.hazard() {
-                        continue;
-                    }
-
-                    let health = if g_cell.food() {
-                        100
-                    } else {
-                        health.saturating_sub(HAZARD_DAMAGE as u8)
-                    };
-
-                    if health > 0 && owns(self[p], you, distance, food, health) {
-                        self[p] = FCell::with_owner(you, health);
-                        self.queue.push_back(SnakePos::new(
-                            p,
-                            you,
-                            distance + 1,
-                            food + g_cell.food() as u16,
-                            health,
-                        ));
+                        self.queue
+                            .push_back(SnakePos::new(p, you, distance + 1, food, health));
                     }
                 }
             }
         }
+        food_distances
     }
 
     /// Prepare the board and compute flood fill.
     /// It is assumed that the snake at position and id 0 is the evaluated
     /// agent and the other snakes are the enemies.
-    pub fn flood_snakes(&mut self, grid: &Grid, snakes: &[Snake]) {
+    pub fn flood_snakes(&mut self, grid: &Grid, snakes: &[Snake]) -> Vec<u16> {
         self.clear();
         let mut snakes: Vec<&Snake> = snakes.iter().filter(|s| s.alive()).collect();
 
@@ -295,9 +300,9 @@ impl FloodFill {
         self.flood(
             grid,
             snakes.iter().flat_map(|s| {
-                Direction::iter().map(move |d| (s.head().apply(d), s.id == 0, s.health - 1))
+                Direction::iter().map(move |d| (s.head().apply(d), s.id == 0, s.health))
             }),
-        );
+        )
     }
 }
 
@@ -322,10 +327,10 @@ impl IndexMut<Vec2D> for FloodFill {
 impl std::fmt::Debug for FloodFill {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "FloodFill {{")?;
-        for y in 0..self.height as i16 {
+        for y in (0..self.height as i16).rev() {
             write!(f, "  ")?;
             for x in 0..self.width as i16 {
-                write!(f, "{:?} ", self[Vec2D::new(x, self.height as i16 - y - 1)])?;
+                write!(f, "{:?} ", self[Vec2D::new(x, y)])?;
             }
             writeln!(f)?;
         }

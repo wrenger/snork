@@ -6,6 +6,7 @@ authors = ["Lars Wrenger <lars@wrenger.net>", "Julian Krohne <krohnejulian@yahoo
 description = "High performant battlesnake agents written in rust"
 license = "MIT"
 resolver = "2"
+default-run = "server"
 
 [dependencies]
 actix-rt = "2.2"

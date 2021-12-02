@@ -25,6 +25,8 @@ struct Opts {
     height: usize,
     #[structopt(long, default_value = "0.15")]
     food_rate: f64,
+    #[structopt(short, long, default_value = "25")]
+    shrink_turns: usize,
     #[structopt(short, long, default_value = "1")]
     game_count: usize,
     #[structopt(short, long, default_value = "4")]
@@ -33,6 +35,151 @@ struct Opts {
     verbose: bool,
 
     agents: Vec<Config>,
+}
+
+fn main() {
+    let Opts {
+        runtime,
+        width,
+        height,
+        food_rate,
+        shrink_turns,
+        game_count,
+        jobs,
+        verbose,
+        agents,
+    } = Opts::from_args();
+
+    assert!(agents.len() <= 4, "Only up to 4 snakes are supported");
+
+    let start = Instant::now();
+
+    let pool = ThreadPool::new(jobs);
+    let (tx, rx) = mpsc::channel();
+    for _ in 0..game_count {
+        let tx = tx.clone();
+        let agents = agents.clone();
+        pool.execute(move || {
+            tx.send(play_game(
+                &agents,
+                width,
+                height,
+                runtime,
+                food_rate,
+                shrink_turns,
+                verbose,
+            ))
+            .unwrap();
+        })
+    }
+    drop(tx);
+
+    let wins = rx.iter().filter(|x| *x).count();
+
+    println!(
+        "Simulation time: {}ms",
+        (Instant::now() - start).as_millis()
+    );
+    println!("Result: {}/{}", wins, game_count);
+}
+
+fn play_game(
+    agents: &[Config],
+    width: usize,
+    height: usize,
+    runtime: usize,
+    food_rate: f64,
+    shrink_turns: usize,
+    verbose: bool,
+) -> bool {
+    let mut rng = rand::thread_rng();
+    let mut game = init_game(width, height, agents.len());
+    let mut request = game_to_request(&game, 0);
+    let agents = agents
+        .iter()
+        .enumerate()
+        .map(|(i, c)| {
+            request.you = request.board.snakes[i].clone();
+            c.create_agent(&request)
+        })
+        .collect::<Vec<_>>();
+
+    let mut hazard_insets = [0; 4];
+
+    for turn in 0.. {
+        if verbose {
+            println!("{} {:?}", turn, game.grid);
+        }
+
+        let mut request = game_to_request(&game, turn);
+        let mut moves = [Direction::Up; 4];
+        for snake in &game.snakes {
+            if snake.alive() {
+                request.you = snake_data(snake);
+                moves[snake.id as usize] = agents[snake.id as usize]
+                    .lock()
+                    .unwrap()
+                    .step(&request, runtime as _)
+                    .r#move;
+            }
+        }
+        if verbose {
+            println!("Moves: {:?}", moves);
+        }
+        game.step(&moves);
+
+        if !game.snake_is_alive(0) {
+            println!("game: loss after {} turns", turn);
+            return false;
+        }
+        if game.outcome() == Outcome::Winner(0) {
+            println!("game: win after {} turns", turn);
+            return true;
+        }
+
+        // Spawn food
+        if request.board.food.is_empty() || rng.gen::<f64>() < food_rate {
+            if let Some(cell) = game
+                .grid
+                .cells
+                .iter_mut()
+                .filter(|c| c.food())
+                .choose(&mut rng)
+            {
+                cell.set_food(true);
+            }
+        }
+
+        // Hazards
+        if turn > 0
+            && turn % shrink_turns == 0
+            && hazard_insets[0] + hazard_insets[2] < game.grid.height
+            && hazard_insets[1] + hazard_insets[3] < game.grid.width
+        {
+            let dir = rng.gen_range(0..4);
+            hazard_insets[dir] += 1;
+            if dir % 2 == 0 {
+                let y = if dir == 0 {
+                    hazard_insets[dir] - 1
+                } else {
+                    game.grid.height - hazard_insets[dir]
+                };
+                for x in 0..game.grid.width {
+                    game.grid[Vec2D::new(x as _, y as _)].set_hazard(true);
+                }
+            } else {
+                let x = if dir == 1 {
+                    hazard_insets[dir] - 1
+                } else {
+                    game.grid.width - hazard_insets[dir]
+                };
+                for y in 0..game.grid.height {
+                    game.grid[Vec2D::new(x as _, y as _)].set_hazard(true);
+                }
+            }
+        }
+    }
+    false
 }
 
 fn init_game(width: usize, height: usize, num_agents: usize) -> Game {
@@ -75,16 +222,6 @@ fn init_game(width: usize, height: usize, num_agents: usize) -> Game {
     game
 }
 
-fn snake_data(s: &Snake) -> SnakeData {
-    SnakeData {
-        id: format!("{}", s.id),
-        name: String::new(),
-        health: s.health,
-        body: s.body.iter().cloned().rev().collect(),
-        shout: String::new(),
-    }
-}
-
 fn game_to_request(game: &Game, turn: usize) -> GameRequest {
     let snakes = game.snakes.iter().map(snake_data).collect::<Vec<_>>();
 
@@ -119,108 +256,12 @@ fn game_to_request(game: &Game, turn: usize) -> GameRequest {
     }
 }
 
-fn play_game(
-    agents: &[Config],
-    width: usize,
-    height: usize,
-    runtime: usize,
-    food_rate: f64,
-    verbose: bool,
-) -> bool {
-    let mut rng = rand::thread_rng();
-    let mut game = init_game(width, height, agents.len());
-    let mut request = game_to_request(&game, 0);
-    let agents = agents
-        .iter()
-        .enumerate()
-        .map(|(i, c)| {
-            request.you = request.board.snakes[i].clone();
-            c.create_agent(&request)
-        })
-        .collect::<Vec<_>>();
-
-    for turn in 0.. {
-        if verbose {
-            println!("{} {:?}", turn, game.grid);
-        }
-
-        let mut request = game_to_request(&game, turn);
-        let mut moves = [Direction::Up; 4];
-        for snake in &game.snakes {
-            if snake.alive() {
-                request.you = snake_data(snake);
-                moves[snake.id as usize] = agents[snake.id as usize]
-                    .lock()
-                    .unwrap()
-                    .step(&request, runtime as _)
-                    .r#move;
-            }
-        }
-        if verbose {
-            println!("Moves: {:?}", moves);
-        }
-        game.step(&moves);
-
-        if game.outcome() == Outcome::Winner(0) {
-            println!("game: win after {} turns", turn);
-            return true;
-        }
-        if !game.snake_is_alive(0) {
-            println!("game: loss after {} turns", turn);
-            return false;
-        }
-
-        // Spawn food
-        if request.board.food.is_empty() || rng.gen::<f64>() < food_rate {
-            if let Some(cell) = game
-                .grid
-                .cells
-                .iter_mut()
-                .filter(|c| c.food())
-                .choose(&mut rng)
-            {
-                cell.set_food(true);
-            }
-        }
+fn snake_data(s: &Snake) -> SnakeData {
+    SnakeData {
+        id: format!("{}", s.id),
+        name: String::new(),
+        health: s.health,
+        body: s.body.iter().cloned().rev().collect(),
+        shout: String::new(),
     }
-    false
-}
-
-fn main() {
-    let Opts {
-        runtime,
-        width,
-        height,
-        food_rate,
-        game_count,
-        jobs,
-        verbose,
-        agents,
-    } = Opts::from_args();
-
-    assert!(agents.len() <= 4, "Only up to 4 snakes are supported");
-
-    let start = Instant::now();
-
-    let pool = ThreadPool::new(jobs);
-    let (tx, rx) = mpsc::channel();
-    for _ in 0..game_count {
-        let tx = tx.clone();
-        let agents = agents.clone();
-        pool.execute(move || {
-            tx.send(play_game(
-                &agents, width, height, runtime, food_rate, verbose,
-            ))
-            .unwrap();
-        })
-    }
-    drop(tx);
-
-    let wins = rx.iter().filter(|x| *x).count();
-
-    println!(
-        "Simulation time: {}ms",
-        (Instant::now() - start).as_millis()
-    );
-    println!("Result: {}/{}", wins, game_count);
 }

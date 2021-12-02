@@ -237,18 +237,11 @@ impl IndexMut<Vec2D> for Grid {
 
 impl std::fmt::Debug for Grid {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use owo_colors::OwoColorize;
-
         writeln!(f, "Grid {{")?;
-        for y in 0..self.height as i16 {
+        for y in (0..self.height as i16).rev() {
             write!(f, "  ")?;
             for x in 0..self.width as i16 {
-                let p = Vec2D::new(x, self.height as i16 - y - 1);
-                if self.is_hazardous(p) {
-                    write!(f, "{:?} ", self[p].on_bright_black())?;
-                } else {
-                    write!(f, "{:?} ", self[p])?;
-                }
+                write!(f, "{:?} ", self[Vec2D::new(x, y)])?;
             }
             writeln!(f)?;
         }

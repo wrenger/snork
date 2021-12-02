@@ -120,9 +120,7 @@ impl Game {
     pub fn reset(&mut self, snakes: Vec<Snake>, food: &[Vec2D], hazards: &[Vec2D]) {
         self.grid.clear();
         self.grid.add_food(food);
-        if !hazards.is_empty() {
-            self.grid.add_hazards(hazards);
-        }
+        self.grid.add_hazards(hazards);
 
         for (i, snake) in snakes.iter().enumerate() {
             assert_eq!(snake.id, i as u8);
@@ -198,7 +196,7 @@ impl Game {
                 let tail = snake.body.pop_front().unwrap();
                 let new_tail = snake.body[0];
                 if tail != new_tail {
-                    self.grid[tail] = Cell::empty();
+                    self.grid[tail].set_owned(false);
                 }
             }
         }
@@ -208,23 +206,29 @@ impl Game {
             if snake.alive() {
                 let dir = moves[snake.id as usize];
                 let head = snake.head().apply(dir);
-                let costs = if self.grid.is_hazardous(head) {
-                    HAZARD_DAMAGE as u8
-                } else {
-                    1
-                };
 
-                if self.grid.has(head) && snake.health >= costs && !self.grid[head].owned() {
-                    if self.grid[head].food() {
-                        snake.body.push_front(snake.body[0]);
-                        snake.health = 100;
-                    } else {
-                        snake.health -= 1;
-                    };
-                    snake.body.push_back(head);
-                } else {
+                if !self.grid.has(head) {
                     snake.health = 0;
+                    continue;
                 }
+
+                snake.body.push_back(head);
+
+                let g_cell = self.grid[head];
+                if g_cell.owned() {
+                    snake.health = 0;
+                    continue;
+                }
+
+                snake.health = if g_cell.food() {
+                    100
+                } else {
+                    snake.health.saturating_sub(if g_cell.hazard() {
+                        HAZARD_DAMAGE as u8
+                    } else {
+                        1
+                    })
+                };
             }
         }
 
@@ -252,11 +256,12 @@ impl Game {
         let grid = &mut self.grid;
         for snake in &mut self.snakes {
             if snake.alive() {
-                grid[snake.head()].set_owned(true);
-                grid[snake.head()].set_food(false);
+                let head_cell = &mut grid[snake.head()];
+                head_cell.set_owned(true);
+                head_cell.set_food(false);
             } else if !snake.body.is_empty() {
                 for &p in &snake.body {
-                    grid[p] = Cell::empty();
+                    grid[p].set_owned(false);
                 }
                 snake.body.clear();
             }
@@ -367,9 +372,9 @@ impl Debug for Game {
                     FmtCell::Free => write!(f, "."),
                     FmtCell::Food => write!(f, "{}", "o".red()),
                     FmtCell::Tail(dir, id) => match dir {
-                        Direction::Up => write!(f, "{}", "v".style(id_color(*id))),
+                        Direction::Up => write!(f, "{}", "^".style(id_color(*id))),
                         Direction::Right => write!(f, "{}", ">".style(id_color(*id))),
-                        Direction::Down => write!(f, "{}", "^".style(id_color(*id))),
+                        Direction::Down => write!(f, "{}", "v".style(id_color(*id))),
                         Direction::Left => write!(f, "{}", "<".style(id_color(*id))),
                     },
                     FmtCell::Head(id) => write!(f, "{}", id.style(id_color(*id))),
@@ -382,16 +387,21 @@ impl Debug for Game {
         for y in 0..self.grid.width {
             for x in 0..self.grid.height {
                 let cell = &mut cells[y * self.grid.width + x];
-                cell.0 = if self.grid[Vec2D::new(x as _, y as _)].food() {
+                let g_cell = self.grid[Vec2D::new(x as _, y as _)];
+                cell.0 = if g_cell.food() {
                     FmtCell::Food
                 } else {
                     FmtCell::Free
                 };
-                cell.1 = self.grid.is_hazardous(Vec2D::new(x as _, y as _));
+                cell.1 = g_cell.hazard();
             }
         }
 
         for snake in &self.snakes {
+            if !snake.alive() || snake.body.is_empty() {
+                continue;
+            }
+
             let mut last_body = *snake.body.front().unwrap();
 
             for next_body in snake.body.iter().skip(1).copied() {
@@ -408,7 +418,7 @@ impl Debug for Game {
         writeln!(f, "Game {{")?;
 
         // Grid
-        for y in 0..self.grid.width {
+        for y in (0..self.grid.width).rev() {
             write!(f, "  ")?;
             for x in 0..self.grid.height {
                 let (cell, hazard) = cells[y * self.grid.width + x];

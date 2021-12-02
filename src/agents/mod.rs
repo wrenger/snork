@@ -3,13 +3,15 @@ use std::string::ToString;
 use std::sync::{Arc, Mutex};
 
 mod mobility;
-pub use mobility::{MobilityAgent, MobilityConfig};
+pub use mobility::*;
+mod flood;
+pub use flood::*;
 mod random;
 pub use random::RandomAgent;
 mod tree;
-pub use tree::{TreeAgent, TreeConfig};
+pub use tree::*;
 mod mcts;
-pub use mcts::MonteAgent;
+pub use mcts::*;
 
 use super::env::{GameRequest, MoveResponse};
 
@@ -23,6 +25,7 @@ pub enum Config {
     Mobility(MobilityConfig),
     Tree(TreeConfig),
     Random,
+    Flood(FloodConfig),
 }
 
 impl Default for Config {
@@ -33,13 +36,14 @@ impl Default for Config {
 
 impl Config {
     pub fn create_agent(&self, request: &GameRequest) -> Arc<Mutex<dyn Agent + Send>> {
+        if request.board.width > 19 || request.board.height > 19 {
+            return Arc::new(Mutex::new(RandomAgent::default()));
+        }
+
         match self {
-            Config::Mobility(config) if request.board.width <= 19 && request.board.height <= 19 => {
-                Arc::new(Mutex::new(MobilityAgent::new(request, &config)))
-            }
-            Config::Tree(config) if request.board.width <= 19 && request.board.height <= 19 => {
-                Arc::new(Mutex::new(TreeAgent::new(request, &config)))
-            }
+            Config::Mobility(config) => Arc::new(Mutex::new(MobilityAgent::new(request, &config))),
+            Config::Tree(config) => Arc::new(Mutex::new(TreeAgent::new(request, &config))),
+            Config::Flood(config) => Arc::new(Mutex::new(FloodAgent::new(request, &config))),
             _ => Arc::new(Mutex::new(RandomAgent::default())),
         }
     }
