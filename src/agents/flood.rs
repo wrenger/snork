@@ -1,15 +1,15 @@
-use rand::prelude::*;
-use rand::SeedableRng;
+use std::time::Duration;
+use std::time::Instant;
 
-use super::Agent;
+use tokio::sync::mpsc;
+use tokio::sync::mpsc::Sender;
+
 use crate::env::*;
-use crate::game::{max_n, FloodFill, Game};
+use crate::game::{async_max_n, FloodFill, Game};
 use crate::util::argmax;
 
 #[derive(Debug)]
 pub struct FloodAgent {
-    game: Game,
-    flood_fill: FloodFill,
     config: FloodConfig,
 }
 
@@ -34,72 +34,107 @@ impl Default for FloodConfig {
 }
 
 impl FloodAgent {
-    pub fn new(request: &GameRequest, config: &FloodConfig) -> Self {
+    pub fn new(_request: &GameRequest, config: &FloodConfig) -> Self {
         Self {
-            game: Game::new(request.board.width, request.board.width),
-            flood_fill: FloodFill::new(request.board.width, request.board.width),
             config: config.clone(),
         }
     }
-}
 
-impl Agent for FloodAgent {
-    fn step(&mut self, request: &GameRequest, _ms: u64) -> MoveResponse {
-        self.game.reset_from_request(&request);
+    pub async fn step(&mut self, request: &GameRequest, ms: u64) -> MoveResponse {
+        let mut game = Game::new(request.board.width, request.board.height);
+        game.reset_from_request(&request);
 
-        let flood_fill = &mut self.flood_fill;
-        let config = &self.config;
+        let (sender, mut receiver) = mpsc::channel(32);
 
-        let area = (self.game.grid.width * self.game.grid.height) as f64;
+        let _ = tokio::time::timeout(
+            Duration::from_millis(ms),
+            Self::iterative_tree_search(&self.config, &game, sender),
+        )
+        .await;
 
-        let space_after_move = max_n(&self.game, 1, |game| {
-            if game.snake_is_alive(0) {
-                let own_len = game.snakes[0].body.len() as f64;
-
-                let food_distances = flood_fill.flood_snakes(&game.grid, &game.snakes);
-                let mut food_distance = food_distances
-                    .into_iter()
-                    .map(|d| (area - d as f64) / area)
-                    .sum::<f64>();
-
-                food_distance = (food_distance + own_len) / area;
-
-                let board_control = flood_fill.count_health(true) as f64 / (area * 100.0);
-
-                let health = game.snakes[0].health as f64 / 100.0;
-
-                let max_enemy_len = game.snakes[1..]
-                    .iter()
-                    .map(|s| s.body.len())
-                    .max()
-                    .unwrap_or(0) as f64;
-                let len_advantage = (own_len / max_enemy_len).min(2.0);
-
-                config.board_control * board_control
-                    + config.health * health
-                    + config.len_advantage * len_advantage
-                    + config.food_distance * food_distance
-            } else {
-                0.0
-            }
-        });
-
-        println!(">>> space {:?}", space_after_move);
-
-        if let Some(dir) = argmax(space_after_move.iter()) {
-            if space_after_move[dir] > 0.0 {
-                return MoveResponse::new(Direction::from(dir as u8));
-            }
+        let mut result = None;
+        while let Some(dir) = receiver.recv().await {
+            result = Some(dir);
         }
 
-        println!(">>> random");
-        let mut rng = SmallRng::from_entropy();
-        MoveResponse::new(
-            self.game
-                .valid_moves(0)
-                .choose(&mut rng)
-                .unwrap_or(Direction::Up),
-        )
+        if let Some(dir) = result {
+            return MoveResponse::new(Direction::from(dir as u8));
+        }
+
+        println!(">>> none");
+        MoveResponse::new(game.valid_moves(0).next().unwrap_or(Direction::Up))
     }
-    fn end(&mut self, _: &GameRequest) {}
+
+    async fn iterative_tree_search(config: &FloodConfig, game: &Game, sender: Sender<Direction>) {
+        // Iterative deepening
+        for depth in 1..20 {
+            let (dir, value) = Self::next_move(game, depth, config).await;
+
+            // Stop and fallback to random possible move
+            if value <= f64::MIN {
+                break;
+            };
+
+            if sender.send(dir).await.is_err()
+                // Terminate if we probably win/lose
+                || value >= f64::MAX
+            {
+                break;
+            }
+        }
+    }
+
+    /// Performes a tree search and returns the maximized heuristic and move.
+    pub async fn next_move(game: &Game, depth: usize, config: &FloodConfig) -> (Direction, f64) {
+        let start = Instant::now();
+
+        let config = config.clone();
+        let result = async_max_n(&game, depth, move |game| Self::heuristic(game, &config)).await;
+
+        println!(
+            ">>> max_n {} {:?}ms {:?}",
+            depth,
+            start.elapsed().as_millis(),
+            result
+        );
+
+        argmax(result.iter())
+            .map(|d| (Direction::from(d as u8), result[d]))
+            .unwrap_or_default()
+    }
+
+    pub fn heuristic(game: &Game, config: &FloodConfig) -> f64 {
+        if game.snake_is_alive(0) {
+            let own_len = game.snakes[0].body.len() as f64;
+            let area = (game.grid.width * game.grid.height) as f64;
+
+            let mut flood_fill = FloodFill::new(game.grid.width, game.grid.height);
+            let food_distances = flood_fill.flood_snakes(&game.grid, &game.snakes);
+            let mut food_distance = food_distances
+                .into_iter()
+                .filter(|&d| d < u16::MAX)
+                .map(|d| (area - d as f64) / area)
+                .sum::<f64>();
+
+            food_distance = (food_distance + own_len) / area;
+
+            let board_control = flood_fill.count_health(true) as f64 / (area * 100.0);
+
+            let health = game.snakes[0].health as f64 / 100.0;
+
+            let max_enemy_len = game.snakes[1..]
+                .iter()
+                .map(|s| s.body.len())
+                .max()
+                .unwrap_or(0) as f64;
+            let len_advantage = (own_len / max_enemy_len).min(2.0);
+
+            config.board_control * board_control
+                + config.health * health
+                + config.len_advantage * len_advantage
+                + config.food_distance * food_distance
+        } else {
+            0.0
+        }
+    }
 }

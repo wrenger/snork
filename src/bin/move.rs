@@ -17,7 +17,8 @@ struct Opts {
     runtime: usize,
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let Opts {
         config,
         request,
@@ -43,8 +44,8 @@ fn main() {
     println!("{:?}", flood_fill);
 
     let agent = config.create_agent(&request);
-
-    let step = agent.lock().unwrap().step(&request, runtime as _);
+    let mut agent = agent.lock().await;
+    let step = agent.step(&request, runtime as _).await;
 
     println!("Step: {:?}", step);
 }

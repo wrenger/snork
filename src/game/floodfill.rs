@@ -195,7 +195,7 @@ impl FloodFill {
         &mut self,
         grid: &Grid,
         heads: impl Iterator<Item = (Vec2D, bool, u8)>,
-    ) -> Vec<u16> {
+    ) -> [u16; 4] {
         assert_eq!(self.width, grid.width);
         assert_eq!(self.height, grid.height);
 
@@ -211,7 +211,8 @@ impl FloodFill {
                 || (cell.is_owned() && cell.is_you() == you && cell.get_num() < health as u16)
         }
 
-        let mut food_distances = Vec::new();
+        let mut food_distances = [u16::MAX; 4];
+        let mut food_distance_i = 0;
 
         for (p, you, health) in heads {
             if self.has(p) {
@@ -220,8 +221,9 @@ impl FloodFill {
                 let g_cell = grid[p];
 
                 let health = if g_cell.food() {
-                    if you && !cell.is_owned() {
-                        food_distances.push(1)
+                    if you && !cell.is_owned() && food_distance_i < food_distances.len() {
+                        food_distances[food_distance_i] = 1;
+                        food_distance_i += 1;
                     }
                     100
                 } else {
@@ -255,8 +257,9 @@ impl FloodFill {
                     let cell = self[p];
 
                     let health = if g_cell.food() {
-                        if you && !cell.is_owned() {
-                            food_distances.push(distance)
+                        if you && !cell.is_owned() && food_distance_i < food_distances.len() {
+                            food_distances[food_distance_i] = distance;
+                            food_distance_i += 1;
                         }
                         100
                     } else {
@@ -283,7 +286,7 @@ impl FloodFill {
     /// Prepare the board and compute flood fill.
     /// It is assumed that the snake at position and id 0 is the evaluated
     /// agent and the other snakes are the enemies.
-    pub fn flood_snakes(&mut self, grid: &Grid, snakes: &[Snake]) -> Vec<u16> {
+    pub fn flood_snakes(&mut self, grid: &Grid, snakes: &[Snake]) -> [u16; 4] {
         self.clear();
         let mut snakes: Vec<&Snake> = snakes.iter().filter(|s| s.alive()).collect();
 
@@ -593,6 +596,6 @@ mod test {
         let mut floodfill = FloodFill::new(game.grid.width, game.grid.height);
         floodfill.flood_snakes(&game.grid, &game.snakes);
         println!("Filled {} {:?}", floodfill.count_space(true), floodfill);
-        assert_eq!(floodfill.count_space(true), 97);
+        assert_eq!(floodfill.count_space(true), 96);
     }
 }

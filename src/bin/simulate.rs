@@ -91,11 +91,10 @@ async fn play_game(
     shrink_turns: usize,
     verbose: bool,
 ) -> bool {
-    let mut rng = rand::thread_rng();
     let mut game = init_game(width, height, agents.len());
     let mut request = game_to_request(&game, 0);
     let agents = agents
-        .iter()
+    .iter()
         .enumerate()
         .map(|(i, c)| {
             request.you = request.board.snakes[i].clone();
@@ -103,7 +102,7 @@ async fn play_game(
         })
         .collect::<Vec<_>>();
 
-    let mut hazard_insets = [0; 4];
+        let mut hazard_insets = [0; 4];
 
     for turn in 0.. {
         if verbose {
@@ -115,11 +114,10 @@ async fn play_game(
         for snake in &game.snakes {
             if snake.alive() {
                 request.you = snake_data(snake);
-                moves[snake.id as usize] = agents[snake.id as usize]
-                    .lock()
-                    .unwrap()
-                    .step(&request, runtime as _)
-                    .r#move;
+
+                let mut agent = agents[snake.id as usize].lock().await;
+                let response = agent.step(&request, runtime as _).await;
+                moves[snake.id as usize] = response.r#move;
             }
         }
         if verbose {
@@ -137,6 +135,7 @@ async fn play_game(
         }
 
         // Spawn food
+        let mut rng = rand::thread_rng();
         if request.board.food.is_empty() || rng.gen::<f64>() < food_rate {
             if let Some(cell) = game
                 .grid

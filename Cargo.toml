@@ -1,11 +1,10 @@
 [package]
-edition = "2018"
+edition = "2021"
 name = "snork"
-version = "0.1.1"
+version = "0.2.0"
 authors = ["Lars Wrenger <lars@wrenger.net>", "Julian Krohne <krohnejulian@yahoo.de>", "Julian Gercke <julian.gercke@gmx.de>"]
 description = "High performant battlesnake agents written in rust"
 license = "MIT"
-resolver = "2"
 default-run = "server"
 
 [dependencies]
@@ -17,9 +16,10 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 structopt = "0.3"
 owo-colors = "3.1"
+async-recursion = "0.3"
 
 [dev-dependencies]
-criterion = "0.3"
+criterion = { version = "0.3", features = ["async_tokio"] }
 
 [[bench]]
 name = "benchmarks"

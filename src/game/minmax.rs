@@ -1,9 +1,10 @@
 use super::Game;
 use crate::env::Direction;
-use std::f64;
+
+use async_recursion::async_recursion;
 
 /// The result of a heuristic.
-pub trait Comparable: Default + Copy + PartialOrd + std::fmt::Debug {
+pub trait Comparable: Default + Copy + PartialOrd + std::fmt::Debug + Send {
     fn max() -> Self;
     fn min() -> Self;
 }
@@ -14,6 +15,93 @@ impl Comparable for f64 {
     }
     fn min() -> f64 {
         -std::f64::INFINITY
+    }
+}
+
+pub async fn async_max_n<F, T>(game: &Game, depth: usize, heuristic: F) -> [T; 4]
+where
+    F: Fn(&Game) -> T + Send + Sync + Clone + 'static,
+    T: Comparable + 'static,
+{
+    assert!(game.snakes.len() <= 4);
+    async_max_n_rec(&game, depth, 0, [Direction::Up; 4], &heuristic).await
+}
+
+#[async_recursion]
+async fn async_max_n_rec<F, T>(
+    game: &Game,
+    depth: usize,
+    ply: usize,
+    actions: [Direction; 4],
+    heuristic: &F,
+) -> [T; 4]
+where
+    F: Fn(&Game) -> T + Send + Sync + Clone + 'static,
+    T: Comparable + 'static,
+{
+    if ply == game.snakes.len() {
+        assert!(ply <= actions.len());
+        // simulate
+        let mut game = game.clone();
+        game.step(&actions[..]);
+
+        if depth <= 1 {
+            // eval
+            [heuristic(&game), T::default(), T::default(), T::default()]
+        } else {
+            let mut result =
+                async_max_n_rec(&game, depth - 1, 0, [Direction::Up; 4], heuristic).await;
+            // max
+            for i in 1..4 {
+                if result[i] > result[0] {
+                    result[0] = result[i]
+                }
+            }
+            result
+        }
+    } else if ply == 0 {
+        // collect all outcomes instead of max
+        let mut result = [T::min(); 4];
+
+        if game.snake_is_alive(ply as u8) {
+            let mut futures = [None, None, None, None];
+            for d in Direction::iter() {
+                let mut actions = actions.clone();
+                actions[ply] = d;
+                let game = game.clone();
+                let heuristic = heuristic.clone();
+
+                // Create tasks for subtrees.
+                futures[d as u8 as usize] = Some(tokio::task::spawn(async move {
+                    async_max_n_rec(&game, depth, ply + 1, actions, &heuristic).await
+                }));
+            }
+            for (i, future) in futures.into_iter().enumerate() {
+                result[i] = future.unwrap().await.unwrap()[0];
+            }
+        }
+
+        result
+    } else {
+        let mut min = T::max();
+        if game.snake_is_alive(ply as u8) {
+            for d in Direction::iter() {
+                let mut actions = actions.clone();
+                actions[ply] = d;
+                let val = async_max_n_rec(game, depth, ply + 1, actions, heuristic).await[0];
+                if val < min {
+                    min = val;
+                }
+                // skip if already lowest possible outcome
+                if val <= T::min() {
+                    break;
+                }
+            }
+        } else {
+            // continue with next agent
+            min = async_max_n_rec(game, depth, ply + 1, actions, heuristic).await[0];
+        }
+        [min, T::default(), T::default(), T::default()]
     }
 }
 
@@ -29,16 +117,15 @@ where
     F: FnMut(&Game) -> T,
     T: Comparable,
 {
-    // This vector is reused for the entire layer
-    let mut action = Vec::with_capacity(game.snakes.len());
-    max_n_rec(&game, depth, 0, &mut action, &mut heuristic)
+    assert!(game.snakes.len() <= 4);
+    max_n_rec(&game, depth, 0, [Direction::Up; 4], &mut heuristic)
 }
 
 fn max_n_rec<F, T>(
     game: &Game,
     depth: usize,
     ply: usize,
-    actions: &mut Vec<Direction>,
+    actions: [Direction; 4],
     heuristic: &mut F,
 ) -> [T; 4]
 where
@@ -46,17 +133,16 @@ where
     T: Comparable,
 {
     if ply == game.snakes.len() {
-        assert_eq!(ply, actions.len());
+        assert!(ply <= actions.len());
         // simulate
         let mut game = game.clone();
-        game.step(&actions);
+        game.step(&actions[..]);
 
         if depth <= 1 {
             // eval
             [heuristic(&game), T::default(), T::default(), T::default()]
         } else {
-            let mut actions = Vec::with_capacity(game.snakes.len());
-            let mut result = max_n_rec(&game, depth - 1, 0, &mut actions, heuristic);
+            let mut result = max_n_rec(&game, depth - 1, 0, [Direction::Up; 4], heuristic);
             // max
             for i in 1..4 {
                 if result[i] > result[0] {
@@ -70,8 +156,8 @@ where
         let mut result = [T::min(); 4];
         if game.snake_is_alive(ply as u8) {
             for (i, d) in Direction::iter().enumerate() {
-                actions.truncate(ply);
-                actions.push(d);
+                let mut actions = actions;
+                actions[ply] = d;
                 result[i] = max_n_rec(game, depth, ply + 1, actions, heuristic)[0];
             }
         }
@@ -80,8 +166,8 @@ where
         let mut min = T::max();
         if game.snake_is_alive(ply as u8) {
             for d in Direction::iter() {
-                actions.truncate(ply);
-                actions.push(d);
+                let mut actions = actions;
+                actions[ply] = d;
                 let val = max_n_rec(game, depth, ply + 1, actions, heuristic)[0];
                 if val < min {
                     min = val;
@@ -93,28 +179,121 @@ where
             }
         } else {
             // continue with next agent
-            actions.truncate(ply);
-            actions.push(Direction::Up);
             min = max_n_rec(game, depth, ply + 1, actions, heuristic)[0];
         }
         [min, T::default(), T::default(), T::default()]
     }
 }
 
+pub async fn async_alphabeta<F, T>(game: &Game, depth: usize, mut heuristic: F) -> (Direction, T)
+where
+    F: Fn(&Game) -> T + Send + Sync + Clone + 'static,
+    T: Comparable + 'static,
+{
+    async_alphabeta_rec(
+        &game,
+        [Direction::Up; 4],
+        depth,
+        0,
+        T::min(),
+        T::max(),
+        &mut heuristic,
+    )
+    .await
+}
+
+#[async_recursion]
+async fn async_alphabeta_rec<F, T>(
+    game: &Game,
+    actions: [Direction; 4],
+    depth: usize,
+    ply: usize,
+    mut alpha: T,
+    mut beta: T,
+    heuristic: &F,
+) -> (Direction, T)
+where
+    F: Fn(&Game) -> T + Send + Sync + Clone + 'static,
+    T: Comparable + 'static,
+{
+    if ply == game.snakes.len() {
+        let mut game = game.clone();
+        game.step(&actions);
+        if depth == 0 {
+            (Direction::Up, heuristic(&game))
+        } else {
+            async_alphabeta_rec(
+                &game,
+                [Direction::Up; 4],
+                depth - 1,
+                0,
+                alpha,
+                beta,
+                heuristic,
+            )
+            .await
+        }
+    } else if ply == 0 {
+        let mut value = (Direction::Up, T::min());
+
+        let mut futures = [None, None, None, None];
+        for d in Direction::iter() {
+            let game = game.clone();
+            let heuristic = heuristic.clone();
+            let mut actions = actions;
+            actions[ply] = d;
+            futures[d as u8 as usize] = Some(tokio::task::spawn(async move {
+                async_alphabeta_rec(&game, actions, depth, ply + 1, alpha, beta, &heuristic).await
+            }));
+        }
+
+        for (i, future) in futures.into_iter().enumerate() {
+            let newval = future.unwrap().await.unwrap();
+
+            if newval.1 > value.1 {
+                value = (Direction::from(i as u8), newval.1);
+            }
+            if newval.1 > alpha {
+                alpha = newval.1;
+            }
+            if alpha >= beta {
+                break;
+            }
+        }
+        value
+    } else {
+        let mut value = (Direction::Up, T::max());
+        for d in Direction::iter() {
+            let mut actions = actions.clone();
+            actions[ply] = d;
+            let newval =
+                async_alphabeta_rec(game, actions, depth, ply + 1, alpha, beta, heuristic).await;
+            if newval.1 < value.1 {
+                value = (d, newval.1);
+            }
+            if newval.1 < beta {
+                beta = newval.1;
+            }
+            if alpha >= beta {
+                break;
+            }
+        }
+        value
+    }
+}
+
 /// Alpha-Beta tree search.
 /// @see https://en.wikipedia.org/wiki/Alpha%E2%80%93beta_pruning
 /// Assuming the maximizing agent has id 0
-///
-/// Generally faster for two agents but slower for more.
+/// Assuming only two snakes are alive
 pub fn alphabeta<F, T>(game: &Game, depth: usize, mut heuristic: F) -> (Direction, T)
 where
     F: FnMut(&Game) -> T,
     T: Comparable,
 {
-    let mut actions = Vec::new();
     alphabeta_rec(
         &game,
-        &mut actions,
+        [Direction::Up; 4],
         depth,
         0,
         T::min(),
@@ -125,7 +304,7 @@ where
 
 fn alphabeta_rec<F, T>(
     game: &Game,
-    actions: &mut Vec<Direction>,
+    actions: [Direction; 4],
     depth: usize,
     ply: usize,
     mut alpha: T,
@@ -138,18 +317,25 @@ where
 {
     if ply == game.snakes.len() {
         let mut game = game.clone();
-        game.step(actions);
+        game.step(&actions);
         if depth == 0 {
             (Direction::Up, heuristic(&game))
         } else {
-            let mut actions = Vec::new();
-            alphabeta_rec(&game, &mut actions, depth - 1, 0, alpha, beta, heuristic)
+            alphabeta_rec(
+                &game,
+                [Direction::Up; 4],
+                depth - 1,
+                0,
+                alpha,
+                beta,
+                heuristic,
+            )
         }
     } else if ply == 0 {
         let mut value = (Direction::Up, T::min());
         for d in Direction::iter() {
-            actions.truncate(ply);
-            actions.push(d);
+            let mut actions = actions;
+            actions[ply] = d;
             let newval = alphabeta_rec(game, actions, depth, ply + 1, alpha, beta, heuristic);
             if newval.1 > value.1 {
                 value = (d, newval.1);
@@ -165,8 +351,8 @@ where
     } else {
         let mut value = (Direction::Up, T::max());
         for d in Direction::iter() {
-            actions.truncate(ply);
-            actions.push(d);
+            let mut actions = actions;
+            actions[ply] = d;
             let newval = alphabeta_rec(game, actions, depth, ply + 1, alpha, beta, heuristic);
             if newval.1 < value.1 {
                 value = (d, newval.1);
@@ -226,8 +412,8 @@ mod test {
         game.reset(snakes, &[], &[]);
         println!("{:?}", game.grid);
         let start = Instant::now();
-        let mut flood_fill = FloodFill::new(game.grid.width, game.grid.height);
-        let moves = max_n(&game, 2, |game| {
+        let moves = max_n(&game, 3, |game| {
+            let mut flood_fill = FloodFill::new(game.grid.width, game.grid.height);
             if game.snake_is_alive(0) {
                 flood_fill.flood_snakes(&game.grid, &game.snakes);
                 flood_fill.count_space(true) as f64
@@ -238,6 +424,62 @@ mod test {
         let end = Instant::now();
         println!("{:?}", moves);
         println!("time {}ms", (end - start).as_millis());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    #[ignore]
+    async fn async_max_n() {
+        use super::super::{FloodFill, Snake};
+        use super::*;
+        use crate::env::Vec2D;
+        use std::time::Instant;
+
+        let snakes = vec![
+            Snake::new(
+                0,
+                vec![
+                    Vec2D::new(0, 3),
+                    Vec2D::new(1, 3),
+                    Vec2D::new(2, 3),
+                    Vec2D::new(3, 3),
+                ]
+                .into(),
+                100,
+            ),
+            Snake::new(
+                1,
+                vec![Vec2D::new(3, 7), Vec2D::new(3, 6), Vec2D::new(3, 5)].into(),
+                100,
+            ),
+            Snake::new(
+                2,
+                vec![Vec2D::new(10, 7), Vec2D::new(10, 6), Vec2D::new(10, 5)].into(),
+                100,
+            ),
+            Snake::new(
+                3,
+                vec![Vec2D::new(10, 0), Vec2D::new(9, 0), Vec2D::new(8, 0)].into(),
+                100,
+            ),
+        ];
+
+        let mut game = Game::new(11, 11);
+        game.reset(snakes, &[], &[]);
+        println!("{:?}", game.grid);
+        let start = Instant::now();
+        let moves = async_max_n(&game, 3, |game| {
+            let mut flood_fill = FloodFill::new(game.grid.width, game.grid.height);
+            if game.snake_is_alive(0) {
+                flood_fill.flood_snakes(&game.grid, &game.snakes);
+                flood_fill.count_space(true) as f64
+            } else {
+                0.0
+            }
+        })
+        .await;
+        let end = Instant::now();
+        println!("{:?}", moves);
+        println!("async time {}ms", (end - start).as_millis());
     }
 
     #[test]
