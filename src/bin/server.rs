@@ -1,7 +1,5 @@
-use std::path::PathBuf;
-use std::sync::mpsc::Sender;
-use std::sync::Arc;
-use std::sync::Mutex;
+use std::net;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use chashmap::CHashMap;
@@ -9,8 +7,8 @@ use chashmap::CHashMap;
 use snork::agents::*;
 use snork::env::{GameRequest, IndexResponse, MoveResponse, API_VERSION};
 
-use actix_web::{get, post, web, App, HttpResponse, HttpServer};
 use structopt::StructOpt;
+use warp::Filter;
 
 pub const PACKAGE_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const AUTHOR: &str = "l4r0x";
@@ -37,34 +35,24 @@ impl RunningInstance {
 }
 
 /// Runtime server configuration.
-struct ServerConfig {
+struct State {
     runtime: u64,
     color: String,
     head: String,
     tail: String,
     config: Config,
-    running_agents: Arc<CHashMap<(String, String), RunningInstance>>,
-    save_queue: Option<Sender<Option<GameRequest>>>,
+    running_agents: CHashMap<(String, String), RunningInstance>,
 }
 
-impl ServerConfig {
-    fn new(
-        runtime: u64,
-        color: String,
-        head: String,
-        tail: String,
-        config: Config,
-        running_agents: Arc<CHashMap<(String, String), RunningInstance>>,
-        save_queue: Option<Sender<Option<GameRequest>>>,
-    ) -> ServerConfig {
-        ServerConfig {
+impl State {
+    fn new(runtime: u64, color: String, head: String, tail: String, config: Config) -> State {
+        State {
             runtime,
             color,
             head,
             tail,
             config,
-            running_agents,
-            save_queue,
+            running_agents: CHashMap::new(),
         }
     }
 
@@ -78,79 +66,6 @@ impl ServerConfig {
     }
 }
 
-#[get("/")]
-async fn index(config: web::Data<ServerConfig>) -> HttpResponse {
-    println!("index");
-    HttpResponse::Ok().json(IndexResponse::new(
-        API_VERSION.into(),
-        AUTHOR.into(),
-        config.color.clone().into(),
-        config.head.clone().into(),
-        config.tail.clone().into(),
-        PACKAGE_VERSION.into(),
-    ))
-}
-
-#[post("/start")]
-async fn start(data: web::Data<ServerConfig>, request: web::Json<GameRequest>) -> HttpResponse {
-    println!(
-        "start {} game {},{}",
-        request.game.ruleset.name, request.game.id, request.you.id
-    );
-    data.clear_agents();
-
-    if data.running_agents.len() < MAX_AGENT_COUNT {
-        data.running_agents.insert(
-            (request.game.id.clone(), request.you.id.clone()),
-            RunningInstance::new(data.config.create_agent(&request)),
-        );
-    }
-    HttpResponse::Ok().body("")
-}
-
-#[post("/move")]
-async fn game_move(data: web::Data<ServerConfig>, request: web::Json<GameRequest>) -> HttpResponse {
-    println!(
-        "move {} game {},{}",
-        request.game.ruleset.name, request.game.id, request.you.id
-    );
-
-    if let Some(instance) = data
-        .running_agents
-        .get(&(request.game.id.clone(), request.you.id.clone()))
-    {
-        let timer = Instant::now();
-        let next_move = instance.agent.lock().unwrap().step(&request, data.runtime);
-        if let Some(save_queue) = &data.save_queue {
-            save_queue.send(Some(request.into_inner())).unwrap();
-        }
-        println!("response time {:?}ms", (Instant::now() - timer).as_millis());
-        HttpResponse::Ok().json(next_move)
-    } else {
-        HttpResponse::Ok().json(MoveResponse::default())
-    }
-}
-
-#[post("/end")]
-async fn end(data: web::Data<ServerConfig>, request: web::Json<GameRequest>) -> HttpResponse {
-    println!(
-        "end {} game {},{}",
-        request.game.ruleset.name, request.game.id, request.you.id
-    );
-
-    if let Some(instance) = data
-        .running_agents
-        .get(&(request.game.id.clone(), request.you.id.clone()))
-    {
-        instance.agent.lock().unwrap().end(&request);
-    }
-    data.running_agents
-        .remove(&(request.game.id.clone(), request.you.id.clone()));
-
-    data.clear_agents();
-    HttpResponse::Ok().body("")
-}
-
 #[derive(Debug, StructOpt)]
 #[structopt(name = "rusty snake", about = "High performant rust snake.")]
 struct Opt {
@@ -160,10 +75,6 @@ struct Opt {
     /// Time per step in ms.
     #[structopt(long, default_value = "200")]
     runtime: u64,
-    /// Directory where games are logged.
-    #[structopt(short, long)]
-    log_dir: Option<PathBuf>,
-
     /// Color in hex format.
     #[structopt(long, default_value = "#FF7043")]
     color: String,
@@ -178,55 +89,109 @@ struct Opt {
     config: Config,
 }
 
-#[actix_web::main]
-async fn main() -> std::io::Result<()> {
+#[tokio::main]
+async fn main() {
     let Opt {
         port,
         runtime,
-        log_dir,
         color,
         head,
         tail,
         config,
     } = Opt::from_args();
 
-    let save_queue = log_dir.map(snork::savegame::worker);
-    let running_agents = Arc::new(CHashMap::new());
+    let state = Arc::new(State::new(runtime, color, head, tail, config));
 
-    let save_queue_copy = save_queue.clone();
-    let result = HttpServer::new(move || {
-        App::new()
-            .data(ServerConfig::new(
-                runtime,
-                color.clone(),
-                head.clone(),
-                tail.clone(),
-                config.clone(),
-                running_agents.clone(),
-                save_queue_copy.clone(),
+    let index = warp::get()
+        .and(warp::path::end())
+        .and(with_state(state.clone()))
+        .map(|state: Arc<State>| {
+            warp::reply::json(&IndexResponse::new(
+                API_VERSION.into(),
+                AUTHOR.into(),
+                state.color.clone().into(),
+                state.head.clone().into(),
+                state.tail.clone().into(),
+                PACKAGE_VERSION.into(),
             ))
-            .app_data(web::JsonConfig::default().error_handler(|err, _req| {
-                println!("ERROR: {}", err);
-                actix_web::error::InternalError::from_response(
-                    err,
-                    HttpResponse::Conflict().finish(),
-                )
-                .into()
-            }))
-            .service(index)
-            .service(start)
-            .service(game_move)
-            .service(end)
-    })
-    .bind(("0.0.0.0", port))?
-    .run()
-    .await;
+        });
 
-    if let Some(save_queue) = save_queue {
-        save_queue.send(None).unwrap();
-    }
+    let start = warp::path("start")
+        .and(with_state(state.clone()))
+        .and(warp::query::<GameRequest>())
+        .map(|state: Arc<State>, request: GameRequest| {
+            println!(
+                "start {} game {},{}",
+                request.game.ruleset.name, request.game.id, request.you.id
+            );
+            state.clear_agents();
 
-    result
+            if state.running_agents.len() < MAX_AGENT_COUNT {
+                state.running_agents.insert(
+                    (request.game.id.clone(), request.you.id.clone()),
+                    RunningInstance::new(state.config.create_agent(&request)),
+                );
+            }
+            warp::reply()
+        });
+
+    let r#move = warp::path("move")
+        .and(with_state(state.clone()))
+        .and(warp::query::<GameRequest>())
+        .map(|state: Arc<State>, request: GameRequest| {
+            println!(
+                "move {} game {},{}",
+                request.game.ruleset.name, request.game.id, request.you.id
+            );
+
+            if let Some(instance) = state
+                .running_agents
+                .get(&(request.game.id.clone(), request.you.id.clone()))
+            {
+                let timer = Instant::now();
+                let next_move = instance.agent.lock().unwrap().step(&request, state.runtime);
+                println!("response time {:?}ms", (Instant::now() - timer).as_millis());
+                warp::reply::json(&next_move)
+            } else {
+                warp::reply::json(&MoveResponse::default())
+            }
+        });
+
+    let end = warp::path("end")
+        .and(with_state(state.clone()))
+        .and(warp::query::<GameRequest>())
+        .map(|state: Arc<State>, request: GameRequest| {
+            println!(
+                "end {} game {},{}",
+                request.game.ruleset.name, request.game.id, request.you.id
+            );
+
+            if let Some(instance) = state
+                .running_agents
+                .get(&(request.game.id.clone(), request.you.id.clone()))
+            {
+                instance.agent.lock().unwrap().end(&request);
+            }
+            state
+                .running_agents
+                .remove(&(request.game.id.clone(), request.you.id.clone()));
+
+            state.clear_agents();
+            warp::reply()
+        });
+
+    warp::serve(index.or(start).or(r#move).or(end))
+        .run(net::SocketAddr::V4(net::SocketAddrV4::new(
+            net::Ipv4Addr::LOCALHOST,
+            port,
+        )))
+        .await
+}
+
+fn with_state(
+    config: Arc<State>,
+) -> impl Filter<Extract = (Arc<State>,), Error = std::convert::Infallible> + Clone {
+    warp::any().map(move || config.clone())
 }
 
 #[cfg(test)]

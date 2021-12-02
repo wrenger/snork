@@ -8,9 +8,6 @@ use rand::prelude::*;
 use rand::seq::IteratorRandom;
 use std::time::Instant;
 
-use std::sync::mpsc;
-use threadpool::ThreadPool;
-
 #[derive(structopt::StructOpt)]
 #[structopt(
     name = "rusty snake simulator",
@@ -29,15 +26,14 @@ struct Opts {
     shrink_turns: usize,
     #[structopt(short, long, default_value = "1")]
     game_count: usize,
-    #[structopt(short, long, default_value = "4")]
-    jobs: usize,
     #[structopt(short, long)]
     verbose: bool,
 
     agents: Vec<Config>,
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let Opts {
         runtime,
         width,
@@ -45,7 +41,6 @@ fn main() {
         food_rate,
         shrink_turns,
         game_count,
-        jobs,
         verbose,
         agents,
     } = Opts::from_args();
@@ -54,13 +49,13 @@ fn main() {
 
     let start = Instant::now();
 
-    let pool = ThreadPool::new(jobs);
-    let (tx, rx) = mpsc::channel();
+    let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
     for _ in 0..game_count {
         let tx = tx.clone();
         let agents = agents.clone();
-        pool.execute(move || {
-            tx.send(play_game(
+
+        tokio::spawn(async move {
+            let win = play_game(
                 &agents,
                 width,
                 height,
@@ -68,13 +63,17 @@ fn main() {
                 food_rate,
                 shrink_turns,
                 verbose,
-            ))
-            .unwrap();
-        })
+            )
+            .await;
+            tx.send(win).unwrap();
+        });
     }
     drop(tx);
 
-    let wins = rx.iter().filter(|x| *x).count();
+    let mut wins = 0;
+    while let Some(win) = rx.recv().await {
+        wins += win as usize;
+    }
 
     println!(
         "Simulation time: {}ms",
@@ -83,7 +82,7 @@ fn main() {
     println!("Result: {}/{}", wins, game_count);
 }
 
-fn play_game(
+async fn play_game(
     agents: &[Config],
     width: usize,
     height: usize,

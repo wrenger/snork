@@ -214,7 +214,7 @@ pub struct Board {
 }
 
 /// The game data that is send on the `start`, `move` and `end` requests.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct GameRequest {
     /// Game Object describing the game being played.
     pub game: GameData,
