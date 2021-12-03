@@ -8,39 +8,28 @@ use crate::env::*;
 use crate::game::{async_max_n, FloodFill, Game};
 use crate::util::argmax;
 
-#[derive(Debug)]
-pub struct FloodAgent {
-    config: FloodConfig,
-}
-
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(default)]
-pub struct FloodConfig {
+pub struct FloodAgent {
     board_control: f64,
     health: f64,
     len_advantage: f64,
     food_distance: f64,
 }
 
-impl Default for FloodConfig {
+impl Default for FloodAgent {
     fn default() -> Self {
         Self {
             board_control: 1.0,
             health: 0.5,
-            len_advantage: 1.0,
-            food_distance: 1.0,
+            len_advantage: 0.5,
+            food_distance: 0.5,
         }
     }
 }
 
 impl FloodAgent {
-    pub fn new(_request: &GameRequest, config: &FloodConfig) -> Self {
-        Self {
-            config: config.clone(),
-        }
-    }
-
-    pub async fn step(&mut self, request: &GameRequest, ms: u64) -> MoveResponse {
+    pub async fn step(&self, request: &GameRequest, ms: u64) -> MoveResponse {
         let mut game = Game::new(request.board.width, request.board.height);
         game.reset_from_request(&request);
 
@@ -48,7 +37,7 @@ impl FloodAgent {
 
         let _ = tokio::time::timeout(
             Duration::from_millis(ms),
-            Self::iterative_tree_search(&self.config, &game, sender),
+            Self::iterative_tree_search(&self, &game, sender),
         )
         .await;
 
@@ -65,10 +54,10 @@ impl FloodAgent {
         MoveResponse::new(game.valid_moves(0).next().unwrap_or(Direction::Up))
     }
 
-    async fn iterative_tree_search(config: &FloodConfig, game: &Game, sender: Sender<Direction>) {
+    async fn iterative_tree_search(&self, game: &Game, sender: Sender<Direction>) {
         // Iterative deepening
         for depth in 1..20 {
-            let (dir, value) = Self::next_move(game, depth, config).await;
+            let (dir, value) = self.next_move(game, depth).await;
 
             // Stop and fallback to random possible move
             if value <= f64::MIN {
@@ -85,11 +74,11 @@ impl FloodAgent {
     }
 
     /// Performes a tree search and returns the maximized heuristic and move.
-    pub async fn next_move(game: &Game, depth: usize, config: &FloodConfig) -> (Direction, f64) {
+    pub async fn next_move(&self, game: &Game, depth: usize) -> (Direction, f64) {
         let start = Instant::now();
 
-        let config = config.clone();
-        let result = async_max_n(&game, depth, move |game| Self::heuristic(game, &config)).await;
+        let config = self.clone();
+        let result = async_max_n(&game, depth, move |game| config.heuristic(game)).await;
 
         println!(
             ">>> max_n {} {:?}ms {:?}",
@@ -103,20 +92,18 @@ impl FloodAgent {
             .unwrap_or_default()
     }
 
-    pub fn heuristic(game: &Game, config: &FloodConfig) -> f64 {
+    pub fn heuristic(&self, game: &Game) -> f64 {
         if game.snake_is_alive(0) {
             let own_len = game.snakes[0].body.len() as f64;
             let area = (game.grid.width * game.grid.height) as f64;
 
             let mut flood_fill = FloodFill::new(game.grid.width, game.grid.height);
             let food_distances = flood_fill.flood_snakes(&game.grid, &game.snakes);
-            let mut food_distance = food_distances
+            let food_distance = food_distances
                 .into_iter()
                 .filter(|&d| d < u16::MAX)
                 .map(|d| (area - d as f64) / area)
                 .sum::<f64>();
-
-            food_distance = (food_distance + own_len) / area;
 
             let board_control = flood_fill.count_health(true) as f64 / (area * 100.0);
 
@@ -127,14 +114,13 @@ impl FloodAgent {
                 .map(|s| s.body.len())
                 .max()
                 .unwrap_or(0) as f64;
-            let len_advantage = (own_len / max_enemy_len).min(2.0);
+            let len_advantage = (own_len + food_distance * self.food_distance) - max_enemy_len;
 
-            config.board_control * board_control
-                + config.health * health
-                + config.len_advantage * len_advantage
-                + config.food_distance * food_distance
+            self.board_control * board_control
+                + self.health * health
+                + self.len_advantage * len_advantage
         } else {
-            0.0
+            -f64::INFINITY
         }
     }
 }

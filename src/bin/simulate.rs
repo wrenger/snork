@@ -1,3 +1,4 @@
+use owo_colors::OwoColorize;
 use structopt::StructOpt;
 
 use snork::agents::*;
@@ -29,7 +30,7 @@ struct Opts {
     #[structopt(short, long)]
     verbose: bool,
 
-    agents: Vec<Config>,
+    agents: Vec<Agent>,
 }
 
 #[tokio::main]
@@ -49,41 +50,33 @@ async fn main() {
 
     let start = Instant::now();
 
-    let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
-    for _ in 0..game_count {
-        let tx = tx.clone();
-        let agents = agents.clone();
-
-        tokio::spawn(async move {
-            let win = play_game(
-                &agents,
-                width,
-                height,
-                runtime,
-                food_rate,
-                shrink_turns,
-                verbose,
-            )
-            .await;
-            tx.send(win).unwrap();
-        });
-    }
-    drop(tx);
-
     let mut wins = 0;
-    while let Some(win) = rx.recv().await {
+
+    for i in 0..game_count {
+        let win = play_game(
+            &agents,
+            width,
+            height,
+            runtime,
+            food_rate,
+            shrink_turns,
+            verbose,
+        )
+        .await;
         wins += win as usize;
+        println!(
+            "{}: {} {}ms",
+            "Finish Game".bright_green(),
+            i,
+            start.elapsed().as_millis()
+        );
     }
 
-    println!(
-        "Simulation time: {}ms",
-        (Instant::now() - start).as_millis()
-    );
     println!("Result: {}/{}", wins, game_count);
 }
 
 async fn play_game(
-    agents: &[Config],
+    agents: &[Agent],
     width: usize,
     height: usize,
     runtime: usize,
@@ -92,31 +85,21 @@ async fn play_game(
     verbose: bool,
 ) -> bool {
     let mut game = init_game(width, height, agents.len());
-    let mut request = game_to_request(&game, 0);
-    let agents = agents
-    .iter()
-        .enumerate()
-        .map(|(i, c)| {
-            request.you = request.board.snakes[i].clone();
-            c.create_agent(&request)
-        })
-        .collect::<Vec<_>>();
 
-        let mut hazard_insets = [0; 4];
+    if verbose {
+        println!("init: {:?}", game);
+    }
+
+    let mut hazard_insets = [0; 4];
 
     for turn in 0.. {
-        if verbose {
-            println!("{} {:?}", turn, game.grid);
-        }
-
         let mut request = game_to_request(&game, turn);
         let mut moves = [Direction::Up; 4];
         for snake in &game.snakes {
             if snake.alive() {
                 request.you = snake_data(snake);
 
-                let mut agent = agents[snake.id as usize].lock().await;
-                let response = agent.step(&request, runtime as _).await;
+                let response = agents[snake.id as usize].step(&request, runtime as _).await;
                 moves[snake.id as usize] = response.r#move;
             }
         }
@@ -124,6 +107,10 @@ async fn play_game(
             println!("Moves: {:?}", moves);
         }
         game.step(&moves);
+
+        if verbose {
+            println!("{}: {:?}", turn, game);
+        }
 
         if !game.snake_is_alive(0) {
             println!("game: loss after {} turns", turn);
@@ -141,7 +128,7 @@ async fn play_game(
                 .grid
                 .cells
                 .iter_mut()
-                .filter(|c| c.food())
+                .filter(|c| !c.food() && !c.owned())
                 .choose(&mut rng)
             {
                 cell.set_food(true);
@@ -240,6 +227,23 @@ fn game_to_request(game: &Game, turn: usize) -> GameRequest {
         })
         .collect();
 
+    let hazards = game
+        .grid
+        .cells
+        .iter()
+        .enumerate()
+        .filter_map(|(i, c)| {
+            if c.hazard() {
+                Some(Vec2D::new(
+                    (i % game.grid.width) as i16,
+                    (i / game.grid.width) as i16,
+                ))
+            } else {
+                None
+            }
+        })
+        .collect();
+
     GameRequest {
         game: GameData::default(),
         turn: turn as _,
@@ -248,7 +252,7 @@ fn game_to_request(game: &Game, turn: usize) -> GameRequest {
             height: game.grid.height,
             width: game.grid.width,
             food,
-            hazards: Vec::new(),
+            hazards,
             snakes,
         },
     }

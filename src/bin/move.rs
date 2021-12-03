@@ -9,7 +9,7 @@ use snork::game::*;
 struct Opts {
     /// Default configuration.
     #[structopt(long, default_value)]
-    config: Config,
+    config: Agent,
     /// JSON Game request.
     #[structopt(parse(try_from_str = serde_json::from_str))]
     request: GameRequest,
@@ -43,9 +43,7 @@ async fn main() {
     flood_fill.flood_snakes(&game.grid, &game.snakes);
     println!("{:?}", flood_fill);
 
-    let agent = config.create_agent(&request);
-    let mut agent = agent.lock().await;
-    let step = agent.step(&request, runtime as _).await;
+    let step = config.step(&request, runtime as _).await;
 
     println!("Step: {:?}", step);
 }

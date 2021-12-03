@@ -3,13 +3,10 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use chashmap::CHashMap;
-
 use snork::agents::*;
-use snork::env::{GameRequest, IndexResponse, MoveResponse, API_VERSION};
+use snork::env::{GameRequest, IndexResponse, API_VERSION};
 
 use structopt::StructOpt;
-use tokio::sync::Mutex;
 use warp::Filter;
 
 pub const PACKAGE_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -20,51 +17,24 @@ pub const MAX_AGENT_COUNT: usize = 10;
 /// Max runtime an agent has before it is forcefully terminated
 pub const MAX_RUNTIME: Duration = Duration::from_secs(60 * 10);
 
-/// Running instance of an agent
-#[derive(Debug)]
-struct RunningInstance {
-    agent: Arc<tokio::sync::Mutex<Agent>>,
-    start_time: Instant,
-}
-
-impl RunningInstance {
-    fn new(agent: Arc<Mutex<Agent>>) -> RunningInstance {
-        RunningInstance {
-            agent,
-            start_time: Instant::now(),
-        }
-    }
-}
-
 /// Runtime server configuration.
 struct State {
     runtime: u64,
     color: String,
     head: String,
     tail: String,
-    config: Config,
-    agents: CHashMap<(String, String), RunningInstance>,
+    config: Agent,
 }
 
 impl State {
-    fn new(runtime: u64, color: String, head: String, tail: String, config: Config) -> State {
+    fn new(runtime: u64, color: String, head: String, tail: String, config: Agent) -> State {
         State {
             runtime,
             color,
             head,
             tail,
             config,
-            agents: CHashMap::new(),
         }
-    }
-
-    fn clear_agents(&self) {
-        if !self.agents.is_empty() {
-            let now = Instant::now();
-            self.agents
-                .retain(|_, v| (now - v.start_time) < MAX_RUNTIME);
-        }
-        println!("{} instances running", self.agents.len());
     }
 }
 
@@ -88,7 +58,7 @@ struct Opt {
     tail: String,
     /// Default configuration.
     #[structopt(long, default_value)]
-    config: Config,
+    config: Agent,
 }
 
 #[tokio::main]
@@ -120,22 +90,13 @@ async fn main() {
         });
 
     let start = warp::path("start")
-        .and(with_state(state.clone()))
         .and(warp::post())
         .and(warp::body::json::<GameRequest>())
-        .map(|state: Arc<State>, request: GameRequest| {
+        .map(|request: GameRequest| {
             println!(
                 "start {} game {},{}",
                 request.game.ruleset.name, request.game.id, request.you.id
             );
-            state.clear_agents();
-
-            if state.agents.len() < MAX_AGENT_COUNT {
-                state.agents.insert(
-                    (request.game.id.clone(), request.you.id.clone()),
-                    RunningInstance::new(state.config.create_agent(&request)),
-                );
-            }
             warp::reply()
         });
 
@@ -146,20 +107,13 @@ async fn main() {
         .and_then(step);
 
     let end = warp::path("end")
-        .and(with_state(state.clone()))
         .and(warp::post())
         .and(warp::body::json::<GameRequest>())
-        .map(|state: Arc<State>, request: GameRequest| {
+        .map(|request: GameRequest| {
             println!(
                 "end {} game {},{}",
                 request.game.ruleset.name, request.game.id, request.you.id
             );
-
-            state
-                .agents
-                .remove(&(request.game.id.clone(), request.you.id.clone()));
-
-            state.clear_agents();
             warp::reply()
         });
 
@@ -180,20 +134,11 @@ async fn step(state: Arc<State>, request: GameRequest) -> Result<impl warp::Repl
         request.game.ruleset.name, request.game.id, request.you.id
     );
 
-    if let Some(instance) = state
-        .agents
-        .get(&(request.game.id.clone(), request.you.id.clone()))
-    {
-        let timer = Instant::now();
+    let timer = Instant::now();
+    let next_move = state.config.step(&request, state.runtime).await;
+    println!("response time {:?}ms", timer.elapsed().as_millis());
 
-        let mut agent = instance.agent.lock().await;
-        let next_move = agent.step(&request, state.runtime).await;
-
-        println!("response time {:?}ms", (Instant::now() - timer).as_millis());
-        Ok(warp::reply::json(&next_move))
-    } else {
-        Ok(warp::reply::json(&MoveResponse::default()))
-    }
+    Ok(warp::reply::json(&next_move))
 }
 
 #[cfg(test)]

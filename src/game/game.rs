@@ -1,7 +1,6 @@
 use std::cmp::Reverse;
 use std::collections::{BinaryHeap, VecDeque};
 use std::fmt::{self, Debug};
-use std::hash::{Hash, Hasher};
 
 use owo_colors::{OwoColorize, Style};
 
@@ -22,9 +21,9 @@ pub enum Outcome {
 #[derive(Debug, Clone)]
 pub struct Snake {
     pub id: u8,
+    pub health: u8,
     /// tail to head
     pub body: VecDeque<Vec2D>,
-    pub health: u8,
 }
 impl Snake {
     pub fn new(id: u8, body: VecDeque<Vec2D>, health: u8) -> Snake {
@@ -43,11 +42,6 @@ impl Snake {
         *self.body.back().unwrap()
     }
 }
-impl Hash for Snake {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.id.hash(state)
-    }
-}
 impl PartialEq for Snake {
     fn eq(&self, other: &Self) -> bool {
         self.id == other.id
@@ -61,8 +55,8 @@ impl Eq for Snake {}
 pub struct Game {
     /// All snakes. Dead ones have health = 0 and no body.
     /// The ids have to be the same as the indices!
-    pub snakes: Vec<Snake>,
     pub grid: Grid,
+    pub snakes: Vec<Snake>,
 }
 
 impl Game {
@@ -75,7 +69,7 @@ impl Game {
 
     /// Loads the game state from the provided request.
     pub fn reset_from_request(&mut self, request: &GameRequest) {
-        let mut snakes = Vec::with_capacity(0);
+        let mut snakes = Vec::with_capacity(4);
         snakes.push(Snake::from(&request.you, 0));
         if request.board.snakes.len() > 4 {
             let mut queue = BinaryHeap::new();
@@ -154,6 +148,7 @@ impl Game {
 
     /// Returns all valid moves that do not immediately kill the snake.
     /// Head to head collisions are not considered.
+    #[inline]
     pub fn valid_moves(&self, snake: u8) -> ValidMoves {
         if self.snake_is_alive(snake) {
             ValidMoves::new(self, &self.snakes[snake as usize])
@@ -173,6 +168,7 @@ impl Game {
         }
     }
 
+    #[inline]
     fn snake_move_is_valid(&self, snake: &Snake, dir: Direction) -> bool {
         let p = snake.head().apply(dir);
         // Free or occupied by tail (free in the next turn)
@@ -221,6 +217,7 @@ impl Game {
                 }
 
                 snake.health = if g_cell.food() {
+                    snake.body.push_front(*snake.body.front().unwrap());
                     100
                 } else {
                     snake.health.saturating_sub(if g_cell.hazard() {

@@ -14,7 +14,7 @@ use tokio::sync::mpsc::Sender;
 /// Configuration of the tree search heuristic.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(default)]
-pub struct TreeConfig {
+pub struct TreeAgent {
     mobility: f64,
     mobility_decay: f64,
     health: f64,
@@ -27,9 +27,9 @@ pub struct TreeConfig {
     centrality_decay: f64,
 }
 
-impl Default for TreeConfig {
+impl Default for TreeAgent {
     fn default() -> Self {
-        TreeConfig {
+        Self {
             mobility: 0.7,
             mobility_decay: 0.0,
             health: 0.012,
@@ -76,21 +76,9 @@ impl fmt::Debug for Evaluation {
     }
 }
 
-/// Tree search agent.
-#[derive(Debug, Default)]
-pub struct TreeAgent {
-    config: TreeConfig,
-}
-
 impl TreeAgent {
-    pub fn new(_request: &GameRequest, config: &TreeConfig) -> TreeAgent {
-        TreeAgent {
-            config: config.clone(),
-        }
-    }
-
     /// Heuristic function for the tree search.
-    pub fn heuristic(game: &Game, turn: usize, config: &TreeConfig) -> Evaluation {
+    pub fn heuristic(&self, game: &Game, turn: usize) -> Evaluation {
         match game.outcome() {
             Outcome::Match => Evaluation::default(),
             Outcome::Winner(0) => Evaluation::max(),
@@ -126,17 +114,15 @@ impl TreeAgent {
                         / game.grid.width as f64;
 
                 Evaluation(
-                    mobility * config.mobility * (-(turn as f64) * config.mobility_decay).exp(),
-                    health * config.health * (-(turn as f64) * config.health_decay).exp(),
+                    mobility * self.mobility * (-(turn as f64) * self.mobility_decay).exp(),
+                    health * self.health * (-(turn as f64) * self.health_decay).exp(),
                     len_advantage
-                        * config.len_advantage
-                        * (-(turn as f64) * config.len_advantage_decay).exp(),
+                        * self.len_advantage
+                        * (-(turn as f64) * self.len_advantage_decay).exp(),
                     food_ownership
-                        * config.food_ownership
-                        * (-(turn as f64) * config.food_ownership_decay).exp(),
-                    centrality
-                        * config.centrality
-                        * (-(turn as f64) * config.centrality_decay).exp(),
+                        * self.food_ownership
+                        * (-(turn as f64) * self.food_ownership_decay).exp(),
+                    centrality * self.centrality * (-(turn as f64) * self.centrality_decay).exp(),
                 )
             }
         }
@@ -144,18 +130,18 @@ impl TreeAgent {
 
     /// Performes a tree search and returns the maximized heuristic and move.
     pub async fn next_move(
+        &self,
         game: &Game,
         turn: usize,
         depth: usize,
-        config: &TreeConfig,
     ) -> (Direction, Evaluation) {
         // Allocate and reuse flood fill memory
         let start = Instant::now();
         if game.snakes.len() == 2 {
             // Alpha-Beta is faster for two agents
-            let config = config.clone();
+            let config = self.clone();
             let evaluation = async_alphabeta(&game, depth, move |game| {
-                TreeAgent::heuristic(game, turn + depth, &config)
+                config.heuristic(game, turn + depth)
             })
             .await;
 
@@ -168,9 +154,9 @@ impl TreeAgent {
             evaluation
         } else {
             // MinMax for more than two agents
-            let config = config.clone();
+            let config = self.clone();
             let evaluation = async_max_n(&game, depth, move |game| {
-                TreeAgent::heuristic(game, turn + depth, &config)
+                config.heuristic(game, turn + depth)
             })
             .await;
 
@@ -186,15 +172,10 @@ impl TreeAgent {
         }
     }
 
-    async fn iterative_tree_search(
-        config: TreeConfig,
-        game: Game,
-        turn: usize,
-        sender: Sender<Direction>,
-    ) {
+    async fn iterative_tree_search(&self, game: Game, turn: usize, sender: Sender<Direction>) {
         // Iterative deepening
         for depth in 1..20 {
-            let (dir, value) = TreeAgent::next_move(&game, turn, depth, &config).await;
+            let (dir, value) = self.next_move(&game, turn, depth).await;
 
             // Stop and fallback to random possible move
             if value <= Evaluation::min() {
@@ -211,18 +192,17 @@ impl TreeAgent {
         }
     }
 
-    pub async fn step(&mut self, request: &GameRequest, ms: u64) -> MoveResponse {
+    pub async fn step(&self, request: &GameRequest, ms: u64) -> MoveResponse {
         let mut game = Game::new(request.board.width, request.board.height);
         game.reset_from_request(&request);
 
         let turn = request.turn;
-        let config = self.config.clone();
         let game_copy = game.clone();
         let (sender, mut receiver) = mpsc::channel(32);
 
         let _ = tokio::time::timeout(
             Duration::from_millis(ms),
-            TreeAgent::iterative_tree_search(config, game_copy, turn, sender),
+            self.iterative_tree_search(game_copy, turn, sender),
         )
         .await;
 

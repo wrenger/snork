@@ -1,8 +1,5 @@
 use std::str::FromStr;
 use std::string::ToString;
-use std::sync::Arc;
-
-use tokio::sync::Mutex;
 
 mod mobility;
 pub use mobility::*;
@@ -16,41 +13,35 @@ pub use tree::*;
 use super::env::{GameRequest, MoveResponse};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub enum Config {
-    Mobility(MobilityConfig),
-    Tree(TreeConfig),
-    Random,
-    Flood(FloodConfig),
+pub enum Agent {
+    Mobility(MobilityAgent),
+    Tree(TreeAgent),
+    Flood(FloodAgent),
+    Random(RandomAgent),
 }
 
-impl Default for Config {
+impl Default for Agent {
     fn default() -> Self {
-        Config::Tree(TreeConfig::default())
+        Self::Mobility(MobilityAgent::default())
     }
 }
 
-impl Config {
-    pub fn create_agent(&self, request: &GameRequest) -> Arc<Mutex<Agent>> {
+impl Agent {
+    pub async fn step<'a>(&self, request: &GameRequest, ms: u64) -> MoveResponse {
         if request.board.width > 19 || request.board.height > 19 {
-            return Arc::new(Mutex::new(Agent::Random(RandomAgent::default())));
+            return RandomAgent.step(request, ms).await;
         }
 
         match self {
-            Config::Mobility(config) => Arc::new(Mutex::new(Agent::Mobility(MobilityAgent::new(
-                request, &config,
-            )))),
-            Config::Tree(config) => {
-                Arc::new(Mutex::new(Agent::Tree(TreeAgent::new(request, &config))))
-            }
-            Config::Flood(config) => {
-                Arc::new(Mutex::new(Agent::Flood(FloodAgent::new(request, &config))))
-            }
-            _ => Arc::new(Mutex::new(Agent::Random(RandomAgent::default()))),
+            Agent::Mobility(agent) => agent.step(request, ms).await,
+            Agent::Tree(agent) => agent.step(request, ms).await,
+            Agent::Flood(agent) => agent.step(request, ms).await,
+            Agent::Random(agent) => agent.step(request, ms).await,
         }
     }
 }
 
-impl FromStr for Config {
+impl FromStr for Agent {
     type Err = serde_json::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -58,27 +49,8 @@ impl FromStr for Config {
     }
 }
 
-impl ToString for Config {
+impl ToString for Agent {
     fn to_string(&self) -> String {
         serde_json::to_string(self).unwrap_or_default()
-    }
-}
-
-#[derive(Debug)]
-pub enum Agent {
-    Mobility(MobilityAgent),
-    Tree(TreeAgent),
-    Random(RandomAgent),
-    Flood(FloodAgent),
-}
-
-impl Agent {
-    pub async fn step<'a>(&mut self, request: &GameRequest, ms: u64) -> MoveResponse {
-        match self {
-            Agent::Mobility(agent) => agent.step(request, ms).await,
-            Agent::Tree(agent) => agent.step(request, ms).await,
-            Agent::Random(agent) => agent.step(request, ms).await,
-            Agent::Flood(agent) => agent.step(request, ms).await,
-        }
     }
 }

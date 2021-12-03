@@ -2,22 +2,13 @@ use std::cmp::Reverse;
 use std::collections::BinaryHeap;
 use std::time::Instant;
 
-use rand::seq::IteratorRandom;
-use rand::{rngs::SmallRng, SeedableRng};
-
 use crate::env::*;
-use crate::game::{max_n, FloodFill, Game, Grid, Snake};
+use crate::game::{max_n, FloodFill, Game, Snake};
 use crate::util::{argmax, OrdPair};
-
-#[derive(Debug)]
-pub struct MobilityAgent {
-    game: Game,
-    config: MobilityConfig,
-}
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(default)]
-pub struct MobilityConfig {
+pub struct MobilityAgent {
     /// [0, 100]
     health_threshold: u8,
     /// [0, width * height]
@@ -26,44 +17,48 @@ pub struct MobilityConfig {
     first_move_cost: f64,
 }
 
-impl Default for MobilityConfig {
-    fn default() -> MobilityConfig {
-        MobilityConfig {
+impl Default for MobilityAgent {
+    fn default() -> MobilityAgent {
+        MobilityAgent {
             health_threshold: 35,
-            min_len: 10,
+            min_len: 8,
             first_move_cost: 1.0,
         }
     }
 }
 
 impl MobilityAgent {
-    pub fn new(request: &GameRequest, config: &MobilityConfig) -> MobilityAgent {
-        MobilityAgent {
-            game: Game::new(request.board.width, request.board.width),
-            config: config.clone(),
-        }
-    }
-
     fn find_food(
         &self,
+        game: &Game,
         food: &[Vec2D],
-        grid: &Grid,
         flood_fill: &FloodFill,
         space_after_move: &[f64; 4],
     ) -> Option<Direction> {
-        let you: &Snake = &self.game.snakes[0];
+        let you: &Snake = &game.snakes[0];
+
+        let area = (game.grid.width * game.grid.height) as f64;
 
         // Heuristic for preferring high movement
         let first_move_costs = [
-            (1.0 - space_after_move[0] / (grid.width * grid.height) as f64)
-                * self.config.first_move_cost,
-            (1.0 - space_after_move[1] / (grid.width * grid.height) as f64)
-                * self.config.first_move_cost,
-            (1.0 - space_after_move[2] / (grid.width * grid.height) as f64)
-                * self.config.first_move_cost,
-            (1.0 - space_after_move[3] / (grid.width * grid.height) as f64)
-                * self.config.first_move_cost,
+            (1.0 - space_after_move[0] / area) * self.first_move_cost,
+            (1.0 - space_after_move[1] / area) * self.first_move_cost,
+            (1.0 - space_after_move[2] / area) * self.first_move_cost,
+            (1.0 - space_after_move[3] / area) * self.first_move_cost,
         ];
+
+        // Avoid longer enemy heads
+        let mut grid = game.grid.clone();
+        for snake in &game.snakes[1..] {
+            if snake.body.len() >= you.body.len() {
+                for d in Direction::iter() {
+                    let p = snake.head().apply(d);
+                    if grid.has(p) {
+                        grid[p].set_owned(true);
+                    }
+                }
+            }
+        }
 
         let mut food_dirs = BinaryHeap::new();
         for &p in food {
@@ -76,6 +71,7 @@ impl MobilityAgent {
         }
 
         while let Some(OrdPair(_, dir)) = food_dirs.pop() {
+            // Is there enough space for us?
             if space_after_move[dir as u8 as usize] as usize >= you.body.len() - 1 {
                 return Some(dir);
             }
@@ -83,13 +79,14 @@ impl MobilityAgent {
         None
     }
 
-    pub async fn step(&mut self, request: &GameRequest, _: u64) -> MoveResponse {
-        self.game.reset_from_request(&request);
-        let you = &self.game.snakes[0];
+    pub async fn step(&self, request: &GameRequest, _: u64) -> MoveResponse {
+        let mut game = Game::new(request.board.width, request.board.height);
+        game.reset_from_request(&request);
+        let you = &game.snakes[0];
 
         // Flood fill heuristics
         let start = Instant::now();
-        let space_after_move = max_n(&self.game, 1, |game| {
+        let space_after_move = max_n(&game, 1, |game| {
             if game.snake_is_alive(0) {
                 let mut flood_fill = FloodFill::new(game.grid.width, game.grid.width);
                 flood_fill.flood_snakes(&game.grid, &game.snakes);
@@ -100,30 +97,20 @@ impl MobilityAgent {
         });
         println!("max_n {:?}ms", (Instant::now() - start).as_millis());
 
-        let mut flood_fill = FloodFill::new(self.game.grid.width, self.game.grid.height);
-        flood_fill.flood_snakes(&self.game.grid, &self.game.snakes);
-
-        // Avoid longer enemy heads
-        let mut grid = self.game.grid.clone();
-        for snake in &self.game.snakes[1..] {
-            if snake.body.len() >= you.body.len() {
-                for d in Direction::iter() {
-                    let p = snake.head().apply(d);
-                    if grid.has(p) {
-                        grid[p].set_owned(true);
-                    }
-                }
-            }
-        }
+        let mut flood_fill = FloodFill::new(game.grid.width, game.grid.height);
+        flood_fill.flood_snakes(&game.grid, &game.snakes);
 
         // Find Food
-        if you.body.len() < self.config.min_len || you.health < self.config.health_threshold {
-            if let Some(dir) = self.find_food(&request.board.food, &grid, &flood_fill, &space_after_move) {
+        if you.body.len() < self.min_len || you.health < self.health_threshold {
+            if let Some(dir) =
+                self.find_food(&game, &request.board.food, &flood_fill, &space_after_move)
+            {
                 println!(">>> find food");
                 return MoveResponse::new(dir);
             }
         }
 
+        // Maximize mobility
         if let Some(dir) = argmax(space_after_move.iter()) {
             if space_after_move[dir] > 0.0 {
                 println!(">>> max space");
@@ -132,12 +119,6 @@ impl MobilityAgent {
         }
 
         println!(">>> random");
-        let mut rng = SmallRng::from_entropy();
-        MoveResponse::new(
-            self.game
-                .valid_moves(0)
-                .choose(&mut rng)
-                .unwrap_or(Direction::Up),
-        )
+        MoveResponse::new(game.valid_moves(0).next().unwrap_or(Direction::Up))
     }
 }

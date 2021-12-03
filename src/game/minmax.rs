@@ -77,7 +77,9 @@ where
                 }));
             }
             for (i, future) in futures.into_iter().enumerate() {
-                result[i] = future.unwrap().await.unwrap()[0];
+                if let Ok(r) = future.unwrap().await {
+                    result[i] = r[0];
+                }
             }
         }
 
@@ -154,18 +156,16 @@ where
     } else if ply == 0 {
         // collect all outcomes instead of max
         let mut result = [T::min(); 4];
-        if game.snake_is_alive(ply as u8) {
-            for (i, d) in Direction::iter().enumerate() {
-                let mut actions = actions;
-                actions[ply] = d;
-                result[i] = max_n_rec(game, depth, ply + 1, actions, heuristic)[0];
-            }
+        for d in game.valid_moves(ply as u8) {
+            let mut actions = actions;
+            actions[ply] = d;
+            result[d as u8 as usize] = max_n_rec(game, depth, ply + 1, actions, heuristic)[0];
         }
         result
     } else {
         let mut min = T::max();
         if game.snake_is_alive(ply as u8) {
-            for d in Direction::iter() {
+            for d in game.valid_moves(ply as u8) {
                 let mut actions = actions;
                 actions[ply] = d;
                 let val = max_n_rec(game, depth, ply + 1, actions, heuristic)[0];
