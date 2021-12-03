@@ -20,7 +20,7 @@ pub struct FloodAgent {
 impl Default for FloodAgent {
     fn default() -> Self {
         Self {
-            board_control: 1.0,
+            board_control: 2.0,
             health: 0.5,
             len_advantage: 0.5,
             food_distance: 0.5,

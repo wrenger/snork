@@ -29,7 +29,7 @@ Fist the rust toolchain has to be installed (https://www.rust-lang.org/learn/get
 Starting the server:
 
 ```bash
-cargo run --release -- [-h] [-p <port>] [--config <json>]
+cargo run --release -- [-h] [--host <ip:port>] [--config <json>]
 ```
 
 > There are additional options for `--runtime` and visual representation of the snake (`--head`, `--tail`, `--color`).
@@ -77,9 +77,10 @@ Result: 3/8
 ### Testing moves
 
 There is also an additional `move` program that outputs the chosen move for a given game input.
+The game input can be downloaded from the [battlesnake](https://play.battlesnake.com) with this [Firefox extension](https://addons.mozilla.org/firefox/addon/battlesnake-downloader/).
 
 ```bash
-cargo run --release --bin move -- <json> [--config <json>] [--runtime]
+cargo run --release --bin move -- [--config <json>] [--runtime] <json>
 ```
 
 ### Running tests & benchmarks
@@ -88,12 +89,12 @@ There are multiple tests for the different modules that can be run as shown belo
 For more information on unit-testing in rust see https://doc.rust-lang.org/book/ch11-01-writing-tests.html.
 
 ```bash
-cargo test -p snork_core -- [--nocapture] [testname]
+cargo test -- [--nocapture] [testname]
 ```
 
 There are a number of benchmark tests that ignored when running normal unit tests, because they have a longer runtime.
 These test are expected to be executed with the release config that include a number of compiler and linker optimizations.
 
 ```bash
-cargo test -p snork_core --release -- --ignored --nocapture [testname]
+cargo test --release -- --ignored --nocapture [testname]
 ```

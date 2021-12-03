@@ -41,7 +41,8 @@ impl State {
 #[derive(Debug, StructOpt)]
 #[structopt(name = "rusty snake", about = "High performant rust snake.")]
 struct Opt {
-    /// Port of the webserver.
+    /// IP and Port of the webserver.
+    /// **Note**: Use the IP Address of your device if you want to access it from another device. (`127.0.0.1` or `localhost` is private to your computer)
     #[structopt(long, default_value = "127.0.0.1:5001")]
     host: SocketAddr,
     /// Time per step in ms.
