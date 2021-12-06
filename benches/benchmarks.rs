@@ -80,7 +80,7 @@ fn game_step_random(c: &mut Criterion) {
     });
 }
 
-fn max_n(c: &mut Criterion) {
+fn normal_max_n(c: &mut Criterion) {
     let snakes = vec![
         Snake::new(
             0,
@@ -113,7 +113,7 @@ fn max_n(c: &mut Criterion) {
     let mut game = Game::new(11, 11);
     game.reset(snakes, &[], &[]);
 
-    c.bench_function("max_n", |b| {
+    c.bench_function("normal_max_n", |b| {
         b.iter(|| {
             game::max_n(black_box(&game), black_box(2), |game| {
                 let mut flood_fill = FloodFill::new(game.grid.width, game.grid.height);
@@ -255,7 +255,7 @@ criterion_group!(
     game_step_circle,
     game_step_random,
     async_max_n,
-    max_n,
+    normal_max_n,
     tree_heuristic,
     tree_search,
     flood_heuristic,

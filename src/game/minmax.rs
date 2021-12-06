@@ -1,5 +1,5 @@
 use super::Game;
-use crate::env::Direction;
+use crate::{env::Direction, game::Outcome};
 
 use async_recursion::async_recursion;
 
@@ -40,10 +40,16 @@ where
     T: Comparable + 'static,
 {
     if ply == game.snakes.len() {
-        assert!(ply <= actions.len());
         // simulate
         let mut game = game.clone();
         game.step(&actions[..]);
+
+        match game.outcome() {
+            Outcome::Winner(0) => return [T::max(); 4],
+            Outcome::Winner(_) => return [T::min(); 4],
+            Outcome::Match => return [T::min(); 4],
+            Outcome::None => {}
+        }
 
         if depth <= 1 {
             // eval
@@ -63,21 +69,25 @@ where
         // collect all outcomes instead of max
         let mut result = [T::min(); 4];
 
-        if game.snake_is_alive(ply as u8) {
-            let mut futures = [None, None, None, None];
-            for d in Direction::iter() {
-                let mut actions = actions.clone();
-                actions[ply] = d;
-                let game = game.clone();
-                let heuristic = heuristic.clone();
+        let mut futures = [None, None, None, None];
 
-                // Create tasks for subtrees.
-                futures[d as u8 as usize] = Some(tokio::task::spawn(async move {
-                    async_max_n_rec(&game, depth, ply + 1, actions, &heuristic).await
-                }));
+        for d in Direction::iter() {
+            if !game.move_is_valid(0, d) {
+                continue;
             }
-            for (i, future) in futures.into_iter().enumerate() {
-                if let Ok(r) = future.unwrap().await {
+
+            let actions = [d, Direction::Up, Direction::Up, Direction::Up];
+            let game = game.clone();
+            let heuristic = heuristic.clone();
+
+            // Create tasks for subtrees.
+            futures[d as u8 as usize] = Some(tokio::task::spawn(async move {
+                async_max_n_rec(&game, depth, ply + 1, actions, &heuristic).await
+            }));
+        }
+        for (i, future) in futures.into_iter().enumerate() {
+            if let Some(f) = future {
+                if let Ok(r) = f.await {
                     result[i] = r[0];
                 }
             }
@@ -86,20 +96,25 @@ where
         result
     } else {
         let mut min = T::max();
-        if game.snake_is_alive(ply as u8) {
-            for d in Direction::iter() {
-                let mut actions = actions.clone();
-                actions[ply] = d;
-                let val = async_max_n_rec(game, depth, ply + 1, actions, heuristic).await[0];
-                if val < min {
-                    min = val;
-                }
-                // skip if already lowest possible outcome
-                if val <= T::min() {
-                    break;
-                }
+        let mut moved = false;
+        for d in Direction::iter() {
+            if !game.move_is_valid(ply as u8, d) {
+                continue;
             }
-        } else {
+            moved = true;
+
+            let mut actions = actions.clone();
+            actions[ply] = d;
+            let val = async_max_n_rec(game, depth, ply + 1, actions, heuristic).await[0];
+            if val < min {
+                min = val;
+            }
+            // skip if already lowest possible outcome
+            if val <= T::min() {
+                break;
+            }
+        }
+        if !moved {
             // continue with next agent
             min = async_max_n_rec(game, depth, ply + 1, actions, heuristic).await[0];
         }
@@ -135,10 +150,16 @@ where
     T: Comparable,
 {
     if ply == game.snakes.len() {
-        assert!(ply <= actions.len());
         // simulate
         let mut game = game.clone();
         game.step(&actions[..]);
+
+        match game.outcome() {
+            Outcome::Winner(0) => return [T::max(); 4],
+            Outcome::Winner(_) => return [T::min(); 4],
+            Outcome::Match => return [T::min(); 4],
+            Outcome::None => {}
+        }
 
         if depth <= 1 {
             // eval
@@ -156,7 +177,10 @@ where
     } else if ply == 0 {
         // collect all outcomes instead of max
         let mut result = [T::min(); 4];
-        for d in game.valid_moves(ply as u8) {
+        for d in Direction::iter() {
+            if !game.move_is_valid(0, d) {
+                continue;
+            }
             let mut actions = actions;
             actions[ply] = d;
             result[d as u8 as usize] = max_n_rec(game, depth, ply + 1, actions, heuristic)[0];
@@ -164,20 +188,25 @@ where
         result
     } else {
         let mut min = T::max();
-        if game.snake_is_alive(ply as u8) {
-            for d in game.valid_moves(ply as u8) {
-                let mut actions = actions;
-                actions[ply] = d;
-                let val = max_n_rec(game, depth, ply + 1, actions, heuristic)[0];
-                if val < min {
-                    min = val;
-                }
-                // skip if already lowest possible outcome
-                if val <= T::min() {
-                    break;
-                }
+        let mut moved = false;
+        for d in Direction::iter() {
+            if !game.move_is_valid(ply as u8, d) {
+                continue;
             }
-        } else {
+            moved = true;
+
+            let mut actions = actions;
+            actions[ply] = d;
+            let val = max_n_rec(game, depth, ply + 1, actions, heuristic)[0];
+            if val < min {
+                min = val;
+            }
+            // skip if already lowest possible outcome
+            if val <= T::min() {
+                break;
+            }
+        }
+        if !moved {
             // continue with next agent
             min = max_n_rec(game, depth, ply + 1, actions, heuristic)[0];
         }

@@ -95,7 +95,7 @@ impl MobilityAgent {
                 0.0
             }
         });
-        println!("max_n {:?}ms", (Instant::now() - start).as_millis());
+        println!("max_n {:?}ms {:?}", start.elapsed().as_millis(), space_after_move);
 
         let mut flood_fill = FloodFill::new(game.grid.width, game.grid.height);
         flood_fill.flood_snakes(&game.grid, &game.snakes);
