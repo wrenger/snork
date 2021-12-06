@@ -56,13 +56,13 @@ impl FloodAgent {
 
     async fn iterative_tree_search(&self, game: &Game, sender: Sender<Direction>) {
         // Iterative deepening
-        for depth in 1..20 {
+        for depth in 1..8 {
             let (dir, value) = self.next_move(game, depth).await;
 
             // Stop and fallback to random possible move
             if value <= f64::MIN {
                 break;
-            };
+            }
 
             if sender.send(dir).await.is_err()
                 // Terminate if we probably win/lose
