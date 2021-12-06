@@ -77,16 +77,15 @@ impl Game {
             grid.add_snake(snake.body.iter().cloned());
         }
 
-        Self {
-            snakes,
-            grid: Grid::new(width, height),
-        }
+        Self { snakes, grid }
     }
 
     /// Loads the game state from the provided request.
     pub fn from_request(request: &GameRequest) -> Self {
         let mut snakes = Vec::with_capacity(4);
         snakes.push(Snake::from(&request.you, 0));
+
+        // Only look at the nearest four snakes
         if request.board.snakes.len() > 4 {
             let mut queue = BinaryHeap::new();
             for snake in request
@@ -106,7 +105,7 @@ impl Game {
                 queue.push(OrdPair(Reverse(body_dist), snake));
             }
 
-            for i in 1..4 {
+            for i in 1..3 {
                 if let Some(OrdPair(_, mut snake)) = queue.pop() {
                     snake.id = i;
                     snakes.push(snake);
@@ -130,19 +129,6 @@ impl Game {
             &request.board.food,
             &request.board.hazards,
         )
-    }
-
-    /// Resets the game state.
-    pub fn reset(&mut self, snakes: Vec<Snake>, food: &[Vec2D], hazards: &[Vec2D]) {
-        self.grid.clear();
-        self.grid.add_food(food);
-        self.grid.add_hazards(hazards);
-
-        for (i, snake) in snakes.iter().enumerate() {
-            assert_eq!(snake.id, i as u8);
-            self.grid.add_snake(snake.body.iter().cloned());
-        }
-        self.snakes = snakes
     }
 
     /// Returns if the game has ended and which snake is the winner or if the
