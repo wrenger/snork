@@ -12,6 +12,8 @@ pub use tree::*;
 
 use super::env::{GameRequest, MoveResponse};
 
+const MAX_BOARD_SIZE: usize = 19;
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum Agent {
     Mobility(MobilityAgent),
@@ -27,16 +29,17 @@ impl Default for Agent {
 }
 
 impl Agent {
-    pub async fn step<'a>(&self, request: &GameRequest, ms: u64) -> MoveResponse {
-        if request.board.width > 19 || request.board.height > 19 {
-            return RandomAgent.step(request, ms).await;
+    pub async fn step(&self, request: &GameRequest, latency: u64) -> MoveResponse {
+        // If the board is very large default to the random agent.
+        if request.board.width > MAX_BOARD_SIZE || request.board.height > MAX_BOARD_SIZE {
+            return RandomAgent.step(request, latency).await;
         }
 
         match self {
-            Agent::Mobility(agent) => agent.step(request, ms).await,
-            Agent::Tree(agent) => agent.step(request, ms).await,
-            Agent::Flood(agent) => agent.step(request, ms).await,
-            Agent::Random(agent) => agent.step(request, ms).await,
+            Agent::Mobility(agent) => agent.step(request, latency).await,
+            Agent::Tree(agent) => agent.step(request, latency).await,
+            Agent::Flood(agent) => agent.step(request, latency).await,
+            Agent::Random(agent) => agent.step(request, latency).await,
         }
     }
 }

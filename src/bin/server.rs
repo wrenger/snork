@@ -1,7 +1,7 @@
 use std::convert::Infallible;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use snork::agents::*;
 use snork::env::{GameRequest, IndexResponse, API_VERSION};
@@ -12,14 +12,9 @@ use warp::Filter;
 pub const PACKAGE_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const AUTHOR: &str = "l4r0x";
 
-/// Max number of parallel agent instances
-pub const MAX_AGENT_COUNT: usize = 10;
-/// Max runtime an agent has before it is forcefully terminated
-pub const MAX_RUNTIME: Duration = Duration::from_secs(60 * 10);
-
 /// Runtime server configuration.
 struct State {
-    runtime: u64,
+    latency: u64,
     color: String,
     head: String,
     tail: String,
@@ -27,9 +22,9 @@ struct State {
 }
 
 impl State {
-    fn new(runtime: u64, color: String, head: String, tail: String, config: Agent) -> State {
+    fn new(latency: u64, color: String, head: String, tail: String, config: Agent) -> State {
         State {
-            runtime,
+            latency,
             color,
             head,
             tail,
@@ -45,9 +40,9 @@ struct Opt {
     /// **Note**: Use the IP Address of your device if you want to access it from another device. (`127.0.0.1` or `localhost` is private to your computer)
     #[structopt(long, default_value = "127.0.0.1:5001")]
     host: SocketAddr,
-    /// Time per step in ms.
-    #[structopt(long, default_value = "200")]
-    runtime: u64,
+    /// Time in ms that are subtracted from the game timeouts.
+    #[structopt(long, default_value = "100")]
+    latency: u64,
     /// Color in hex format.
     #[structopt(long, default_value = "#FF7043")]
     color: String,
@@ -66,14 +61,14 @@ struct Opt {
 async fn main() {
     let Opt {
         host,
-        runtime,
+        latency,
         color,
         head,
         tail,
         config,
     } = Opt::from_args();
 
-    let state = Arc::new(State::new(runtime, color, head, tail, config));
+    let state = Arc::new(State::new(latency, color, head, tail, config));
 
     let index = warp::get()
         .and(warp::path::end())
@@ -136,7 +131,7 @@ async fn step(state: Arc<State>, request: GameRequest) -> Result<impl warp::Repl
     );
 
     let timer = Instant::now();
-    let next_move = state.config.step(&request, state.runtime).await;
+    let next_move = state.config.step(&request, state.latency).await;
     println!("response time {:?}ms", timer.elapsed().as_millis());
 
     Ok(warp::reply::json(&next_move))

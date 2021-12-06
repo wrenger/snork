@@ -5,9 +5,12 @@ use tokio::sync::mpsc;
 use tokio::sync::mpsc::Sender;
 
 use crate::env::*;
-use crate::game::{async_max_n, FloodFill, Game};
+use crate::game::{async_max_n, max_n, FloodFill, Game};
 use crate::util::argmax;
 
+const FAST_TIMEOUT: u64 = 200;
+
+/// The new floodfill agent for royale games
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(default)]
 pub struct FloodAgent {
@@ -29,9 +32,33 @@ impl Default for FloodAgent {
 }
 
 impl FloodAgent {
-    pub async fn step(&self, request: &GameRequest, ms: u64) -> MoveResponse {
-        let mut game = Game::new(request.board.width, request.board.height);
-        game.reset_from_request(&request);
+    pub async fn step_fast(&self, request: &GameRequest) -> MoveResponse {
+        let game = Game::from_request(request);
+
+        let start = Instant::now();
+        let result = max_n(&game, 1, |game| self.heuristic(game));
+
+        println!(
+            ">>> max_n 1 {:?}ms {:?}",
+            start.elapsed().as_millis(),
+            result
+        );
+
+        if let Some(dir) = argmax(result.iter()) {
+            return MoveResponse::new(Direction::from(dir as u8));
+        }
+
+        println!(">>> none");
+        MoveResponse::new(game.valid_moves(0).next().unwrap_or(Direction::Up))
+    }
+
+    pub async fn step(&self, request: &GameRequest, latency: u64) -> MoveResponse {
+        let ms = request.game.timeout.saturating_sub(latency);
+        if ms <= FAST_TIMEOUT {
+            return self.step_fast(request).await;
+        }
+
+        let game = Game::from_request(request);
 
         let (sender, mut receiver) = mpsc::channel(32);
 

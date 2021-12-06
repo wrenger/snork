@@ -3,7 +3,7 @@ use std::time::Duration;
 use std::time::Instant;
 
 use crate::env::*;
-use crate::game::{async_alphabeta, async_max_n, Comparable, FloodFill, Game, Outcome};
+use crate::game::{async_alphabeta, async_max_n, Comparable, FloodFill, Game};
 
 use crate::util::argmax;
 
@@ -77,53 +77,58 @@ impl fmt::Debug for Evaluation {
 }
 
 impl TreeAgent {
-    /// Heuristic function for the tree search.
-    pub fn heuristic(&self, game: &Game, turn: usize) -> Evaluation {
-        match game.outcome() {
-            Outcome::Match => Evaluation::default(),
-            Outcome::Winner(0) => Evaluation::max(),
-            Outcome::Winner(_) => Evaluation::min(),
-            Outcome::None if !game.snake_is_alive(0) => Evaluation::min(),
-            Outcome::None => {
-                let mut flood_fill = FloodFill::new(game.grid.width, game.grid.height);
-                let food_distances = flood_fill.flood_snakes(&game.grid, &game.snakes);
-                let space = flood_fill.count_space(true);
-                let mobility = space as f64 / (game.grid.width * game.grid.height) as f64;
+    pub async fn step(&self, request: &GameRequest, latency: u64) -> MoveResponse {
+        let ms = request.game.timeout.saturating_sub(latency);
 
-                let health = game.snakes[0].health as f64 / 100.0;
+        let game = Game::from_request(request);
 
-                // Length advantage
-                let own_len = game.snakes[0].body.len();
-                let max_enemy_len = game.snakes[1..]
-                    .iter()
-                    .map(|s| s.body.len())
-                    .max()
-                    .unwrap_or(0);
-                let len_advantage = own_len as f64 / max_enemy_len as f64;
+        let turn = request.turn;
+        let game_copy = game.clone();
+        let (sender, mut receiver) = mpsc::channel(32);
 
-                // Owned food
-                let accessable_food =
-                    food_distances.into_iter().filter(|&p| p < u16::MAX).count() as f64;
-                let food_ownership = accessable_food / game.grid.width as f64;
+        let _ = tokio::time::timeout(
+            Duration::from_millis(ms),
+            self.iterative_tree_search(game_copy, turn, sender),
+        )
+        .await;
 
-                // Centrality
-                let centrality = 1.0
-                    - (game.snakes[0].head()
-                        - Vec2D::new(game.grid.width as i16 / 2, game.grid.height as i16 / 2))
-                    .manhattan() as f64
-                        / game.grid.width as f64;
+        // Receive and store last result
+        let mut result = None;
+        while let Some(current) = receiver.recv().await {
+            result = Some(current);
+        }
 
-                Evaluation(
-                    mobility * self.mobility * (-(turn as f64) * self.mobility_decay).exp(),
-                    health * self.health * (-(turn as f64) * self.health_decay).exp(),
-                    len_advantage
-                        * self.len_advantage
-                        * (-(turn as f64) * self.len_advantage_decay).exp(),
-                    food_ownership
-                        * self.food_ownership
-                        * (-(turn as f64) * self.food_ownership_decay).exp(),
-                    centrality * self.centrality * (-(turn as f64) * self.centrality_decay).exp(),
-                )
+        if let Some(dir) = result {
+            println!(">>> main: {:?}", dir);
+            return MoveResponse::new(dir);
+        }
+
+        println!(">>> random");
+
+        let mut rng = SmallRng::from_entropy();
+        MoveResponse::new(
+            game.valid_moves(0)
+                .choose(&mut rng)
+                .unwrap_or(Direction::Up),
+        )
+    }
+
+    async fn iterative_tree_search(&self, game: Game, turn: usize, sender: Sender<Direction>) {
+        // Iterative deepening
+        for depth in 1..10 {
+            let (dir, value) = self.next_move(&game, turn, depth).await;
+
+            // Stop and fallback to random possible move
+            if value <= Evaluation::min() {
+                break;
+            };
+
+            if sender.send(dir).await.is_err()
+                // Terminate if we probably win/lose
+                || value >= Evaluation::max()
+                || value <= Evaluation::min()
+            {
+                break;
             }
         }
     }
@@ -172,58 +177,47 @@ impl TreeAgent {
         }
     }
 
-    async fn iterative_tree_search(&self, game: Game, turn: usize, sender: Sender<Direction>) {
-        // Iterative deepening
-        for depth in 1..20 {
-            let (dir, value) = self.next_move(&game, turn, depth).await;
-
-            // Stop and fallback to random possible move
-            if value <= Evaluation::min() {
-                break;
-            };
-
-            if sender.send(dir).await.is_err()
-                // Terminate if we probably win/lose
-                || value >= Evaluation::max()
-                || value <= Evaluation::min()
-            {
-                break;
-            }
-        }
-    }
-
-    pub async fn step(&self, request: &GameRequest, ms: u64) -> MoveResponse {
-        let mut game = Game::new(request.board.width, request.board.height);
-        game.reset_from_request(&request);
-
-        let turn = request.turn;
-        let game_copy = game.clone();
-        let (sender, mut receiver) = mpsc::channel(32);
-
-        let _ = tokio::time::timeout(
-            Duration::from_millis(ms),
-            self.iterative_tree_search(game_copy, turn, sender),
-        )
-        .await;
-
-        // Receive and store last result
-        let mut result = None;
-        while let Some(current) = receiver.recv().await {
-            result = Some(current);
+    /// Heuristic function for the tree search.
+    pub fn heuristic(&self, game: &Game, turn: usize) -> Evaluation {
+        if !game.snake_is_alive(0) {
+            return Evaluation::min();
         }
 
-        if let Some(dir) = result {
-            println!(">>> main: {:?}", dir);
-            return MoveResponse::new(dir);
-        }
+        let mut flood_fill = FloodFill::new(game.grid.width, game.grid.height);
+        let food_distances = flood_fill.flood_snakes(&game.grid, &game.snakes);
+        let space = flood_fill.count_space(true);
+        let mobility = space as f64 / (game.grid.width * game.grid.height) as f64;
 
-        println!(">>> random");
+        let health = game.snakes[0].health as f64 / 100.0;
 
-        let mut rng = SmallRng::from_entropy();
-        MoveResponse::new(
-            game.valid_moves(0)
-                .choose(&mut rng)
-                .unwrap_or(Direction::Up),
+        // Length advantage
+        let own_len = game.snakes[0].body.len();
+        let max_enemy_len = game.snakes[1..]
+            .iter()
+            .map(|s| s.body.len())
+            .max()
+            .unwrap_or(0);
+        let len_advantage = own_len as f64 / max_enemy_len as f64;
+
+        // Owned food
+        let accessable_food = food_distances.into_iter().filter(|&p| p < u16::MAX).count() as f64;
+        let food_ownership = accessable_food / game.grid.width as f64;
+
+        // Centrality
+        let centrality = 1.0
+            - (game.snakes[0].head()
+                - Vec2D::new(game.grid.width as i16 / 2, game.grid.height as i16 / 2))
+            .manhattan() as f64
+                / game.grid.width as f64;
+
+        Evaluation(
+            mobility * self.mobility * (-(turn as f64) * self.mobility_decay).exp(),
+            health * self.health * (-(turn as f64) * self.health_decay).exp(),
+            len_advantage * self.len_advantage * (-(turn as f64) * self.len_advantage_decay).exp(),
+            food_ownership
+                * self.food_ownership
+                * (-(turn as f64) * self.food_ownership_decay).exp(),
+            centrality * self.centrality * (-(turn as f64) * self.centrality_decay).exp(),
         )
     }
 }

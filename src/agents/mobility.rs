@@ -80,8 +80,7 @@ impl MobilityAgent {
     }
 
     pub async fn step(&self, request: &GameRequest, _: u64) -> MoveResponse {
-        let mut game = Game::new(request.board.width, request.board.height);
-        game.reset_from_request(&request);
+        let game = Game::from_request(request);
         let you = &game.snakes[0];
 
         // Flood fill heuristics

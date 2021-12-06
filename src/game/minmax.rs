@@ -437,8 +437,7 @@ mod test {
             ),
         ];
 
-        let mut game = Game::new(11, 11);
-        game.reset(snakes, &[], &[]);
+        let game = Game::new(11, 11, snakes, &[], &[]);
         println!("{:?}", game.grid);
         let start = Instant::now();
         let moves = max_n(&game, 3, |game| {
@@ -492,8 +491,7 @@ mod test {
             ),
         ];
 
-        let mut game = Game::new(11, 11);
-        game.reset(snakes, &[], &[]);
+        let game = Game::new(11, 11, snakes, &[], &[]);
         println!("{:?}", game.grid);
         let start = Instant::now();
         let moves = async_max_n(&game, 3, |game| {
@@ -538,8 +536,7 @@ mod test {
             ),
         ];
 
-        let mut game = Game::new(11, 11);
-        game.reset(snakes, &[], &[]);
+        let game = Game::new(11, 11, snakes, &[], &[]);
         println!("{:?}", game.grid);
 
         let start = Instant::now();

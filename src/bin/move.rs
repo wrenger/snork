@@ -25,20 +25,9 @@ async fn main() {
         runtime,
     } = Opts::from_args();
 
-    let mut game = Game::new(request.board.width, request.board.height);
-    let mut snakes = Vec::with_capacity(4);
-    snakes.push(Snake::from(&request.you, 0));
-    snakes.extend(
-        request
-            .board
-            .snakes
-            .iter()
-            .filter(|s| s.id != request.you.id)
-            .enumerate()
-            .map(|(i, s)| Snake::from(s, i as u8 + 1)),
-    );
-    game.reset(snakes, &request.board.food, &request.board.hazards);
+    let game = Game::from_request(&request);
     println!("{:?}", game);
+
     let mut flood_fill = FloodFill::new(request.board.width, request.board.height);
     flood_fill.flood_snakes(&game.grid, &game.snakes);
     println!("{:?}", flood_fill);

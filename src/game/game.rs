@@ -60,15 +60,31 @@ pub struct Game {
 }
 
 impl Game {
-    pub fn new(width: usize, height: usize) -> Game {
-        Game {
-            snakes: Vec::with_capacity(4),
+    /// Creates the game state.
+    pub fn new(
+        width: usize,
+        height: usize,
+        snakes: Vec<Snake>,
+        food: &[Vec2D],
+        hazards: &[Vec2D],
+    ) -> Self {
+        let mut grid = Grid::new(width, height);
+        grid.add_food(food);
+        grid.add_hazards(hazards);
+
+        for (i, snake) in snakes.iter().enumerate() {
+            assert_eq!(snake.id, i as u8);
+            grid.add_snake(snake.body.iter().cloned());
+        }
+
+        Self {
+            snakes,
             grid: Grid::new(width, height),
         }
     }
 
     /// Loads the game state from the provided request.
-    pub fn reset_from_request(&mut self, request: &GameRequest) {
+    pub fn from_request(request: &GameRequest) -> Self {
         let mut snakes = Vec::with_capacity(4);
         snakes.push(Snake::from(&request.you, 0));
         if request.board.snakes.len() > 4 {
@@ -107,7 +123,13 @@ impl Game {
                     .map(|(i, s)| Snake::from(s, i as u8 + 1)),
             );
         }
-        self.reset(snakes, &request.board.food, &request.board.hazards);
+        Self::new(
+            request.board.width,
+            request.board.height,
+            snakes,
+            &request.board.food,
+            &request.board.hazards,
+        )
     }
 
     /// Resets the game state.

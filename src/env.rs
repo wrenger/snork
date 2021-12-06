@@ -166,7 +166,7 @@ pub struct GameData {
     #[serde(default)]
     pub ruleset: Ruleset,
     /// How much time your snake has to respond to requests for this Game in milliseconds.
-    pub timeout: i64,
+    pub timeout: u64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
