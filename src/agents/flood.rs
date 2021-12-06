@@ -9,6 +9,7 @@ use crate::game::{async_max_n, max_n, FloodFill, Game};
 use crate::util::argmax;
 
 const FAST_TIMEOUT: u64 = 200;
+const MAX_DEPTH: usize = 8;
 
 /// The new floodfill agent for royale games
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -32,7 +33,7 @@ impl Default for FloodAgent {
 }
 
 impl FloodAgent {
-    pub async fn step_fast(&self, request: &GameRequest) -> MoveResponse {
+    pub fn step_fast(&self, request: &GameRequest) -> MoveResponse {
         let game = Game::from_request(request);
 
         let start = Instant::now();
@@ -55,12 +56,12 @@ impl FloodAgent {
     pub async fn step(&self, request: &GameRequest, latency: u64) -> MoveResponse {
         let ms = request.game.timeout.saturating_sub(latency);
         if ms <= FAST_TIMEOUT {
-            return self.step_fast(request).await;
+            return self.step_fast(request);
         }
 
         let game = Game::from_request(request);
 
-        let (sender, mut receiver) = mpsc::channel(32);
+        let (sender, mut receiver) = mpsc::channel(MAX_DEPTH);
 
         let _ = tokio::time::timeout(
             Duration::from_millis(ms),
@@ -83,7 +84,7 @@ impl FloodAgent {
 
     async fn iterative_tree_search(&self, game: &Game, sender: Sender<Direction>) {
         // Iterative deepening
-        for depth in 1..8 {
+        for depth in 1..MAX_DEPTH {
             let (dir, value) = self.next_move(game, depth).await;
 
             // Stop and fallback to random possible move
