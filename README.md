@@ -93,8 +93,8 @@ cargo test -- [--nocapture] [testname]
 ```
 
 There are a number of benchmark tests that ignored when running normal unit tests, because they have a longer runtime.
-These test are expected to be executed with the release config that include a number of compiler and linker optimizations.
+These test are executed with the release config that include a number of compiler and linker optimizations.
 
 ```bash
-cargo test --release -- --ignored --nocapture [testname]
+cargo bench -- [testname]
 ```
