@@ -46,7 +46,9 @@ impl FloodAgent {
         );
 
         if let Some(dir) = argmax(result.iter()) {
-            return MoveResponse::new(Direction::from(dir as u8));
+            if result[dir] > f64::MIN {
+                return MoveResponse::new(Direction::from(dir as u8));
+            }
         }
 
         println!(">>> none");
