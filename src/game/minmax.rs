@@ -47,7 +47,7 @@ where
         match game.outcome() {
             Outcome::Winner(0) => return [T::max(); 4],
             Outcome::Winner(_) => return [T::min(); 4],
-            Outcome::Match => return [T::min(); 4],
+            Outcome::Match => return [T::default(); 4],
             Outcome::None => {}
         }
 
@@ -157,7 +157,7 @@ where
         match game.outcome() {
             Outcome::Winner(0) => return [T::max(); 4],
             Outcome::Winner(_) => return [T::min(); 4],
-            Outcome::Match => return [T::min(); 4],
+            Outcome::Match => return [T::default(); 4],
             Outcome::None => {}
         }
 
@@ -231,6 +231,9 @@ where
     .await
 }
 
+/// # WARNING
+/// This version is very slow, even slower than the synchronous alphabeta
+/// and much slower than multithreaded max n
 #[async_recursion]
 async fn async_alphabeta_rec<F, T>(
     game: &Game,
@@ -248,6 +251,13 @@ where
     if ply == game.snakes.len() {
         let mut game = game.clone();
         game.step(&actions);
+        match game.outcome() {
+            Outcome::Winner(0) => return (Direction::Up, T::max()),
+            Outcome::Winner(_) => return (Direction::Up, T::min()),
+            Outcome::Match => return (Direction::Up, T::default()),
+            Outcome::None => {}
+        }
+
         if depth == 0 {
             (Direction::Up, heuristic(&game))
         } else {
@@ -269,24 +279,25 @@ where
         for d in Direction::iter() {
             let game = game.clone();
             let heuristic = heuristic.clone();
-            let mut actions = actions;
-            actions[ply] = d;
+            let actions = [d, Direction::Up, Direction::Up, Direction::Up];
             futures[d as u8 as usize] = Some(tokio::task::spawn(async move {
                 async_alphabeta_rec(&game, actions, depth, ply + 1, alpha, beta, &heuristic).await
             }));
         }
 
         for (i, future) in futures.into_iter().enumerate() {
-            let newval = future.unwrap().await.unwrap();
-
-            if newval.1 > value.1 {
-                value = (Direction::from(i as u8), newval.1);
-            }
-            if newval.1 > alpha {
-                alpha = newval.1;
-            }
-            if alpha >= beta {
-                break;
+            if let Some(future) = future {
+                if let Ok(newval) = future.await {
+                    if newval.1 > value.1 {
+                        value = (Direction::from(i as u8), newval.1);
+                    }
+                    if newval.1 > alpha {
+                        alpha = newval.1;
+                    }
+                    if alpha >= beta {
+                        break;
+                    }
+                }
             }
         }
         value
@@ -347,6 +358,13 @@ where
     if ply == game.snakes.len() {
         let mut game = game.clone();
         game.step(&actions);
+        match game.outcome() {
+            Outcome::Winner(0) => return (Direction::Up, T::max()),
+            Outcome::Winner(_) => return (Direction::Up, T::min()),
+            Outcome::Match => return (Direction::Up, T::default()),
+            Outcome::None => {}
+        }
+
         if depth == 0 {
             (Direction::Up, heuristic(&game))
         } else {
