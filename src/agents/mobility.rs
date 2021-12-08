@@ -40,12 +40,7 @@ impl MobilityAgent {
         let area = (game.grid.width * game.grid.height) as f64;
 
         // Heuristic for preferring high movement
-        let first_move_costs = [
-            (1.0 - space_after_move[0] / area) * self.first_move_cost,
-            (1.0 - space_after_move[1] / area) * self.first_move_cost,
-            (1.0 - space_after_move[2] / area) * self.first_move_cost,
-            (1.0 - space_after_move[3] / area) * self.first_move_cost,
-        ];
+        let first_move_costs = space_after_move.map(|x| (1.0 - x / area) * self.first_move_cost);
 
         // Avoid longer enemy heads
         let mut grid = game.grid.clone();
@@ -94,7 +89,11 @@ impl MobilityAgent {
                 0.0
             }
         });
-        println!("max_n {:?}ms {:?}", start.elapsed().as_millis(), space_after_move);
+        println!(
+            "max_n {:?}ms {:?}",
+            start.elapsed().as_millis(),
+            space_after_move
+        );
 
         let mut flood_fill = FloodFill::new(game.grid.width, game.grid.height);
         flood_fill.flood_snakes(&game.grid, &game.snakes);

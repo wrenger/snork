@@ -2,7 +2,7 @@ use std::time::Duration;
 use std::time::Instant;
 
 use tokio::sync::mpsc;
-use tokio::sync::mpsc::Sender;
+use tokio::time;
 
 use crate::env::*;
 use crate::game::{async_max_n, max_n, FloodFill, Game};
@@ -65,9 +65,9 @@ impl FloodAgent {
 
         let (sender, mut receiver) = mpsc::channel(MAX_DEPTH);
 
-        let _ = tokio::time::timeout(
+        let _ = time::timeout(
             Duration::from_millis(ms),
-            Self::iterative_tree_search(&self, &game, sender),
+            self.iterative_tree_search(&game, sender),
         )
         .await;
 
@@ -84,7 +84,7 @@ impl FloodAgent {
         MoveResponse::new(game.valid_moves(0).next().unwrap_or(Direction::Up))
     }
 
-    async fn iterative_tree_search(&self, game: &Game, sender: Sender<Direction>) {
+    async fn iterative_tree_search(&self, game: &Game, sender: mpsc::Sender<Direction>) {
         // Iterative deepening
         for depth in 1..MAX_DEPTH {
             let (dir, value) = self.next_move(game, depth).await;
