@@ -3,7 +3,7 @@ use std::time::Duration;
 use std::time::Instant;
 
 use crate::env::*;
-use crate::game::{async_alphabeta, async_max_n, Comparable, FloodFill, Game};
+use crate::game::{async_max_n, Comparable, FloodFill, Game};
 
 use crate::util::argmax;
 
@@ -140,41 +140,25 @@ impl TreeAgent {
         turn: usize,
         depth: usize,
     ) -> (Direction, Evaluation) {
-        // Allocate and reuse flood fill memory
         let start = Instant::now();
-        if game.snakes.len() == 2 {
-            // Alpha-Beta is faster for two agents
-            let config = self.clone();
-            let evaluation = async_alphabeta(&game, depth, move |game| {
-                config.heuristic(game, turn + depth)
-            })
-            .await;
 
-            println!(
-                "alphabeta {} {:?}ms {:?}",
-                depth,
-                (Instant::now() - start).as_millis(),
-                evaluation
-            );
+        // MinMax for more than two agents
+        let config = self.clone();
+        let evaluation = async_max_n(&game, depth, move |game| {
+            config.heuristic(game, turn + depth)
+        })
+        .await;
+
+        println!(
+            "max_n {} {:?}ms {:?}",
+            depth,
+            start.elapsed().as_millis(),
             evaluation
-        } else {
-            // MinMax for more than two agents
-            let config = self.clone();
-            let evaluation = async_max_n(&game, depth, move |game| {
-                config.heuristic(game, turn + depth)
-            })
-            .await;
+        );
 
-            println!(
-                "max_n {} {:?}ms {:?}",
-                depth,
-                (Instant::now() - start).as_millis(),
-                evaluation
-            );
-            argmax(evaluation.iter())
-                .map(|d| (Direction::from(d as u8), evaluation[d]))
-                .unwrap_or_default()
-        }
+        argmax(evaluation.iter())
+            .map(|d| (Direction::from(d as u8), evaluation[d]))
+            .unwrap_or_default()
     }
 
     /// Heuristic function for the tree search.

@@ -168,12 +168,7 @@ impl Game {
     /// Returns if a move will not immediately kill the snake.
     /// Head to head collisions are not considered.
     pub fn move_is_valid(&self, snake: u8, dir: Direction) -> bool {
-        if self.snake_is_alive(snake) {
-            let snake = &self.snakes[snake as usize];
-            self.snake_move_is_valid(snake, dir)
-        } else {
-            false
-        }
+        self.snake_is_alive(snake) && self.snake_move_is_valid(&self.snakes[snake as usize], dir)
     }
 
     #[inline]
@@ -373,16 +368,16 @@ impl Debug for Game {
         }
         impl Debug for FmtCell {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                match self {
+                match *self {
                     FmtCell::Free => write!(f, "."),
                     FmtCell::Food => write!(f, "{}", "o".red()),
                     FmtCell::Tail(dir, id) => match dir {
-                        Direction::Up => write!(f, "{}", "^".style(id_color(*id))),
-                        Direction::Right => write!(f, "{}", ">".style(id_color(*id))),
-                        Direction::Down => write!(f, "{}", "v".style(id_color(*id))),
-                        Direction::Left => write!(f, "{}", "<".style(id_color(*id))),
+                        Direction::Up => write!(f, "{}", "^".style(id_color(id))),
+                        Direction::Right => write!(f, "{}", ">".style(id_color(id))),
+                        Direction::Down => write!(f, "{}", "v".style(id_color(id))),
+                        Direction::Left => write!(f, "{}", "<".style(id_color(id))),
                     },
-                    FmtCell::Head(id) => write!(f, "{}", id.style(id_color(*id))),
+                    FmtCell::Head(id) => write!(f, "{}", id.style(id_color(id))),
                 }
             }
         }

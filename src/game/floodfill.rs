@@ -15,6 +15,7 @@ use owo_colors::{OwoColorize, Style};
 /// - 13: occupied?
 /// - 11..0: num (head distance if occupied, health if owned)
 #[derive(Clone, Copy)]
+#[repr(transparent)]
 pub struct FCell(u16);
 
 const FCELL_YOU: usize = 15;
@@ -208,6 +209,7 @@ impl FloodFill {
                         // follow enemy tail
                         // distance of 1 as buffer for eating
                         || (cell.is_you() != you && (cell.get_num() <= 1 || cell.get_num() <= num - you as u16))))
+                // we can reach this location with higher health
                 || (cell.is_owned() && cell.is_you() == you && cell.get_num() < health as u16)
         }
 

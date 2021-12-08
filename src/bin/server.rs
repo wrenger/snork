@@ -136,19 +136,3 @@ async fn step(state: Arc<State>, request: GameRequest) -> Result<impl warp::Repl
 
     Ok(warp::reply::json(&next_move))
 }
-
-#[cfg(test)]
-mod test {
-    #[test]
-    fn chashmap() {
-        use chashmap::CHashMap;
-        use std::sync::Arc;
-
-        let map = Arc::new(CHashMap::new());
-
-        let clone = map.clone();
-        clone.insert(String::from("hello"), 3);
-
-        assert!(map.get("hello").map(|v| *v == 3).unwrap_or_default());
-    }
-}

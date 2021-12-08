@@ -5,6 +5,9 @@ fn approx_cmp<T: PartialOrd>(a: &T, b: &T) -> Ordering {
 }
 
 /// Returns the index of the larges element in the sequence.
+///
+/// # Note
+/// This method may not work as expected with NaNs.
 pub fn argmax<T: PartialOrd>(iter: impl Iterator<Item = T>) -> Option<usize> {
     iter.enumerate()
         .max_by(|(_, a), (_, b)| approx_cmp(a, b))

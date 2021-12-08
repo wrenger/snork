@@ -150,7 +150,7 @@ async fn play_game(
                     game.grid.height - hazard_insets[dir]
                 };
                 for x in 0..game.grid.width {
-                    game.grid[Vec2D::new(x as _, y as _)].set_hazard(true);
+                    game.grid[v2(x as _, y as _)].set_hazard(true);
                 }
             } else {
                 let x = if dir == 1 {
@@ -159,7 +159,7 @@ async fn play_game(
                     game.grid.width - hazard_insets[dir]
                 };
                 for y in 0..game.grid.height {
-                    game.grid[Vec2D::new(x as _, y as _)].set_hazard(true);
+                    game.grid[v2(x as _, y as _)].set_hazard(true);
                 }
             }
         }
@@ -171,13 +171,13 @@ fn init_game(width: usize, height: usize, num_agents: usize) -> Game {
     let mut rng = rand::thread_rng();
     let start_positions = (0..width * height)
         .filter(|i| i % 2 == 0)
-        .map(|i| Vec2D::new((i % width) as i16, (i / width) as i16))
+        .map(|i| v2((i % width) as i16, (i / width) as i16))
         .choose_multiple(&mut rng, num_agents);
 
     let snakes = start_positions
-        .iter()
+        .into_iter()
         .enumerate()
-        .map(|(i, p)| Snake::new(i as _, vec![*p; 3].into(), 100))
+        .map(|(i, p)| Snake::new(i as _, vec![p; 3].into(), 100))
         .collect();
 
     let mut game = Game::new(width, height, snakes, &[], &[]);
@@ -185,17 +185,17 @@ fn init_game(width: usize, height: usize, num_agents: usize) -> Game {
     // Spawn 1 food 2 steps away from each snake
     for snake in game.snakes.clone() {
         let p = [
-            Vec2D::new(-1, -1),
-            Vec2D::new(-2, 0),
-            Vec2D::new(-1, 1),
-            Vec2D::new(0, 2),
-            Vec2D::new(1, 1),
-            Vec2D::new(2, 0),
-            Vec2D::new(1, -1),
-            Vec2D::new(0, -2),
+            v2(-1, -1),
+            v2(-2, 0),
+            v2(-1, 1),
+            v2(0, 2),
+            v2(1, 1),
+            v2(2, 0),
+            v2(1, -1),
+            v2(0, -2),
         ]
-        .iter()
-        .map(|&p| snake.head() + p)
+        .into_iter()
+        .map(|p| snake.head() + p)
         .filter(|&p| game.grid.has(p) && !game.grid[p].owned())
         .choose(&mut rng);
         if let Some(p) = p {
@@ -209,39 +209,18 @@ fn init_game(width: usize, height: usize, num_agents: usize) -> Game {
 fn game_to_request(game: &Game, turn: usize) -> GameRequest {
     let snakes = game.snakes.iter().map(snake_data).collect::<Vec<_>>();
 
-    let food = game
-        .grid
-        .cells
-        .iter()
-        .enumerate()
-        .filter_map(|(i, c)| {
-            if c.food() {
-                Some(Vec2D::new(
-                    (i % game.grid.width) as i16,
-                    (i / game.grid.width) as i16,
-                ))
-            } else {
-                None
-            }
-        })
-        .collect();
+    let mut food = Vec::new();
+    let mut hazards = Vec::new();
 
-    let hazards = game
-        .grid
-        .cells
-        .iter()
-        .enumerate()
-        .filter_map(|(i, c)| {
-            if c.hazard() {
-                Some(Vec2D::new(
-                    (i % game.grid.width) as i16,
-                    (i / game.grid.width) as i16,
-                ))
-            } else {
-                None
-            }
-        })
-        .collect();
+    for (i, c) in game.grid.cells.iter().enumerate() {
+        let p = v2((i % game.grid.width) as i16, (i / game.grid.width) as i16);
+        if c.food() {
+            food.push(p);
+        }
+        if c.hazard() {
+            hazards.push(p);
+        }
+    }
 
     GameRequest {
         game: GameData::default(),

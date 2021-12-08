@@ -12,6 +12,7 @@ const HAZARD: usize = 2;
 
 /// Represents a single tile of the board
 #[derive(Clone, Copy, PartialEq, Eq, Default)]
+#[repr(transparent)]
 pub struct Cell(u8);
 
 impl Cell {

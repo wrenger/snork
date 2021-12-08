@@ -20,6 +20,11 @@ pub struct Vec2D {
     pub y: i16,
 }
 
+#[inline(always)]
+pub fn v2(x: i16, y: i16) -> Vec2D {
+    Vec2D::new(x, y)
+}
+
 impl Vec2D {
     pub fn new(x: i16, y: i16) -> Vec2D {
         Vec2D { x, y }
