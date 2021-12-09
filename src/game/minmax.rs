@@ -4,7 +4,7 @@ use crate::{env::Direction, game::Outcome};
 use async_recursion::async_recursion;
 
 /// The result of a heuristic.
-pub trait Comparable: Default + Copy + PartialOrd + std::fmt::Debug + Send {
+pub trait Comparable: Default + Copy + PartialOrd + std::fmt::Debug + Send + Sized {
     fn max() -> Self;
     fn min() -> Self;
 }

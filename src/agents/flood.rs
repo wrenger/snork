@@ -1,27 +1,18 @@
-use std::time::Duration;
-use std::time::Instant;
+use crate::game::{FloodFill, Game};
 
-use tokio::sync::mpsc;
-use tokio::time;
-
-use crate::env::*;
-use crate::game::{async_max_n, max_n, FloodFill, Game};
-use crate::util::argmax;
-
-const FAST_TIMEOUT: u64 = 200;
-const MAX_DEPTH: usize = 8;
+use super::tree::Heuristic;
 
 /// The new floodfill agent for royale games
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(default)]
-pub struct FloodAgent {
+pub struct FloodHeuristic {
     board_control: f64,
     health: f64,
     len_advantage: f64,
     food_distance: f64,
 }
 
-impl Default for FloodAgent {
+impl Default for FloodHeuristic {
     fn default() -> Self {
         Self {
             board_control: 2.0,
@@ -32,97 +23,10 @@ impl Default for FloodAgent {
     }
 }
 
-impl FloodAgent {
-    pub fn step_fast(&self, request: &GameRequest) -> MoveResponse {
-        let game = Game::from_request(request);
+impl Heuristic for FloodHeuristic {
+    type Eval = f64;
 
-        let start = Instant::now();
-        let result = max_n(&game, 1, |game| self.heuristic(game));
-
-        println!(
-            ">>> max_n 1 {:?}ms {:?}",
-            start.elapsed().as_millis(),
-            result
-        );
-
-        if let Some(dir) = argmax(result.iter()) {
-            if result[dir] > f64::MIN {
-                return MoveResponse::new(Direction::from(dir as u8));
-            }
-        }
-
-        println!(">>> none");
-        MoveResponse::new(game.valid_moves(0).next().unwrap_or(Direction::Up))
-    }
-
-    pub async fn step(&self, request: &GameRequest, latency: u64) -> MoveResponse {
-        let ms = request.game.timeout.saturating_sub(latency);
-        if ms <= FAST_TIMEOUT {
-            return self.step_fast(request);
-        }
-
-        let game = Game::from_request(request);
-
-        let (sender, mut receiver) = mpsc::channel(MAX_DEPTH);
-
-        let _ = time::timeout(
-            Duration::from_millis(ms),
-            self.iterative_tree_search(&game, sender),
-        )
-        .await;
-
-        let mut result = None;
-        while let Some(dir) = receiver.recv().await {
-            result = Some(dir);
-        }
-
-        if let Some(dir) = result {
-            return MoveResponse::new(Direction::from(dir as u8));
-        }
-
-        println!(">>> none");
-        MoveResponse::new(game.valid_moves(0).next().unwrap_or(Direction::Up))
-    }
-
-    async fn iterative_tree_search(&self, game: &Game, sender: mpsc::Sender<Direction>) {
-        // Iterative deepening
-        for depth in 1..MAX_DEPTH {
-            let (dir, value) = self.next_move(game, depth).await;
-
-            // Stop and fallback to random possible move
-            if value <= f64::MIN {
-                break;
-            }
-
-            if sender.send(dir).await.is_err()
-                // Terminate if we probably win/lose
-                || value >= f64::MAX
-            {
-                break;
-            }
-        }
-    }
-
-    /// Performes a tree search and returns the maximized heuristic and move.
-    pub async fn next_move(&self, game: &Game, depth: usize) -> (Direction, f64) {
-        let start = Instant::now();
-
-        let config = self.clone();
-        let result = async_max_n(&game, depth, move |game| config.heuristic(game)).await;
-
-        println!(
-            ">>> max_n {} {:?}ms {:?}",
-            depth,
-            start.elapsed().as_millis(),
-            result
-        );
-
-        argmax(result.iter())
-            .map(|d| (Direction::from(d as u8), result[d]))
-            .unwrap_or_default()
-    }
-
-    pub fn heuristic(&self, game: &Game) -> f64 {
+    fn heuristic(&self, game: &Game, _: usize) -> f64 {
         if game.snake_is_alive(0) {
             let own_len = game.snakes[0].body.len() as f64;
             let area = (game.grid.width * game.grid.height) as f64;
@@ -145,7 +49,8 @@ impl FloodAgent {
                 .max()
                 .unwrap_or(0) as f64;
             // Sqrt because if we are larger we do not have to as grow much anymore.
-            let len_advantage = ((own_len + food_distance * self.food_distance) / max_enemy_len).sqrt();
+            let len_advantage =
+                ((own_len + food_distance * self.food_distance) / max_enemy_len).sqrt();
 
             self.board_control * board_control
                 + self.health * health

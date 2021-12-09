@@ -1,6 +1,6 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
-use snork::agents::{FloodAgent, MobilityAgent, TreeAgent};
+use snork::agents::{tree::{self, Heuristic}, FloodHeuristic, MobilityAgent, TreeHeuristic};
 use snork::env::{Direction, GameRequest, Vec2D};
 use snork::game::{self, FloodFill, Game, Outcome, Snake};
 
@@ -186,7 +186,7 @@ fn tree_heuristic(c: &mut Criterion) {
 
     let game = Game::from_request(&request);
     let turn = request.turn;
-    let agent = TreeAgent::default();
+    let agent = TreeHeuristic::default();
 
     c.bench_function("tree_heuristic", |b| {
         b.iter(|| agent.heuristic(black_box(&game), black_box(turn)))
@@ -199,12 +199,11 @@ fn tree_search(c: &mut Criterion) {
         ).unwrap();
 
     let game = Game::from_request(&request);
-    let turn = request.turn;
-    let agent = TreeAgent::default();
+    let agent = TreeHeuristic::default();
 
     c.bench_function("tree_search", |b| {
         b.to_async(tokio::runtime::Runtime::new().unwrap())
-            .iter(|| agent.next_move(black_box(&game), black_box(turn), black_box(3)))
+            .iter(|| tree::tree_search(&agent, black_box(&game), black_box(request.turn), 3))
     });
 }
 
@@ -214,10 +213,10 @@ fn flood_heuristic(c: &mut Criterion) {
         ).unwrap();
 
     let game = Game::from_request(&request);
-    let agent = FloodAgent::default();
+    let agent = FloodHeuristic::default();
 
     c.bench_function("flood_heuristic", |b| {
-        b.iter(|| agent.heuristic(black_box(&game)))
+        b.iter(|| agent.heuristic(black_box(&game), black_box(request.turn)))
     });
 }
 
@@ -227,11 +226,11 @@ fn flood_search(c: &mut Criterion) {
         ).unwrap();
 
     let game = Game::from_request(&request);
-    let agent = FloodAgent::default();
+    let agent = FloodHeuristic::default();
 
     c.bench_function("flood_search", |b| {
         b.to_async(tokio::runtime::Runtime::new().unwrap())
-            .iter(|| agent.next_move(black_box(&game), 3))
+            .iter(|| tree::tree_search(&agent, black_box(&game), black_box(request.turn), 3))
     });
 }
 
@@ -241,11 +240,11 @@ fn flood_2_search(c: &mut Criterion) {
         ).unwrap();
 
     let game = Game::from_request(&request);
-    let agent = FloodAgent::default();
+    let agent = FloodHeuristic::default();
 
     c.bench_function("flood_2_search", |b| {
         b.to_async(tokio::runtime::Runtime::new().unwrap())
-            .iter(|| agent.next_move(black_box(&game), 6))
+            .iter(|| tree::tree_search(&agent, black_box(&game), black_box(request.turn), 6))
     });
 }
 

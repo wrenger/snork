@@ -1,14 +1,15 @@
 use std::str::FromStr;
 use std::string::ToString;
 
+mod original;
+pub use original::*;
 mod mobility;
 pub use mobility::*;
 mod flood;
 pub use flood::*;
 mod random;
 pub use random::*;
-mod tree;
-pub use tree::*;
+pub mod tree;
 
 use super::env::{GameRequest, MoveResponse};
 
@@ -17,8 +18,8 @@ const MAX_BOARD_SIZE: usize = 19;
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum Agent {
     Mobility(MobilityAgent),
-    Tree(TreeAgent),
-    Flood(FloodAgent),
+    Tree(TreeHeuristic),
+    Flood(FloodHeuristic),
     Random(RandomAgent),
 }
 
@@ -37,8 +38,8 @@ impl Agent {
 
         match self {
             Agent::Mobility(agent) => agent.step(request, latency).await,
-            Agent::Tree(agent) => agent.step(request, latency).await,
-            Agent::Flood(agent) => agent.step(request, latency).await,
+            Agent::Tree(agent) => tree::step(agent, request, latency).await,
+            Agent::Flood(agent) => tree::step(agent, request, latency).await,
             Agent::Random(agent) => agent.step(request, latency).await,
         }
     }
