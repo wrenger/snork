@@ -16,7 +16,7 @@ impl Default for FloodHeuristic {
         Self {
             board_control: 2.0,
             health: 0.5,
-            len_advantage: 8.0,
+            len_advantage: 4.0,
             food_distance: 0.5,
         }
     }
