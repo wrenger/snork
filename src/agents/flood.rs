@@ -26,7 +26,7 @@ impl Default for FloodAgent {
         Self {
             board_control: 2.0,
             health: 0.5,
-            len_advantage: 0.5,
+            len_advantage: 8.0,
             food_distance: 0.5,
         }
     }
@@ -144,7 +144,8 @@ impl FloodAgent {
                 .map(|s| s.body.len())
                 .max()
                 .unwrap_or(0) as f64;
-            let len_advantage = (own_len + food_distance * self.food_distance) - max_enemy_len;
+            // Sqrt because if we are larger we do not have to as grow much anymore.
+            let len_advantage = ((own_len + food_distance * self.food_distance) / max_enemy_len).sqrt();
 
             self.board_control * board_control
                 + self.health * health
