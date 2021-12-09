@@ -9,7 +9,8 @@ mod flood;
 pub use flood::*;
 mod random;
 pub use random::*;
-pub mod tree;
+pub mod maxn;
+pub mod expectimax;
 
 use super::env::{GameRequest, MoveResponse};
 
@@ -20,6 +21,7 @@ pub enum Agent {
     Mobility(MobilityAgent),
     Tree(TreeHeuristic),
     Flood(FloodHeuristic),
+    FloodExp(FloodHeuristic),
     Random(RandomAgent),
 }
 
@@ -38,8 +40,9 @@ impl Agent {
 
         match self {
             Agent::Mobility(agent) => agent.step(request, latency).await,
-            Agent::Tree(agent) => tree::step(agent, request, latency).await,
-            Agent::Flood(agent) => tree::step(agent, request, latency).await,
+            Agent::Tree(agent) => maxn::step(agent, request, latency).await,
+            Agent::Flood(agent) => maxn::step(agent, request, latency).await,
+            Agent::FloodExp(agent) => expectimax::step(agent, request, latency).await,
             Agent::Random(agent) => agent.step(request, latency).await,
         }
     }

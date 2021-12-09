@@ -1,10 +1,9 @@
-use std::fmt::Debug;
 use std::time::Duration;
 use std::time::Instant;
 
 use crate::env::*;
-use crate::game::max_n;
-use crate::game::{async_max_n, Comparable, Game};
+use crate::game::search::{self, Heuristic};
+use crate::game::Game;
 
 use crate::util::argmax;
 
@@ -14,15 +13,14 @@ use tokio::time;
 const FAST_TIMEOUT: u64 = 200;
 const MAX_DEPTH: usize = 8;
 
-pub trait Heuristic: Default + Debug + Clone + Send + Sync + 'static {
-    type Eval: Comparable;
-    fn heuristic(&self, game: &Game, turn: usize) -> Self::Eval;
-}
-
-pub async fn step<H: Heuristic>(config: &H, request: &GameRequest, latency: u64) -> MoveResponse {
+pub async fn step<H: Heuristic>(
+    heuristic: &H,
+    request: &GameRequest,
+    latency: u64,
+) -> MoveResponse {
     let ms = request.game.timeout.saturating_sub(latency);
     if ms <= FAST_TIMEOUT {
-        return step_fast(config, request);
+        return step_fast(heuristic, request);
     }
 
     let game = Game::from_request(request);
@@ -31,7 +29,7 @@ pub async fn step<H: Heuristic>(config: &H, request: &GameRequest, latency: u64)
 
     let _ = time::timeout(
         Duration::from_millis(ms),
-        iterative_tree_search(config, &game, request.turn, sender),
+        iterative_tree_search(heuristic, &game, sender),
     )
     .await;
 
@@ -48,11 +46,11 @@ pub async fn step<H: Heuristic>(config: &H, request: &GameRequest, latency: u64)
     MoveResponse::new(game.valid_moves(0).next().unwrap_or(Direction::Up))
 }
 
-pub fn step_fast<H: Heuristic>(config: &H, request: &GameRequest) -> MoveResponse {
+pub fn step_fast<H: Heuristic>(heuristic: &H, request: &GameRequest) -> MoveResponse {
     let game = Game::from_request(request);
 
     let start = Instant::now();
-    let result = max_n(&game, 1, |game| config.heuristic(game, request.turn));
+    let result = search::max_n(&game, 1, heuristic);
 
     println!(
         ">>> max_n 1 {:?}ms {:?}",
@@ -61,7 +59,7 @@ pub fn step_fast<H: Heuristic>(config: &H, request: &GameRequest) -> MoveRespons
     );
 
     if let Some(dir) = argmax(result.iter()) {
-        if result[dir] > H::Eval::min() {
+        if result[dir] > search::LOSS {
             return MoveResponse::new(Direction::from(dir as u8));
         }
     }
@@ -71,23 +69,22 @@ pub fn step_fast<H: Heuristic>(config: &H, request: &GameRequest) -> MoveRespons
 }
 
 async fn iterative_tree_search<H: Heuristic>(
-    config: &H,
+    heuristic: &H,
     game: &Game,
-    turn: usize,
     sender: mpsc::Sender<Direction>,
 ) {
     // Iterative deepening
     for depth in 1..MAX_DEPTH {
-        let (dir, value) = tree_search(config, game, turn, depth).await;
+        let (dir, value) = tree_search(heuristic, game, depth).await;
 
         // Stop and fallback to random possible move
-        if value <= H::Eval::min() {
+        if value <= search::LOSS {
             break;
         }
 
         if sender.send(dir).await.is_err()
             // Terminate if we probably win/lose
-            || value >= H::Eval::max()
+            || value >= search::WIN
         {
             break;
         }
@@ -96,18 +93,13 @@ async fn iterative_tree_search<H: Heuristic>(
 
 /// Performes a tree search and returns the maximized heuristic and move.
 pub async fn tree_search<H: Heuristic>(
-    config: &H,
+    heuristic: &H,
     game: &Game,
-    turn: usize,
     depth: usize,
-) -> (Direction, H::Eval) {
+) -> (Direction, f64) {
     let start = Instant::now();
 
-    let config = config.clone();
-    let result = async_max_n(&game, depth, move |game| {
-        config.heuristic(game, turn + depth)
-    })
-    .await;
+    let result = search::async_max_n(&game, depth, heuristic).await;
 
     println!(
         ">>> max_n {} {:?}ms {:?}",
@@ -118,5 +110,5 @@ pub async fn tree_search<H: Heuristic>(
 
     argmax(result.iter())
         .map(|d| (Direction::from(d as u8), result[d]))
-        .unwrap_or_default()
+        .unwrap()
 }

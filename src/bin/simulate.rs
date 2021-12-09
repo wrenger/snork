@@ -180,7 +180,7 @@ fn init_game(width: usize, height: usize, num_agents: usize) -> Game {
         .map(|(i, p)| Snake::new(i as _, vec![p; 3].into(), 100))
         .collect();
 
-    let mut game = Game::new(width, height, snakes, &[], &[]);
+    let mut game = Game::new(0, width, height, snakes, &[], &[]);
 
     // Spawn 1 food 2 steps away from each snake
     for snake in game.snakes.clone() {

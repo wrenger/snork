@@ -1,6 +1,5 @@
+use crate::game::search::{self, Heuristic};
 use crate::game::{FloodFill, Game};
-
-use super::tree::Heuristic;
 
 /// The new floodfill agent for royale games
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -24,9 +23,7 @@ impl Default for FloodHeuristic {
 }
 
 impl Heuristic for FloodHeuristic {
-    type Eval = f64;
-
-    fn heuristic(&self, game: &Game, _: usize) -> f64 {
+    fn eval(&self, game: &Game) -> f64 {
         if game.snake_is_alive(0) {
             let own_len = game.snakes[0].body.len() as f64;
             let area = (game.grid.width * game.grid.height) as f64;
@@ -56,7 +53,7 @@ impl Heuristic for FloodHeuristic {
                 + self.health * health
                 + self.len_advantage * len_advantage
         } else {
-            -f64::INFINITY
+            search::LOSS
         }
     }
 }

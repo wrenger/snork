@@ -53,15 +53,17 @@ impl Eq for Snake {}
 /// This also provides methods to execute moves and evaluate their outcome.
 #[derive(Clone)]
 pub struct Game {
+    pub turn: usize,
+    pub grid: Grid,
     /// All snakes. Dead ones have health = 0 and no body.
     /// The ids have to be the same as the indices!
-    pub grid: Grid,
     pub snakes: Vec<Snake>,
 }
 
 impl Game {
     /// Creates the game state.
     pub fn new(
+        turn: usize,
         width: usize,
         height: usize,
         snakes: Vec<Snake>,
@@ -77,7 +79,7 @@ impl Game {
             grid.add_snake(snake.body.iter().cloned());
         }
 
-        Self { snakes, grid }
+        Self { turn, snakes, grid }
     }
 
     /// Loads the game state from the provided request.
@@ -123,6 +125,7 @@ impl Game {
             );
         }
         Self::new(
+            request.turn,
             request.board.width,
             request.board.height,
             snakes,
@@ -266,6 +269,8 @@ impl Game {
                 snake.body.clear();
             }
         }
+
+        self.turn += 1;
     }
 }
 
@@ -344,7 +349,11 @@ impl Game {
             }
         }
 
-        Some(Game { grid, snakes })
+        Some(Game {
+            turn: 0,
+            grid,
+            snakes,
+        })
     }
 }
 

@@ -1,8 +1,24 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
-use snork::agents::{tree::{self, Heuristic}, FloodHeuristic, MobilityAgent, TreeHeuristic};
-use snork::env::{Direction, GameRequest, Vec2D};
-use snork::game::{self, FloodFill, Game, Outcome, Snake};
+use snork::agents::{maxn, FloodHeuristic, MobilityAgent, TreeHeuristic};
+use snork::env::*;
+use snork::game::search::{self, Heuristic};
+use snork::game::{FloodFill, Game, Outcome, Snake};
+
+#[derive(Debug, Clone, Default)]
+struct TestH;
+
+impl Heuristic for TestH {
+    fn eval(&self, game: &Game) -> f64 {
+        let mut flood_fill = FloodFill::new(game.grid.width, game.grid.height);
+        if game.snake_is_alive(0) {
+            flood_fill.flood_snakes(&game.grid, &game.snakes);
+            flood_fill.count_space(true) as f64
+        } else {
+            0.0
+        }
+    }
+}
 
 fn game_step_circle(c: &mut Criterion) {
     let mut game = Game::parse(
@@ -81,101 +97,71 @@ fn game_step_random(c: &mut Criterion) {
 }
 
 fn normal_max_n(c: &mut Criterion) {
-    let v2 = |x, y| Vec2D::new(x, y);
-
     let snakes = vec![
         Snake::new(0, vec![v2(0, 3), v2(1, 3), v2(2, 3), v2(3, 3)].into(), 100),
         Snake::new(1, vec![v2(3, 7), v2(3, 6), v2(3, 5)].into(), 100),
         Snake::new(2, vec![v2(10, 7), v2(10, 6), v2(10, 5)].into(), 100),
         Snake::new(3, vec![v2(10, 0), v2(9, 0), v2(8, 0)].into(), 100),
     ];
-    let game = Game::new(11, 11, snakes, &[], &[]);
+    let game = Game::new(0, 11, 11, snakes, &[], &[]);
 
     c.bench_function("normal_max_n", |b| {
-        b.iter(|| {
-            game::max_n(black_box(&game), 2, |game| {
-                let mut flood_fill = FloodFill::new(game.grid.width, game.grid.height);
-                if game.snake_is_alive(0) {
-                    flood_fill.flood_snakes(&game.grid, &game.snakes);
-                    flood_fill.count_space(true) as f64
-                } else {
-                    0.0
-                }
-            });
-        })
+        b.iter(|| search::max_n(black_box(&game), 2, &TestH))
     });
 }
 
 fn async_max_n(c: &mut Criterion) {
-    let v2 = |x, y| Vec2D::new(x, y);
     let snakes = vec![
         Snake::new(0, vec![v2(0, 3), v2(1, 3), v2(2, 3), v2(3, 3)].into(), 100),
         Snake::new(1, vec![v2(3, 7), v2(3, 6), v2(3, 5)].into(), 100),
         Snake::new(2, vec![v2(10, 7), v2(10, 6), v2(10, 5)].into(), 100),
         Snake::new(3, vec![v2(10, 0), v2(9, 0), v2(8, 0)].into(), 100),
     ];
-    let game = Game::new(11, 11, snakes, &[], &[]);
+    let game = Game::new(0, 11, 11, snakes, &[], &[]);
 
     c.bench_function("async_max_n", |b| {
         b.to_async(tokio::runtime::Runtime::new().unwrap())
-            .iter(|| {
-                game::async_max_n(black_box(&game), 2, |game| {
-                    let mut flood_fill = FloodFill::new(game.grid.width, game.grid.height);
-                    if game.snake_is_alive(0) {
-                        flood_fill.flood_snakes(&game.grid, &game.snakes);
-                        flood_fill.count_space(true) as f64
-                    } else {
-                        0.0
-                    }
-                })
-            })
+            .iter(|| search::async_max_n(black_box(&game), 2, &TestH))
+    });
+}
+
+fn expectimax(c: &mut Criterion) {
+    let snakes = vec![
+        Snake::new(0, vec![v2(0, 3), v2(1, 3), v2(2, 3), v2(3, 3)].into(), 100),
+        Snake::new(1, vec![v2(3, 7), v2(3, 6), v2(3, 5)].into(), 100),
+        Snake::new(2, vec![v2(10, 7), v2(10, 6), v2(10, 5)].into(), 100),
+        Snake::new(3, vec![v2(10, 0), v2(9, 0), v2(8, 0)].into(), 100),
+    ];
+    let game = Game::new(0, 11, 11, snakes, &[], &[]);
+
+    c.bench_function("expectimax", |b| {
+        b.to_async(tokio::runtime::Runtime::new().unwrap())
+            .iter(|| search::expectimax(black_box(&game), 2, &TestH))
     });
 }
 
 fn normal_alphabeta(c: &mut Criterion) {
-    let v2 = |x, y| Vec2D::new(x, y);
     let snakes = vec![
         Snake::new(0, vec![v2(0, 3), v2(1, 3), v2(2, 3), v2(3, 3)].into(), 100),
         Snake::new(1, vec![v2(10, 7), v2(10, 6), v2(10, 5)].into(), 100),
     ];
-    let game = Game::new(11, 11, snakes, &[], &[]);
+    let game = Game::new(0, 11, 11, snakes, &[], &[]);
 
     c.bench_function("normal_alphabeta", |b| {
-        b.iter(|| {
-            game::alphabeta(black_box(&game), 5, |game| {
-                let mut flood_fill = FloodFill::new(game.grid.width, game.grid.height);
-                if game.snake_is_alive(0) {
-                    flood_fill.flood_snakes(&game.grid, &game.snakes);
-                    flood_fill.count_space(true) as f64
-                } else {
-                    0.0
-                }
-            })
-        })
+        b.iter(|| search::alphabeta(black_box(&game), 5, &TestH))
     });
 }
 
 fn async_alphabeta(c: &mut Criterion) {
-    let v2 = |x, y| Vec2D::new(x, y);
     let snakes = vec![
         Snake::new(0, vec![v2(0, 3), v2(1, 3), v2(2, 3), v2(3, 3)].into(), 100),
         Snake::new(1, vec![v2(10, 7), v2(10, 6), v2(10, 5)].into(), 100),
     ];
-    let game = Game::new(11, 11, snakes, &[], &[]);
+    let game = Game::new(0, 11, 11, snakes, &[], &[]);
 
     c.bench_function("async_alphabeta", |b| {
         b.to_async(tokio::runtime::Runtime::new().unwrap())
-            .iter(|| {
-                game::async_alphabeta(black_box(&game), 5, |game| {
-                    let mut flood_fill = FloodFill::new(game.grid.width, game.grid.height);
-                    if game.snake_is_alive(0) {
-                        flood_fill.flood_snakes(&game.grid, &game.snakes);
-                        flood_fill.count_space(true) as f64
-                    } else {
-                        0.0
-                    }
-                })
-            })
+            .iter(|| search::async_alphabeta(black_box(&game), 5, &TestH))
     });
 }
 
@@ -185,11 +171,10 @@ fn tree_heuristic(c: &mut Criterion) {
         ).unwrap();
 
     let game = Game::from_request(&request);
-    let turn = request.turn;
-    let agent = TreeHeuristic::default();
+    let heuristic = TreeHeuristic::default();
 
     c.bench_function("tree_heuristic", |b| {
-        b.iter(|| agent.heuristic(black_box(&game), black_box(turn)))
+        b.iter(|| heuristic.eval(black_box(&game)))
     });
 }
 
@@ -199,11 +184,11 @@ fn tree_search(c: &mut Criterion) {
         ).unwrap();
 
     let game = Game::from_request(&request);
-    let agent = TreeHeuristic::default();
+    let heuristic = TreeHeuristic::default();
 
     c.bench_function("tree_search", |b| {
         b.to_async(tokio::runtime::Runtime::new().unwrap())
-            .iter(|| tree::tree_search(&agent, black_box(&game), black_box(request.turn), 3))
+            .iter(|| maxn::tree_search(&heuristic, black_box(&game), 3))
     });
 }
 
@@ -213,10 +198,10 @@ fn flood_heuristic(c: &mut Criterion) {
         ).unwrap();
 
     let game = Game::from_request(&request);
-    let agent = FloodHeuristic::default();
+    let heuristic = FloodHeuristic::default();
 
     c.bench_function("flood_heuristic", |b| {
-        b.iter(|| agent.heuristic(black_box(&game), black_box(request.turn)))
+        b.iter(|| heuristic.eval(black_box(&game)))
     });
 }
 
@@ -226,11 +211,11 @@ fn flood_search(c: &mut Criterion) {
         ).unwrap();
 
     let game = Game::from_request(&request);
-    let agent = FloodHeuristic::default();
+    let heuristic = FloodHeuristic::default();
 
     c.bench_function("flood_search", |b| {
         b.to_async(tokio::runtime::Runtime::new().unwrap())
-            .iter(|| tree::tree_search(&agent, black_box(&game), black_box(request.turn), 3))
+            .iter(|| maxn::tree_search(&heuristic, black_box(&game), 3))
     });
 }
 
@@ -240,11 +225,11 @@ fn flood_2_search(c: &mut Criterion) {
         ).unwrap();
 
     let game = Game::from_request(&request);
-    let agent = FloodHeuristic::default();
+    let heuristic = FloodHeuristic::default();
 
     c.bench_function("flood_2_search", |b| {
         b.to_async(tokio::runtime::Runtime::new().unwrap())
-            .iter(|| tree::tree_search(&agent, black_box(&game), black_box(request.turn), 6))
+            .iter(|| maxn::tree_search(&heuristic, black_box(&game), 6))
     });
 }
 
@@ -267,6 +252,7 @@ criterion_group!(
     game_step_random,
     async_max_n,
     normal_max_n,
+    expectimax,
     async_alphabeta,
     normal_alphabeta,
     tree_heuristic,

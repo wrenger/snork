@@ -1,9 +1,6 @@
-use std::fmt;
-
 use crate::env::*;
-use crate::game::{Comparable, FloodFill, Game};
-
-use super::tree::Heuristic;
+use crate::game::search::{self, Heuristic};
+use crate::game::{FloodFill, Game};
 
 /// Configuration of the tree search heuristic.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -38,44 +35,11 @@ impl Default for TreeHeuristic {
     }
 }
 
-/// Combines the different heuristics into a single value.
-#[derive(PartialEq, Default, Clone, Copy)]
-pub struct Evaluation(f64, f64, f64, f64, f64);
-
-impl From<Evaluation> for f64 {
-    fn from(v: Evaluation) -> f64 {
-        v.0 + v.1 + v.2 + v.3 + v.4
-    }
-}
-impl PartialOrd for Evaluation {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        f64::from(*self).partial_cmp(&f64::from(*other))
-    }
-}
-impl Comparable for Evaluation {
-    fn max() -> Evaluation {
-        Evaluation(std::f64::INFINITY, 0.0, 0.0, 0.0, 0.0)
-    }
-    fn min() -> Evaluation {
-        Evaluation(-std::f64::INFINITY, 0.0, 0.0, 0.0, 0.0)
-    }
-}
-impl fmt::Debug for Evaluation {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "({:.2}, {:.2}, {:.2}, {:.2}, {:.2})",
-            self.0, self.1, self.2, self.3, self.4
-        )
-    }
-}
-
 impl Heuristic for TreeHeuristic {
-    type Eval = Evaluation;
     /// Heuristic function for the tree search.
-    fn heuristic(&self, game: &Game, turn: usize) -> Evaluation {
+    fn eval(&self, game: &Game) -> f64 {
         if !game.snake_is_alive(0) {
-            return Evaluation::min();
+            return search::LOSS;
         }
 
         let mut flood_fill = FloodFill::new(game.grid.width, game.grid.height);
@@ -105,14 +69,14 @@ impl Heuristic for TreeHeuristic {
             .manhattan() as f64
                 / game.grid.width as f64;
 
-        Evaluation(
-            mobility * self.mobility * (-(turn as f64) * self.mobility_decay).exp(),
-            health * self.health * (-(turn as f64) * self.health_decay).exp(),
-            len_advantage * self.len_advantage * (-(turn as f64) * self.len_advantage_decay).exp(),
-            food_ownership
+        mobility * self.mobility * (-(game.turn as f64) * self.mobility_decay).exp()
+            + health * self.health * (-(game.turn as f64) * self.health_decay).exp()
+            + len_advantage
+                * self.len_advantage
+                * (-(game.turn as f64) * self.len_advantage_decay).exp()
+            + food_ownership
                 * self.food_ownership
-                * (-(turn as f64) * self.food_ownership_decay).exp(),
-            centrality * self.centrality * (-(turn as f64) * self.centrality_decay).exp(),
-        )
+                * (-(game.turn as f64) * self.food_ownership_decay).exp()
+            + centrality * self.centrality * (-(game.turn as f64) * self.centrality_decay).exp()
     }
 }

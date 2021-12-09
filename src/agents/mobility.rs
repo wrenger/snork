@@ -3,7 +3,8 @@ use std::collections::BinaryHeap;
 use std::time::Instant;
 
 use crate::env::*;
-use crate::game::{max_n, FloodFill, Game, Snake};
+use crate::game::search::Heuristic;
+use crate::game::{search, FloodFill, Game, Snake};
 use crate::util::{argmax, OrdPair};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -23,6 +24,22 @@ impl Default for MobilityAgent {
             health_threshold: 35,
             min_len: 8,
             first_move_cost: 1.0,
+        }
+    }
+}
+
+/// Simple space after move heuristic
+#[derive(Debug, Clone, Default)]
+struct MobilityHeuristic;
+
+impl Heuristic for MobilityHeuristic {
+    fn eval(&self, game: &Game) -> f64 {
+        if game.snake_is_alive(0) {
+            let mut flood_fill = FloodFill::new(game.grid.width, game.grid.width);
+            flood_fill.flood_snakes(&game.grid, &game.snakes);
+            flood_fill.count_space(true) as f64
+        } else {
+            0.0
         }
     }
 }
@@ -80,15 +97,7 @@ impl MobilityAgent {
 
         // Flood fill heuristics
         let start = Instant::now();
-        let space_after_move = max_n(&game, 1, |game| {
-            if game.snake_is_alive(0) {
-                let mut flood_fill = FloodFill::new(game.grid.width, game.grid.width);
-                flood_fill.flood_snakes(&game.grid, &game.snakes);
-                flood_fill.count_space(true) as f64
-            } else {
-                0.0
-            }
-        });
+        let space_after_move = search::max_n(&game, 1, &MobilityHeuristic);
         println!(
             "max_n {:?}ms {:?}",
             start.elapsed().as_millis(),
