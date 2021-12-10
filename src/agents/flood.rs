@@ -36,15 +36,15 @@ impl Heuristic for FloodHeuristic {
                 .map(|d| (area - d as f64) / area)
                 .sum::<f64>();
 
-            let board_control = flood_fill.count_health(true) as f64 / (area * 100.0);
+            let board_control = (flood_fill.count_health(true) as f64 / (area * 100.0)).sqrt();
 
-            let health = game.snakes[0].health as f64 / 100.0;
+            let health = (game.snakes[0].health as f64 / 100.0).sqrt();
 
             let max_enemy_len = game.snakes[1..]
                 .iter()
                 .map(|s| s.body.len())
                 .max()
-                .unwrap_or(0) as f64;
+                .unwrap_or(1) as f64;
             // Sqrt because if we are larger we do not have to as grow much anymore.
             let len_advantage =
                 ((own_len + food_distance * self.food_distance) / max_enemy_len).sqrt();

@@ -16,7 +16,7 @@ use std::time::Instant;
 )]
 struct Opts {
     #[structopt(long, default_value = "200")]
-    runtime: usize,
+    timeout: u64,
     #[structopt(long, default_value = "11")]
     width: usize,
     #[structopt(long, default_value = "11")]
@@ -36,7 +36,7 @@ struct Opts {
 #[tokio::main]
 async fn main() {
     let Opts {
-        runtime,
+        timeout,
         width,
         height,
         food_rate,
@@ -57,7 +57,7 @@ async fn main() {
             &agents,
             width,
             height,
-            runtime,
+            timeout,
             food_rate,
             shrink_turns,
             verbose,
@@ -79,7 +79,7 @@ async fn play_game(
     agents: &[Agent],
     width: usize,
     height: usize,
-    runtime: usize,
+    timeout: u64,
     food_rate: f64,
     shrink_turns: usize,
     verbose: bool,
@@ -93,13 +93,13 @@ async fn play_game(
     let mut hazard_insets = [0; 4];
 
     for turn in 0.. {
-        let mut request = game_to_request(&game, turn);
+        let mut request = game_to_request(&game, turn, timeout);
         let mut moves = [Direction::Up; 4];
         for snake in &game.snakes {
             if snake.alive() {
                 request.you = snake_data(snake);
 
-                let response = agents[snake.id as usize].step(&request, runtime as _).await;
+                let response = agents[snake.id as usize].step(&request, 0).await;
                 moves[snake.id as usize] = response.r#move;
             }
         }
@@ -206,7 +206,7 @@ fn init_game(width: usize, height: usize, num_agents: usize) -> Game {
     game
 }
 
-fn game_to_request(game: &Game, turn: usize) -> GameRequest {
+fn game_to_request(game: &Game, turn: usize, timeout: u64) -> GameRequest {
     let snakes = game.snakes.iter().map(snake_data).collect::<Vec<_>>();
 
     let mut food = Vec::new();
@@ -223,7 +223,7 @@ fn game_to_request(game: &Game, turn: usize) -> GameRequest {
     }
 
     GameRequest {
-        game: GameData::default(),
+        game: GameData { timeout, ..GameData::default()},
         turn: turn as _,
         you: snakes[0].clone(),
         board: Board {

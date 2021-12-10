@@ -8,7 +8,7 @@ use crate::game::Game;
 use tokio::sync::mpsc;
 use tokio::time;
 
-const FAST_TIMEOUT: u64 = 200;
+const FAST_TIMEOUT: u64 = 150;
 const MAX_DEPTH: usize = 8;
 
 pub async fn step<H: Heuristic>(
