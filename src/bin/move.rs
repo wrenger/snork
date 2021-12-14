@@ -1,5 +1,4 @@
 use log::info;
-use log::warn;
 use structopt::StructOpt;
 
 use snork::agents::*;
