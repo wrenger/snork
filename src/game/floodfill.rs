@@ -346,15 +346,19 @@ impl std::fmt::Debug for FloodFill {
 
 #[cfg(test)]
 mod test {
+    use log::info;
+
+    use crate::logging;
 
     #[test]
     fn flood_head() {
+        logging();
         use super::*;
         let grid = Grid::new(11, 11);
 
         let mut floodfill = FloodFill::new(grid.width, grid.height);
         floodfill.flood(&grid, [(Vec2D::new(0, 0), true, 100)].iter().cloned());
-        println!("Filled {} {:?}", floodfill.count_space(true), floodfill);
+        info!("Filled {} {:?}", floodfill.count_space(true), floodfill);
         assert_eq!(floodfill.count_space(true), 11 * 11);
 
         let grid = Grid::new(11, 11);
@@ -368,7 +372,7 @@ mod test {
             .iter()
             .cloned(),
         );
-        println!("Filled {} {:?}", floodfill.count_space(true), floodfill);
+        info!("Filled {} {:?}", floodfill.count_space(true), floodfill);
         assert_eq!(floodfill.count_space(true), 66);
         let grid = Grid::new(11, 11);
         floodfill.clear();
@@ -382,7 +386,7 @@ mod test {
             .iter()
             .cloned(),
         );
-        println!("Filled {} {:?}", floodfill.count_space(true), floodfill);
+        info!("Filled {} {:?}", floodfill.count_space(true), floodfill);
         assert_eq!(floodfill.count_space(true), 61);
     }
 
@@ -390,6 +394,7 @@ mod test {
     fn flood_snakes_follow_tail() {
         use super::*;
         use crate::game::Game;
+        logging();
 
         let game = Game::parse(
             r#"
@@ -410,7 +415,7 @@ mod test {
         let mut floodfill = FloodFill::new(game.grid.width, game.grid.height);
         floodfill.flood_snakes(&game.grid, &game.snakes);
 
-        println!("Filled {} {:?}", floodfill.count_space(true), floodfill);
+        info!("Filled {} {:?}", floodfill.count_space(true), floodfill);
         assert_eq!(floodfill.count_space(true), 11 * 11);
 
         let game = Game::parse(
@@ -432,7 +437,7 @@ mod test {
         let mut floodfill = FloodFill::new(game.grid.width, game.grid.height);
         floodfill.flood_snakes(&game.grid, &game.snakes);
 
-        println!("Filled {} {:?}", floodfill.count_space(true), floodfill);
+        info!("Filled {} {:?}", floodfill.count_space(true), floodfill);
         assert_eq!(floodfill.count_space(true), 11 * 11);
     }
 
@@ -440,6 +445,7 @@ mod test {
     fn flood_snakes_bite_tail() {
         use super::*;
         use crate::game::Game;
+        logging();
 
         let game = Game::parse(
             r#"
@@ -460,7 +466,7 @@ mod test {
         let mut floodfill = FloodFill::new(game.grid.width, game.grid.height);
         floodfill.flood_snakes(&game.grid, &game.snakes);
 
-        println!("Filled {} {:?}", floodfill.count_space(true), floodfill);
+        info!("Filled {} {:?}", floodfill.count_space(true), floodfill);
         assert_eq!(floodfill.count_space(true), 4);
     }
 
@@ -468,6 +474,7 @@ mod test {
     fn flood_snakes_bite_food() {
         use super::*;
         use crate::game::Game;
+        logging();
 
         let game = Game::parse(
             r#"
@@ -488,7 +495,7 @@ mod test {
         let mut floodfill = FloodFill::new(game.grid.width, game.grid.height);
         floodfill.flood_snakes(&game.grid, &game.snakes);
 
-        println!("Filled {} {:?}", floodfill.count_space(true), floodfill);
+        info!("Filled {} {:?}", floodfill.count_space(true), floodfill);
         assert_eq!(floodfill.count_space(true), 11 * 11);
 
         let game = Game::parse(
@@ -509,7 +516,7 @@ mod test {
 
         floodfill.clear();
         floodfill.flood_snakes(&game.grid, &game.snakes);
-        println!("Filled {} {:?}", floodfill.count_space(true), floodfill);
+        info!("Filled {} {:?}", floodfill.count_space(true), floodfill);
         assert_eq!(floodfill.count_space(true), 1);
     }
 
@@ -517,6 +524,7 @@ mod test {
     fn flood_snakes_enemy() {
         use super::*;
         use crate::game::Game;
+        logging();
 
         let game = Game::parse(
             r#"
@@ -536,7 +544,7 @@ mod test {
 
         let mut floodfill = FloodFill::new(game.grid.width, game.grid.height);
         floodfill.flood_snakes(&game.grid, &game.snakes);
-        println!("Filled {} {:?}", floodfill.count_space(true), floodfill);
+        info!("Filled {} {:?}", floodfill.count_space(true), floodfill);
         assert_eq!(floodfill.count_space(true), 24);
     }
 
@@ -544,6 +552,7 @@ mod test {
     fn flood_snakes_low_health() {
         use super::*;
         use crate::game::Game;
+        logging();
 
         let mut game = Game::parse(
             r#"
@@ -564,7 +573,7 @@ mod test {
 
         let mut floodfill = FloodFill::new(game.grid.width, game.grid.height);
         floodfill.flood_snakes(&game.grid, &game.snakes);
-        println!("Filled {} {:?}", floodfill.count_space(true), floodfill);
+        info!("Filled {} {:?}", floodfill.count_space(true), floodfill);
         assert_eq!(floodfill.count_space(true), 59);
     }
 
@@ -572,6 +581,7 @@ mod test {
     fn flood_snakes_hazard() {
         use super::*;
         use crate::game::Game;
+        logging();
 
         let mut game = Game::parse(
             r#"
@@ -597,7 +607,7 @@ mod test {
 
         let mut floodfill = FloodFill::new(game.grid.width, game.grid.height);
         floodfill.flood_snakes(&game.grid, &game.snakes);
-        println!("Filled {} {:?}", floodfill.count_space(true), floodfill);
+        info!("Filled {} {:?}", floodfill.count_space(true), floodfill);
         assert_eq!(floodfill.count_space(true), 96);
     }
 }

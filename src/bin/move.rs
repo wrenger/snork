@@ -1,8 +1,11 @@
+use log::info;
+use log::warn;
 use structopt::StructOpt;
 
-use snork::env::GameRequest;
 use snork::agents::*;
+use snork::env::GameRequest;
 use snork::game::*;
+use snork::logging;
 
 #[derive(structopt::StructOpt)]
 #[structopt(name = "rusty snake move", about = "Simulate a move for an agent.")]
@@ -19,6 +22,8 @@ struct Opts {
 
 #[tokio::main]
 async fn main() {
+    logging();
+
     let Opts {
         config,
         request,
@@ -26,13 +31,13 @@ async fn main() {
     } = Opts::from_args();
 
     let game = Game::from_request(&request);
-    println!("{:?}", game);
+    info!("{:?}", game);
 
     let mut flood_fill = FloodFill::new(request.board.width, request.board.height);
     flood_fill.flood_snakes(&game.grid, &game.snakes);
-    println!("{:?}", flood_fill);
+    info!("{:?}", flood_fill);
 
     let step = config.step(&request, runtime as _).await;
 
-    println!("Step: {:?}", step);
+    info!("Step: {:?}", step);
 }

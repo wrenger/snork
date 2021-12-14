@@ -1,4 +1,6 @@
+use log::{debug, warn};
 use owo_colors::OwoColorize;
+use snork::logging;
 use structopt::StructOpt;
 
 use snork::agents::*;
@@ -27,14 +29,14 @@ struct Opts {
     shrink_turns: usize,
     #[structopt(short, long, default_value = "1")]
     game_count: usize,
-    #[structopt(short, long)]
-    verbose: bool,
 
     agents: Vec<Agent>,
 }
 
 #[tokio::main]
 async fn main() {
+    logging();
+
     let Opts {
         timeout,
         width,
@@ -42,7 +44,6 @@ async fn main() {
         food_rate,
         shrink_turns,
         game_count,
-        verbose,
         agents,
     } = Opts::from_args();
 
@@ -53,18 +54,9 @@ async fn main() {
     let mut wins = 0;
 
     for i in 0..game_count {
-        let win = play_game(
-            &agents,
-            width,
-            height,
-            timeout,
-            food_rate,
-            shrink_turns,
-            verbose,
-        )
-        .await;
+        let win = play_game(&agents, width, height, timeout, food_rate, shrink_turns).await;
         wins += win as usize;
-        println!(
+        warn!(
             "{}: {} {}ms",
             "Finish Game".bright_green(),
             i,
@@ -82,13 +74,10 @@ async fn play_game(
     timeout: u64,
     food_rate: f64,
     shrink_turns: usize,
-    verbose: bool,
 ) -> bool {
     let mut game = init_game(width, height, agents.len());
 
-    if verbose {
-        println!("init: {:?}", game);
-    }
+    debug!("init: {:?}", game);
 
     let mut hazard_insets = [0; 4];
 
@@ -103,21 +92,18 @@ async fn play_game(
                 moves[snake.id as usize] = response.r#move;
             }
         }
-        if verbose {
-            println!("Moves: {:?}", moves);
-        }
+        debug!("Moves: {:?}", moves);
+
         game.step(&moves);
 
-        if verbose {
-            println!("{}: {:?}", turn, game);
-        }
+        debug!("{}: {:?}", turn, game);
 
         if !game.snake_is_alive(0) {
-            println!("game: loss after {} turns", turn);
+            warn!("game: loss after {} turns", turn);
             return false;
         }
         if game.outcome() == Outcome::Winner(0) {
-            println!("game: win after {} turns", turn);
+            warn!("game: win after {} turns", turn);
             return true;
         }
 
@@ -223,7 +209,10 @@ fn game_to_request(game: &Game, turn: usize, timeout: u64) -> GameRequest {
     }
 
     GameRequest {
-        game: GameData { timeout, ..GameData::default()},
+        game: GameData {
+            timeout,
+            ..GameData::default()
+        },
         turn: turn as _,
         you: snakes[0].clone(),
         board: Board {

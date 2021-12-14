@@ -2,6 +2,8 @@ use std::cmp::Reverse;
 use std::collections::BinaryHeap;
 use std::time::Instant;
 
+use log::{warn, info};
+
 use crate::env::*;
 use crate::game::search::Heuristic;
 use crate::game::{search, FloodFill, Game, Snake};
@@ -98,7 +100,7 @@ impl MobilityAgent {
         // Flood fill heuristics
         let start = Instant::now();
         let space_after_move = search::max_n(&game, 1, &MobilityHeuristic);
-        println!(
+        info!(
             "max_n {:?}ms {:?}",
             start.elapsed().as_millis(),
             space_after_move
@@ -112,7 +114,7 @@ impl MobilityAgent {
             if let Some(dir) =
                 self.find_food(&game, &request.board.food, &flood_fill, &space_after_move)
             {
-                println!(">>> find food");
+                info!(">>> find food");
                 return MoveResponse::new(dir);
             }
         }
@@ -120,12 +122,12 @@ impl MobilityAgent {
         // Maximize mobility
         if let Some(dir) = argmax(space_after_move.iter()) {
             if space_after_move[dir] > 0.0 {
-                println!(">>> max space");
+                info!(">>> max space");
                 return MoveResponse::new(Direction::from(dir as u8));
             }
         }
 
-        println!(">>> random");
+        warn!(">>> random");
         MoveResponse::new(game.valid_moves(0).next().unwrap_or(Direction::Up))
     }
 }

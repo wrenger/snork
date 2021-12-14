@@ -200,8 +200,11 @@ where
 
 #[cfg(test)]
 mod test {
+    use log::info;
+
     use crate::game::search::{alphabeta, Heuristic};
     use crate::game::{FloodFill, Game};
+    use crate::logging;
 
     #[derive(Debug, Clone, Default)]
     struct TestH;
@@ -224,6 +227,7 @@ mod test {
         use crate::env::Vec2D;
         use crate::game::Snake;
         use std::time::Instant;
+        logging();
 
         let snakes = vec![
             Snake::new(
@@ -255,13 +259,13 @@ mod test {
         ];
 
         let game = Game::new(0, 11, 11, snakes, &[], &[]);
-        println!("{:?}", game.grid);
+        info!("{:?}", game.grid);
         let start = Instant::now();
 
         let moves = max_n(&game, 3, &TestH);
         let end = Instant::now();
-        println!("{:?}", moves);
-        println!("time {}ms", (end - start).as_millis());
+        info!("{:?}", moves);
+        info!("time {}ms", (end - start).as_millis());
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -271,6 +275,7 @@ mod test {
         use crate::env::Vec2D;
         use crate::game::Snake;
         use std::time::Instant;
+        logging();
 
         let snakes = vec![
             Snake::new(
@@ -302,12 +307,12 @@ mod test {
         ];
 
         let game = Game::new(0, 11, 11, snakes, &[], &[]);
-        println!("{:?}", game.grid);
+        info!("{:?}", game.grid);
         let start = Instant::now();
         let moves = async_max_n(&game, 3, &TestH).await;
         let end = Instant::now();
-        println!("{:?}", moves);
-        println!("async time {}ms", (end - start).as_millis());
+        info!("{:?}", moves);
+        info!("async time {}ms", (end - start).as_millis());
     }
 
     #[test]
@@ -317,6 +322,7 @@ mod test {
         use crate::env::Vec2D;
         use crate::game::Snake;
         use std::time::Instant;
+        logging();
 
         let snakes = vec![
             Snake::new(
@@ -338,18 +344,18 @@ mod test {
         ];
 
         let game = Game::new(0, 11, 11, snakes, &[], &[]);
-        println!("{:?}", game.grid);
+        info!("{:?}", game.grid);
 
         let start = Instant::now();
         let moves = max_n(&game, 6, &TestH);
         let end = Instant::now();
-        println!("max_n {:?}", moves);
-        println!("max_n time {}ms", (end - start).as_millis());
+        info!("max_n {:?}", moves);
+        info!("max_n time {}ms", (end - start).as_millis());
 
         let start = Instant::now();
         let moves = alphabeta(&game, 6, &TestH);
         let end = Instant::now();
-        println!("alpha_beta {:?}", moves);
-        println!("alpha_beta time {}ms", (end - start).as_millis());
+        info!("alpha_beta {:?}", moves);
+        info!("alpha_beta time {}ms", (end - start).as_millis());
     }
 }

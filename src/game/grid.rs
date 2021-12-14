@@ -253,6 +253,9 @@ impl std::fmt::Debug for Grid {
 
 #[cfg(test)]
 mod test {
+    use log::info;
+    use crate::logging;
+
 
     #[test]
     #[ignore]
@@ -267,12 +270,13 @@ mod test {
     #[test]
     fn grid_a_star() {
         use super::*;
+        logging();
         let grid = Grid::new(11, 11);
 
         let path = grid
             .a_star(Vec2D::new(0, 0), Vec2D::new(1, 1), &[1.0, 0.0, 0.0, 0.0])
             .unwrap();
-        println!("{:?}", path);
+        info!("{:?}", path);
         assert_eq!(path.len(), 3);
         assert_eq!(path[0], Vec2D::new(0, 0));
         assert_eq!(path[2], Vec2D::new(1, 1));
@@ -281,6 +285,7 @@ mod test {
     #[test]
     fn grid_a_star_hazards() {
         use super::*;
+        logging();
         let mut grid = Grid::new(5, 5);
         grid.add_hazards(&[
             Vec2D::new(2, 0),
@@ -291,7 +296,7 @@ mod test {
         let path = grid
             .a_star(Vec2D::new(0, 2), Vec2D::new(4, 2), &[1.0, 1.0, 1.0, 1.0])
             .unwrap();
-        println!("{:?}", path);
+        info!("{:?}", path);
         assert_eq!(path.len(), 9);
         assert_eq!(path[0], Vec2D::new(0, 2));
         assert_eq!(path[path.len() - 1], Vec2D::new(4, 2));

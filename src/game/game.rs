@@ -503,10 +503,16 @@ impl<'a> Iterator for ValidMoves<'a> {
 
 #[cfg(test)]
 mod test {
+    use log::info;
+
+    use crate::logging;
+
 
     #[test]
     fn game_parse() {
         use super::*;
+        logging();
+
         let game = Game::parse(
             r#"
             . . . . . . . . . . .
@@ -551,13 +557,14 @@ mod test {
             VecDeque::from(vec![Vec2D::new(0, 1), Vec2D::new(0, 1), Vec2D::new(0, 0),])
         );
 
-        println!("{:?}", game.grid);
+        info!("{:?}", game.grid);
     }
 
     #[test]
     fn game_step() {
         use super::*;
         use Direction::*;
+        logging();
 
         let mut game = Game::parse(
             r#"
@@ -579,7 +586,7 @@ mod test {
             // Both right
             let mut game = game.clone();
             game.step(&[Right, Right]);
-            println!("{:?}", game.grid);
+            info!("{:?}", game.grid);
             assert!(game.snake_is_alive(0));
             assert!(game.snake_is_alive(1));
             assert!(!game.grid[Vec2D::new(4, 6)].owned());
@@ -589,7 +596,7 @@ mod test {
 
             // Snake 0 runs into 1
             game.step(&[Right, Right]);
-            println!("{:?}", game.grid);
+            info!("{:?}", game.grid);
             assert!(!game.snake_is_alive(0));
             assert!(!game.grid[Vec2D::new(5, 8)].owned());
             assert!(game.snake_is_alive(1));
@@ -599,7 +606,7 @@ mod test {
         {
             // Head to head equal len
             game.step(&[Right, Left]);
-            println!("{:?}", game.grid);
+            info!("{:?}", game.grid);
             assert!(!game.snake_is_alive(0));
             assert!(!game.snake_is_alive(1));
         }
@@ -609,6 +616,7 @@ mod test {
     fn test_valid_moves() {
         use super::*;
         use Direction::*;
+        logging();
 
         let game = Game::parse(
             r#"
@@ -635,7 +643,7 @@ mod test {
             VecDeque::from(vec![Vec2D::new(6, 0), Vec2D::new(6, 1), Vec2D::new(5, 1)])
         );
 
-        println!("{:?}", game.grid);
+        info!("{:?}", game.grid);
         assert!([Right].iter().cloned().eq(game.valid_moves(0)));
     }
 }

@@ -5,6 +5,7 @@ use crate::env::*;
 use crate::game::search::{self, Heuristic};
 use crate::game::Game;
 
+use log::info;
 use tokio::sync::mpsc;
 use tokio::time;
 
@@ -40,10 +41,11 @@ pub async fn step<H: Heuristic>(
         return MoveResponse::new(Direction::from(dir as u8));
     }
 
-    println!(">>> none");
+    info!(">>> none");
     MoveResponse::new(game.valid_moves(0).next().unwrap_or(Direction::Up))
 }
 
+/// TODO: This agent is not fully implemented yet!
 async fn iterative_tree_search<H: Heuristic>(
     heuristic: &H,
     game: &Game,
@@ -54,7 +56,7 @@ async fn iterative_tree_search<H: Heuristic>(
         let start = Instant::now();
         let (dir, value) = search::expectimax(game, depth, heuristic).await;
 
-        println!(
+        info!(
             ">>> expectimax {} {:?}ms {:?} {:?}",
             depth,
             start.elapsed().as_millis(),

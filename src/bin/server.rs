@@ -3,6 +3,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Instant;
 
+use log::{warn, info};
 use snork::agents::*;
 use snork::env::{GameRequest, IndexResponse, API_VERSION};
 
@@ -59,6 +60,8 @@ struct Opt {
 
 #[tokio::main]
 async fn main() {
+    env_logger::init();
+
     let Opt {
         host,
         latency,
@@ -74,7 +77,7 @@ async fn main() {
         .and(warp::path::end())
         .and(with_state(state.clone()))
         .map(|state: Arc<State>| {
-            println!("index");
+            warn!("index");
             warp::reply::json(&IndexResponse::new(
                 API_VERSION.into(),
                 AUTHOR.into(),
@@ -89,7 +92,7 @@ async fn main() {
         .and(warp::post())
         .and(warp::body::json::<GameRequest>())
         .map(|request: GameRequest| {
-            println!(
+            warn!(
                 "start {} game {},{}",
                 request.game.ruleset.name, request.game.id, request.you.id
             );
@@ -106,7 +109,7 @@ async fn main() {
         .and(warp::post())
         .and(warp::body::json::<GameRequest>())
         .map(|request: GameRequest| {
-            println!(
+            warn!(
                 "end {} game {},{}",
                 request.game.ruleset.name, request.game.id, request.you.id
             );
@@ -125,14 +128,14 @@ fn with_state(
 }
 
 async fn step(state: Arc<State>, request: GameRequest) -> Result<impl warp::Reply, Infallible> {
-    println!(
+    warn!(
         "move {} game {},{}",
         request.game.ruleset.name, request.game.id, request.you.id
     );
 
     let timer = Instant::now();
     let next_move = state.config.step(&request, state.latency).await;
-    println!("response time {:?}ms", timer.elapsed().as_millis());
+    info!("response time {:?}ms", timer.elapsed().as_millis());
 
     Ok(warp::reply::json(&next_move))
 }

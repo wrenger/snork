@@ -35,25 +35,21 @@ cargo run --release -- [-h] [--host <ip:port>] [--config <json>]
 > There are additional options for `--runtime` and visual representation of the snake (`--head`, `--tail`, `--color`).
 > Run `cargo run --release -- -h` to see all the commandline options.
 
-`config` defines the agent to be used (`Tree`, `Mobility`, `Random`) and configures the agents heuristic.
-The default config for the `Tree` agent is for example:
+`config` defines the agent to be used (`Flood`, `Tree`, `Mobility`, `Random`) and configures the agents heuristic.
+The default config for the `Flood` agent is for example:
 
 ```json
 {
-  "Tree": {
-    "mobility": 0.7,
-    "mobility_decay": 0.0,
-    "health": 0.012,
-    "health_decay": 0.0,
-    "len_advantage": 1.0,
-    "len_advantage_decay": 0.0,
-    "food_ownership": 0.65,
-    "food_ownership_decay": 0.0,
-    "centrality": 0.1,
-    "centrality_decay": 0.0
+  "Flood": {
+    "board_control": 2.0,
+    "health": 0.5,
+    "len_advantage": 4.0,
+    "food_distance": 0.5
   }
 }
 ```
+
+> If a config parameter (like `health`) is excluded the default value is used.
 
 ### Simulating Configs
 
@@ -62,10 +58,10 @@ The provided Configurations play a number of games against each other and the
 number of wins of the first configuration is returned.
 
 ```bash
-cargo run --release --bin simulate -- '{"Tree":{}}' '{"Tree":{"centrality":0}}' '{"Mobility":{}}' '{"Random":null}' -j 8 --game-count 8
+cargo run --release --bin simulate -- '{"Flood":{"board_control":8.0}}' '{"Tree":{"centrality":0}}' --game-count 10
 ```
 
-> Play `--game-count` games on `-j` threads.
+> Play `--game-count` games.
 
 The last line of the standard output contains the number of wins of the first
 snake and the total amount of games played:

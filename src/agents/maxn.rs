@@ -7,6 +7,7 @@ use crate::game::Game;
 
 use crate::util::argmax;
 
+use log::info;
 use tokio::sync::mpsc;
 use tokio::time;
 
@@ -42,7 +43,7 @@ pub async fn step<H: Heuristic>(
         return MoveResponse::new(Direction::from(dir as u8));
     }
 
-    println!(">>> none");
+    info!(">>> none");
     MoveResponse::new(game.valid_moves(0).next().unwrap_or(Direction::Up))
 }
 
@@ -52,7 +53,7 @@ pub fn step_fast<H: Heuristic>(heuristic: &H, request: &GameRequest) -> MoveResp
     let start = Instant::now();
     let result = search::max_n(&game, 1, heuristic);
 
-    println!(
+    info!(
         ">>> max_n 1 {:?}ms {:?}",
         start.elapsed().as_millis(),
         result
@@ -64,7 +65,7 @@ pub fn step_fast<H: Heuristic>(heuristic: &H, request: &GameRequest) -> MoveResp
         }
     }
 
-    println!(">>> none");
+    info!(">>> none");
     MoveResponse::new(game.valid_moves(0).next().unwrap_or(Direction::Up))
 }
 
@@ -101,7 +102,7 @@ pub async fn tree_search<H: Heuristic>(
 
     let result = search::async_max_n(&game, depth, heuristic).await;
 
-    println!(
+    info!(
         ">>> max_n {} {:?}ms {:?}",
         depth,
         start.elapsed().as_millis(),
