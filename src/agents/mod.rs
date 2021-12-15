@@ -9,8 +9,10 @@ mod flood;
 pub use flood::*;
 mod random;
 pub use random::*;
-pub mod maxn;
 pub mod expectimax;
+pub mod maxn;
+
+use crate::game::Game;
 
 use super::env::{GameRequest, MoveResponse};
 
@@ -33,17 +35,23 @@ impl Default for Agent {
 
 impl Agent {
     pub async fn step(&self, request: &GameRequest, latency: u64) -> MoveResponse {
-        // If the board is very large default to the random agent.
-        if request.board.width > MAX_BOARD_SIZE || request.board.height > MAX_BOARD_SIZE {
-            return RandomAgent.step(request, latency).await;
+        let game = Game::from_request(request);
+        let timeout = request.game.timeout.saturating_sub(latency);
+
+        self.step_internal(timeout, &game).await
+    }
+
+    pub async fn step_internal(&self, timeout: u64, game: &Game) -> MoveResponse {
+        if game.grid.width > MAX_BOARD_SIZE || game.grid.height > MAX_BOARD_SIZE {
+            return RandomAgent.step(&game).await;
         }
 
         match self {
-            Agent::Mobility(agent) => agent.step(request, latency).await,
-            Agent::Tree(agent) => maxn::step(agent, request, latency).await,
-            Agent::Flood(agent) => maxn::step(agent, request, latency).await,
-            Agent::FloodExp(agent) => expectimax::step(agent, request, latency).await,
-            Agent::Random(agent) => agent.step(request, latency).await,
+            Agent::Mobility(agent) => agent.step(&game).await,
+            Agent::Tree(agent) => maxn::step(agent, timeout, &game).await,
+            Agent::Flood(agent) => maxn::step(agent, timeout, &game).await,
+            Agent::FloodExp(agent) => expectimax::step(agent, timeout, &game).await,
+            Agent::Random(agent) => agent.step(&game).await,
         }
     }
 }

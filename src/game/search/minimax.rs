@@ -231,7 +231,6 @@ mod test {
 
         let snakes = vec![
             Snake::new(
-                0,
                 vec![
                     Vec2D::new(0, 3),
                     Vec2D::new(1, 3),
@@ -242,17 +241,14 @@ mod test {
                 100,
             ),
             Snake::new(
-                1,
                 vec![Vec2D::new(3, 7), Vec2D::new(3, 6), Vec2D::new(3, 5)].into(),
                 100,
             ),
             Snake::new(
-                2,
                 vec![Vec2D::new(10, 7), Vec2D::new(10, 6), Vec2D::new(10, 5)].into(),
                 100,
             ),
             Snake::new(
-                3,
                 vec![Vec2D::new(10, 0), Vec2D::new(9, 0), Vec2D::new(8, 0)].into(),
                 100,
             ),
@@ -279,7 +275,6 @@ mod test {
 
         let snakes = vec![
             Snake::new(
-                0,
                 vec![
                     Vec2D::new(0, 3),
                     Vec2D::new(1, 3),
@@ -290,17 +285,14 @@ mod test {
                 100,
             ),
             Snake::new(
-                1,
                 vec![Vec2D::new(3, 7), Vec2D::new(3, 6), Vec2D::new(3, 5)].into(),
                 100,
             ),
             Snake::new(
-                2,
                 vec![Vec2D::new(10, 7), Vec2D::new(10, 6), Vec2D::new(10, 5)].into(),
                 100,
             ),
             Snake::new(
-                3,
                 vec![Vec2D::new(10, 0), Vec2D::new(9, 0), Vec2D::new(8, 0)].into(),
                 100,
             ),
@@ -326,7 +318,6 @@ mod test {
 
         let snakes = vec![
             Snake::new(
-                0,
                 vec![
                     Vec2D::new(0, 3),
                     Vec2D::new(1, 3),
@@ -337,7 +328,6 @@ mod test {
                 100,
             ),
             Snake::new(
-                1,
                 vec![Vec2D::new(3, 7), Vec2D::new(3, 6), Vec2D::new(3, 5)].into(),
                 100,
             ),

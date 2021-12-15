@@ -11,9 +11,9 @@ pub mod util;
 
 pub fn logging() {
     #[cfg(not(test))]
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
+    let _ = env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
         .format(logging_format)
-        .init();
+        .try_init();
     #[cfg(test)]
     let _ = env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
         .is_test(true)

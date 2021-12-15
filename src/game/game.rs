@@ -20,18 +20,17 @@ pub enum Outcome {
 /// Reduced representation of a snake.
 #[derive(Debug, Clone)]
 pub struct Snake {
-    pub id: u8,
-    pub health: u8,
     /// tail to head
     pub body: VecDeque<Vec2D>,
+    pub health: u8,
 }
 impl Snake {
-    pub fn new(id: u8, body: VecDeque<Vec2D>, health: u8) -> Snake {
-        Snake { id, body, health }
+    pub fn new(body: VecDeque<Vec2D>, health: u8) -> Snake {
+        Snake { body, health }
     }
 
-    pub fn from(snake: &SnakeData, id: u8) -> Snake {
-        Snake::new(id, snake.body.iter().cloned().rev().collect(), snake.health)
+    pub fn from(snake: &SnakeData) -> Snake {
+        Snake::new(snake.body.iter().cloned().rev().collect(), snake.health)
     }
 
     pub fn alive(&self) -> bool {
@@ -42,12 +41,6 @@ impl Snake {
         *self.body.back().unwrap()
     }
 }
-impl PartialEq for Snake {
-    fn eq(&self, other: &Self) -> bool {
-        self.id == other.id
-    }
-}
-impl Eq for Snake {}
 
 /// Game represents holds the complete game state.
 /// This also provides methods to execute moves and evaluate their outcome.
@@ -74,8 +67,7 @@ impl Game {
         grid.add_food(food);
         grid.add_hazards(hazards);
 
-        for (i, snake) in snakes.iter().enumerate() {
-            assert_eq!(snake.id, i as u8);
+        for snake in &snakes {
             grid.add_snake(snake.body.iter().cloned());
         }
 
@@ -85,7 +77,7 @@ impl Game {
     /// Loads the game state from the provided request.
     pub fn from_request(request: &GameRequest) -> Self {
         let mut snakes = Vec::with_capacity(4);
-        snakes.push(Snake::from(&request.you, 0));
+        snakes.push(Snake::from(&request.you));
 
         // Only look at the nearest four snakes
         if request.board.snakes.len() > 4 {
@@ -95,8 +87,7 @@ impl Game {
                 .snakes
                 .iter()
                 .filter(|s| s.id != request.you.id)
-                .enumerate()
-                .map(|(i, s)| Snake::from(s, i as u8 + 1))
+                .map(Snake::from)
             {
                 let body_dist = snake
                     .body
@@ -107,9 +98,8 @@ impl Game {
                 queue.push(OrdPair(Reverse(body_dist), snake));
             }
 
-            for i in 1..3 {
-                if let Some(OrdPair(_, mut snake)) = queue.pop() {
-                    snake.id = i;
+            for _ in 1..3 {
+                if let Some(OrdPair(_, snake)) = queue.pop() {
                     snakes.push(snake);
                 }
             }
@@ -120,8 +110,7 @@ impl Game {
                     .snakes
                     .iter()
                     .filter(|s| s.id != request.you.id)
-                    .enumerate()
-                    .map(|(i, s)| Snake::from(s, i as u8 + 1)),
+                    .map(Snake::from),
             );
         }
         Self::new(
@@ -139,10 +128,10 @@ impl Game {
     pub fn outcome(&self) -> Outcome {
         let mut living_snakes = 0;
         let mut survivor = 0;
-        for snake in &self.snakes {
+        for (i, snake) in self.snakes.iter().enumerate() {
             if snake.alive() {
                 living_snakes += 1;
-                survivor = snake.id;
+                survivor = i as u8;
             }
         }
         match living_snakes {
@@ -204,9 +193,9 @@ impl Game {
         }
 
         // Move head & eat
-        for snake in &mut self.snakes {
+        for (id, snake) in self.snakes.iter_mut().enumerate() {
             if snake.alive() {
-                let dir = moves[snake.id as usize];
+                let dir = moves[id];
                 let head = snake.head().apply(dir);
 
                 if !self.grid.has(head) {
@@ -343,7 +332,7 @@ impl Game {
                 while body.len() < 3 {
                     body.push_front(body[0]);
                 }
-                snakes.push(Snake::new(i as _, body, 100));
+                snakes.push(Snake::new(body, 100));
             } else {
                 break;
             }
@@ -406,7 +395,7 @@ impl Debug for Game {
             }
         }
 
-        for snake in &self.snakes {
+        for (id, snake) in self.snakes.iter().enumerate() {
             if !snake.alive() || snake.body.is_empty() {
                 continue;
             }
@@ -415,13 +404,13 @@ impl Debug for Game {
 
             for next_body in snake.body.iter().skip(1).copied() {
                 cells[last_body.y as usize * self.grid.width + last_body.x as usize].0 =
-                    FmtCell::Tail(Direction::from(next_body - last_body), snake.id);
+                    FmtCell::Tail(Direction::from(next_body - last_body), id as _);
 
                 last_body = next_body;
             }
 
             cells[last_body.y as usize * self.grid.width + last_body.x as usize].0 =
-                FmtCell::Head(snake.id);
+                FmtCell::Head(id as _);
         }
 
         writeln!(f, "Game {{")?;
@@ -443,13 +432,13 @@ impl Debug for Game {
         // Snakes
         write!(f, "  Snakes: [")?;
         let mut first = true;
-        for snake in &self.snakes {
+        for (id, snake) in self.snakes.iter().enumerate() {
             if !first {
                 write!(f, ", ")?;
             } else {
                 first = false;
             }
-            write!(f, "({}: {})", snake.id, snake.health)?;
+            write!(f, "({}: {})", id, snake.health)?;
         }
         writeln!(f, "]")?;
 
@@ -506,7 +495,6 @@ mod test {
     use log::info;
 
     use crate::logging;
-
 
     #[test]
     fn game_parse() {

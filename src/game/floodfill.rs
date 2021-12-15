@@ -290,22 +290,27 @@ impl FloodFill {
     /// agent and the other snakes are the enemies.
     pub fn flood_snakes(&mut self, grid: &Grid, snakes: &[Snake]) -> [u16; 4] {
         self.clear();
-        let mut snakes: Vec<&Snake> = snakes.iter().filter(|s| s.alive()).collect();
+        let mut snakes: Vec<(bool, &Snake)> = snakes
+            .iter()
+            .enumerate()
+            .map(|(i, s)| (i == 0, s))
+            .filter(|&(_, s)| s.alive())
+            .collect();
 
         // Prepare board with snakes (tail = 1, ..., head = n)
-        for snake in &snakes {
+        for &(you, snake) in &snakes {
             for (i, p) in snake.body.iter().enumerate() {
                 let num = (i + 1).min(1 << FCELL_NUM - 1) as _;
-                self[*p] = FCell::with_occupier(snake.id == 0, num)
+                self[*p] = FCell::with_occupier(you, num)
             }
         }
 
         // Longer or equally long snakes first
-        snakes.sort_by_key(|s| Reverse(2 * s.body.len() - (s.id == 0) as usize));
+        snakes.sort_by_key(|&(you, s)| Reverse(2 * s.body.len() - you as usize));
         self.flood(
             grid,
-            snakes.iter().flat_map(|s| {
-                Direction::iter().map(move |d| (s.head().apply(d), s.id == 0, s.health))
+            snakes.iter().flat_map(|&(you, s)| {
+                Direction::iter().map(move |d| (s.head().apply(d), you, s.health))
             }),
         )
     }

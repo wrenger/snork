@@ -76,20 +76,24 @@ async fn play_game(
     shrink_turns: usize,
 ) -> bool {
     let mut game = init_game(width, height, agents.len());
+    let mut food_count = 4;
+    let mut rng = rand::thread_rng();
 
     debug!("init: {:?}", game);
 
     let mut hazard_insets = [0; 4];
 
     for turn in 0.. {
-        let mut request = game_to_request(&game, turn, timeout);
         let mut moves = [Direction::Up; 4];
-        for snake in &game.snakes {
-            if snake.alive() {
-                request.you = snake_data(snake);
+        for i in 0..game.snakes.len() {
+            if game.snakes[i].alive() {
+                // Agents assume player 0 is you.
+                game.snakes.swap(0, i);
 
-                let response = agents[snake.id as usize].step(&request, 0).await;
-                moves[snake.id as usize] = response.r#move;
+                let response = agents[i].step_internal(timeout, &game).await;
+                moves[i] = response.r#move;
+
+                game.snakes.swap(0, i);
             }
         }
         debug!("Moves: {:?}", moves);
@@ -107,9 +111,15 @@ async fn play_game(
             return true;
         }
 
+        // Check if snakes have consumed food
+        for snake in &game.snakes {
+            if snake.alive() && snake.health == 100 {
+                food_count -= 1;
+            }
+        }
+
         // Spawn food
-        let mut rng = rand::thread_rng();
-        if request.board.food.is_empty() || rng.gen::<f64>() < food_rate {
+        if food_count == 0 || rng.gen::<f64>() < food_rate {
             if let Some(cell) = game
                 .grid
                 .cells
@@ -118,6 +128,7 @@ async fn play_game(
                 .choose(&mut rng)
             {
                 cell.set_food(true);
+                food_count += 1;
             }
         }
 
@@ -162,8 +173,7 @@ fn init_game(width: usize, height: usize, num_agents: usize) -> Game {
 
     let snakes = start_positions
         .into_iter()
-        .enumerate()
-        .map(|(i, p)| Snake::new(i as _, vec![p; 3].into(), 100))
+        .map(|p| Snake::new(vec![p; 3].into(), 100))
         .collect();
 
     let mut game = Game::new(0, width, height, snakes, &[], &[]);
@@ -190,47 +200,4 @@ fn init_game(width: usize, height: usize, num_agents: usize) -> Game {
     }
 
     game
-}
-
-fn game_to_request(game: &Game, turn: usize, timeout: u64) -> GameRequest {
-    let snakes = game.snakes.iter().map(snake_data).collect::<Vec<_>>();
-
-    let mut food = Vec::new();
-    let mut hazards = Vec::new();
-
-    for (i, c) in game.grid.cells.iter().enumerate() {
-        let p = v2((i % game.grid.width) as i16, (i / game.grid.width) as i16);
-        if c.food() {
-            food.push(p);
-        }
-        if c.hazard() {
-            hazards.push(p);
-        }
-    }
-
-    GameRequest {
-        game: GameData {
-            timeout,
-            ..GameData::default()
-        },
-        turn: turn as _,
-        you: snakes[0].clone(),
-        board: Board {
-            height: game.grid.height,
-            width: game.grid.width,
-            food,
-            hazards,
-            snakes,
-        },
-    }
-}
-
-fn snake_data(s: &Snake) -> SnakeData {
-    SnakeData {
-        id: format!("{}", s.id),
-        name: String::new(),
-        health: s.health,
-        body: s.body.iter().cloned().rev().collect(),
-        shout: String::new(),
-    }
 }

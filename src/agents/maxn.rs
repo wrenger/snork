@@ -14,23 +14,16 @@ use tokio::time;
 const FAST_TIMEOUT: u64 = 150;
 const MAX_DEPTH: usize = 16;
 
-pub async fn step<H: Heuristic>(
-    heuristic: &H,
-    request: &GameRequest,
-    latency: u64,
-) -> MoveResponse {
-    let ms = request.game.timeout.saturating_sub(latency);
-    if ms <= FAST_TIMEOUT {
-        return step_fast(heuristic, request);
+pub async fn step<H: Heuristic>(heuristic: &H, timeout: u64, game: &Game) -> MoveResponse {
+    if timeout <= FAST_TIMEOUT {
+        return step_fast(heuristic, game);
     }
-
-    let game = Game::from_request(request);
 
     let (sender, mut receiver) = mpsc::channel(MAX_DEPTH);
 
     let _ = time::timeout(
-        Duration::from_millis(ms),
-        iterative_tree_search(heuristic, &game, sender),
+        Duration::from_millis(timeout),
+        iterative_tree_search(heuristic, game, sender),
     )
     .await;
 
@@ -47,9 +40,7 @@ pub async fn step<H: Heuristic>(
     MoveResponse::new(game.valid_moves(0).next().unwrap_or(Direction::Up))
 }
 
-pub fn step_fast<H: Heuristic>(heuristic: &H, request: &GameRequest) -> MoveResponse {
-    let game = Game::from_request(request);
-
+pub fn step_fast<H: Heuristic>(heuristic: &H, game: &Game) -> MoveResponse {
     let start = Instant::now();
     let result = search::max_n(&game, 1, heuristic);
 

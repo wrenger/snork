@@ -2,7 +2,7 @@ use std::cmp::Reverse;
 use std::collections::BinaryHeap;
 use std::time::Instant;
 
-use log::{warn, info};
+use log::{info, warn};
 
 use crate::env::*;
 use crate::game::search::Heuristic;
@@ -50,7 +50,6 @@ impl MobilityAgent {
     fn find_food(
         &self,
         game: &Game,
-        food: &[Vec2D],
         flood_fill: &FloodFill,
         space_after_move: &[f64; 4],
     ) -> Option<Direction> {
@@ -74,8 +73,18 @@ impl MobilityAgent {
             }
         }
 
+        // Find food
+        let mut food = Vec::new();
+        for y in 0..game.grid.height as i16 {
+            for x in 0..game.grid.width as i16 {
+                if game.grid[v2(x, y)].food() {
+                    food.push(v2(x, y));
+                }
+            }
+        }
+
         let mut food_dirs = BinaryHeap::new();
-        for &p in food {
+        for p in food {
             if let Some(path) = grid.a_star(you.head(), p, &first_move_costs) {
                 if path.len() >= 2 {
                     let costs = path.len() + if flood_fill[p].is_you() { 0 } else { 5 };
@@ -93,8 +102,7 @@ impl MobilityAgent {
         None
     }
 
-    pub async fn step(&self, request: &GameRequest, _: u64) -> MoveResponse {
-        let game = Game::from_request(request);
+    pub async fn step(&self, game: &Game) -> MoveResponse {
         let you = &game.snakes[0];
 
         // Flood fill heuristics
@@ -111,9 +119,7 @@ impl MobilityAgent {
 
         // Find Food
         if you.body.len() < self.min_len || you.health < self.health_threshold {
-            if let Some(dir) =
-                self.find_food(&game, &request.board.food, &flood_fill, &space_after_move)
-            {
+            if let Some(dir) = self.find_food(&game, &flood_fill, &space_after_move) {
                 info!(">>> find food");
                 return MoveResponse::new(dir);
             }

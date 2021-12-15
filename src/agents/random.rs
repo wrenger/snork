@@ -5,8 +5,7 @@ use rand::seq::IteratorRandom;
 pub struct RandomAgent;
 
 impl RandomAgent {
-    pub async fn step(&self, request: &GameRequest, _: u64) -> MoveResponse {
-        let game = Game::from_request(request);
+    pub async fn step(&self, game: &Game) -> MoveResponse {
         let mut rng = rand::thread_rng();
         MoveResponse::new(
             game.valid_moves(0)
