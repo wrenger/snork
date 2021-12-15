@@ -12,7 +12,7 @@ use tokio::sync::mpsc;
 use tokio::time;
 
 const FAST_TIMEOUT: u64 = 150;
-const MAX_DEPTH: usize = 8;
+const MAX_DEPTH: usize = 16;
 
 pub async fn step<H: Heuristic>(
     heuristic: &H,
