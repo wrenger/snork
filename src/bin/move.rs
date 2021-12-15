@@ -7,7 +7,7 @@ use snork::game::*;
 use snork::logging;
 
 #[derive(structopt::StructOpt)]
-#[structopt(name = "rusty snake move", about = "Simulate a move for an agent.")]
+#[structopt(name = "snork move", about = "Simulate a move for an agent.")]
 struct Opts {
     /// Default configuration.
     #[structopt(long, default_value)]
@@ -15,8 +15,9 @@ struct Opts {
     /// JSON Game request.
     #[structopt(parse(try_from_str = serde_json::from_str))]
     request: GameRequest,
+    /// Time in ms that is subtracted from the game timeouts.
     #[structopt(long, default_value = "200")]
-    runtime: usize,
+    latency: usize,
 }
 
 #[tokio::main]
@@ -26,7 +27,7 @@ async fn main() {
     let Opts {
         config,
         request,
-        runtime,
+        latency,
     } = Opts::from_args();
 
     let game = Game::from_request(&request);
@@ -36,7 +37,7 @@ async fn main() {
     flood_fill.flood_snakes(&game.grid, &game.snakes);
     info!("{:?}", flood_fill);
 
-    let step = config.step(&request, runtime as _).await;
+    let step = config.step(&request, latency as _).await;
 
     info!("Step: {:?}", step);
 }

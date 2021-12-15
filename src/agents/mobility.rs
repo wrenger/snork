@@ -107,7 +107,7 @@ impl MobilityAgent {
 
         // Flood fill heuristics
         let start = Instant::now();
-        let space_after_move = search::max_n(&game, 1, &MobilityHeuristic);
+        let space_after_move = search::max_n(game, 1, &MobilityHeuristic);
         info!(
             "max_n {:?}ms {:?}",
             start.elapsed().as_millis(),
@@ -119,7 +119,7 @@ impl MobilityAgent {
 
         // Find Food
         if you.body.len() < self.min_len || you.health < self.health_threshold {
-            if let Some(dir) = self.find_food(&game, &flood_fill, &space_after_move) {
+            if let Some(dir) = self.find_food(game, &flood_fill, &space_after_move) {
                 info!(">>> find food");
                 return MoveResponse::new(dir);
             }

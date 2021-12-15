@@ -43,15 +43,15 @@ impl Agent {
 
     pub async fn step_internal(&self, timeout: u64, game: &Game) -> MoveResponse {
         if game.grid.width > MAX_BOARD_SIZE || game.grid.height > MAX_BOARD_SIZE {
-            return RandomAgent.step(&game).await;
+            return RandomAgent.step(game).await;
         }
 
         match self {
-            Agent::Mobility(agent) => agent.step(&game).await,
-            Agent::Tree(agent) => maxn::step(agent, timeout, &game).await,
-            Agent::Flood(agent) => maxn::step(agent, timeout, &game).await,
-            Agent::FloodExp(agent) => expectimax::step(agent, timeout, &game).await,
-            Agent::Random(agent) => agent.step(&game).await,
+            Agent::Mobility(agent) => agent.step(game).await,
+            Agent::Tree(agent) => maxn::step(agent, timeout, game).await,
+            Agent::Flood(agent) => maxn::step(agent, timeout, game).await,
+            Agent::FloodExp(agent) => expectimax::step(agent, timeout, game).await,
+            Agent::Random(agent) => agent.step(game).await,
         }
     }
 }

@@ -3,7 +3,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Instant;
 
-use log::{warn, info};
+use log::{info, warn};
 use snork::agents::*;
 use snork::env::{GameRequest, IndexResponse, API_VERSION};
 
@@ -22,26 +22,14 @@ struct State {
     config: Agent,
 }
 
-impl State {
-    fn new(latency: u64, color: String, head: String, tail: String, config: Agent) -> State {
-        State {
-            latency,
-            color,
-            head,
-            tail,
-            config,
-        }
-    }
-}
-
 #[derive(Debug, StructOpt)]
-#[structopt(name = "rusty snake", about = "High performant rust snake.")]
+#[structopt(name = "snork server", about = "High performant rust snake.")]
 struct Opt {
     /// IP and Port of the webserver.
     /// **Note**: Use the IP Address of your device if you want to access it from another device. (`127.0.0.1` or `localhost` is private to your computer)
     #[structopt(long, default_value = "127.0.0.1:5001")]
     host: SocketAddr,
-    /// Time in ms that are subtracted from the game timeouts.
+    /// Time in ms that is subtracted from the game timeouts.
     #[structopt(long, default_value = "100")]
     latency: u64,
     /// Color in hex format.
@@ -71,7 +59,13 @@ async fn main() {
         config,
     } = Opt::from_args();
 
-    let state = Arc::new(State::new(latency, color, head, tail, config));
+    let state = Arc::new(State {
+        latency,
+        color,
+        head,
+        tail,
+        config,
+    });
 
     let index = warp::get()
         .and(warp::path::end())
@@ -110,8 +104,11 @@ async fn main() {
         .and(warp::body::json::<GameRequest>())
         .map(|request: GameRequest| {
             warn!(
-                "end {} game {},{}",
-                request.game.ruleset.name, request.game.id, request.you.id
+                "end {} game {},{} win={}",
+                request.game.ruleset.name,
+                request.game.id,
+                request.you.id,
+                request.you.health == 0
             );
             warp::reply()
         });

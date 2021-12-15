@@ -9,7 +9,7 @@ pub async fn async_alphabeta<H: Heuristic>(
     depth: usize,
     heuristic: &H,
 ) -> (Direction, f64) {
-    async_alphabeta_rec(&game, [Direction::Up; 4], depth, 0, LOSS, WIN, heuristic).await
+    async_alphabeta_rec(game, [Direction::Up; 4], depth, 0, LOSS, WIN, heuristic).await
 }
 
 /// # WARNING
@@ -81,7 +81,7 @@ async fn async_alphabeta_rec<H: Heuristic>(
     } else {
         let mut value = (Direction::Up, WIN);
         for d in Direction::iter() {
-            let mut actions = actions.clone();
+            let mut actions = actions;
             actions[ply] = d;
             let newval =
                 async_alphabeta_rec(game, actions, depth, ply + 1, alpha, beta, heuristic).await;
@@ -104,7 +104,7 @@ async fn async_alphabeta_rec<H: Heuristic>(
 /// Assuming the maximizing agent has id 0
 /// Assuming only two snakes are alive
 pub fn alphabeta<H: Heuristic>(game: &Game, depth: usize, heuristic: &H) -> (Direction, f64) {
-    alphabeta_rec(&game, [Direction::Up; 4], depth, 0, LOSS, WIN, heuristic)
+    alphabeta_rec(game, [Direction::Up; 4], depth, 0, LOSS, WIN, heuristic)
 }
 
 fn alphabeta_rec<H: Heuristic>(

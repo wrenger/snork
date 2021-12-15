@@ -2,7 +2,7 @@ use std::cmp::Reverse;
 use std::collections::{BinaryHeap, VecDeque};
 use std::fmt::{self, Debug};
 
-use owo_colors::{OwoColorize, Style};
+use owo_colors::{AnsiColors, OwoColorize};
 
 use super::{Cell, Grid};
 use crate::env::{Direction, GameRequest, SnakeData, Vec2D, HAZARD_DAMAGE};
@@ -355,13 +355,13 @@ impl Debug for Game {
             Tail(Direction, u8),
             Head(u8),
         }
-        fn id_color(id: u8) -> Style {
+        fn id_color(id: u8) -> AnsiColors {
             match id {
-                0 => Style::new().green(),
-                1 => Style::new().yellow(),
-                2 => Style::new().blue(),
-                3 => Style::new().magenta(),
-                _ => Style::new().cyan(),
+                0 => AnsiColors::Green,
+                1 => AnsiColors::Yellow,
+                2 => AnsiColors::Blue,
+                3 => AnsiColors::Magenta,
+                _ => AnsiColors::Cyan,
             }
         }
         impl Debug for FmtCell {
@@ -370,12 +370,12 @@ impl Debug for Game {
                     FmtCell::Free => write!(f, "."),
                     FmtCell::Food => write!(f, "{}", "o".red()),
                     FmtCell::Tail(dir, id) => match dir {
-                        Direction::Up => write!(f, "{}", "^".style(id_color(id))),
-                        Direction::Right => write!(f, "{}", ">".style(id_color(id))),
-                        Direction::Down => write!(f, "{}", "v".style(id_color(id))),
-                        Direction::Left => write!(f, "{}", "<".style(id_color(id))),
+                        Direction::Up => write!(f, "{}", "^".color(id_color(id))),
+                        Direction::Right => write!(f, "{}", ">".color(id_color(id))),
+                        Direction::Down => write!(f, "{}", "v".color(id_color(id))),
+                        Direction::Left => write!(f, "{}", "<".color(id_color(id))),
                     },
-                    FmtCell::Head(id) => write!(f, "{}", id.style(id_color(id))),
+                    FmtCell::Head(id) => write!(f, "{}", id.color(id_color(id))),
                 }
             }
         }
@@ -545,7 +545,7 @@ mod test {
             VecDeque::from(vec![Vec2D::new(0, 1), Vec2D::new(0, 1), Vec2D::new(0, 0),])
         );
 
-        info!("{:?}", game.grid);
+        info!("{:?}", game);
     }
 
     #[test]
@@ -574,7 +574,7 @@ mod test {
             // Both right
             let mut game = game.clone();
             game.step(&[Right, Right]);
-            info!("{:?}", game.grid);
+            info!("{:?}", game);
             assert!(game.snake_is_alive(0));
             assert!(game.snake_is_alive(1));
             assert!(!game.grid[Vec2D::new(4, 6)].owned());
@@ -584,7 +584,7 @@ mod test {
 
             // Snake 0 runs into 1
             game.step(&[Right, Right]);
-            info!("{:?}", game.grid);
+            info!("{:?}", game);
             assert!(!game.snake_is_alive(0));
             assert!(!game.grid[Vec2D::new(5, 8)].owned());
             assert!(game.snake_is_alive(1));
@@ -594,7 +594,7 @@ mod test {
         {
             // Head to head equal len
             game.step(&[Right, Left]);
-            info!("{:?}", game.grid);
+            info!("{:?}", game);
             assert!(!game.snake_is_alive(0));
             assert!(!game.snake_is_alive(1));
         }

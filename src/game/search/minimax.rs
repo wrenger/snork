@@ -14,7 +14,7 @@ use super::{Heuristic, DRAW, LOSS, WIN};
 /// Dead enemies are skipped.
 pub async fn async_max_n<H: Heuristic>(game: &Game, depth: usize, heuristic: &H) -> [f64; 4] {
     assert!(game.snakes.len() <= 4);
-    async_max_n_rec(&game, depth, 0, [Direction::Up; 4], heuristic).await
+    async_max_n_rec(game, depth, 0, [Direction::Up; 4], heuristic).await
 }
 
 #[async_recursion]
@@ -89,7 +89,7 @@ async fn async_max_n_rec<H: Heuristic>(
             }
             moved = true;
 
-            let mut actions = actions.clone();
+            let mut actions = actions;
             actions[ply] = d;
             let val = async_max_n_rec(game, depth, ply + 1, actions, heuristic).await[0];
             if val < min {
@@ -120,7 +120,7 @@ where
     H: Heuristic,
 {
     assert!(game.snakes.len() <= 4);
-    max_n_rec(&game, depth, 0, [Direction::Up; 4], heuristic)
+    max_n_rec(game, depth, 0, [Direction::Up; 4], heuristic)
 }
 
 fn max_n_rec<H>(

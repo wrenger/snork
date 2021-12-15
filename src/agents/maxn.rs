@@ -42,7 +42,7 @@ pub async fn step<H: Heuristic>(heuristic: &H, timeout: u64, game: &Game) -> Mov
 
 pub fn step_fast<H: Heuristic>(heuristic: &H, game: &Game) -> MoveResponse {
     let start = Instant::now();
-    let result = search::max_n(&game, 1, heuristic);
+    let result = search::max_n(game, 1, heuristic);
 
     info!(
         ">>> max_n 1 {:?}ms {:?}",
@@ -91,7 +91,7 @@ pub async fn tree_search<H: Heuristic>(
 ) -> (Direction, f64) {
     let start = Instant::now();
 
-    let result = search::async_max_n(&game, depth, heuristic).await;
+    let result = search::async_max_n(game, depth, heuristic).await;
 
     info!(
         ">>> max_n {} {:?}ms {:?}",

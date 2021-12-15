@@ -80,11 +80,7 @@ impl std::fmt::Debug for FCell {
             } else {
                 style
             };
-            if self.is_occupied() {
-                write!(f, "{:0>3}", self.get_num().style(style))
-            } else {
-                write!(f, "{:0>3}", self.get_num().style(style))
-            }
+            write!(f, "{:0>3}", self.get_num().style(style))
         }
     }
 }
@@ -197,20 +193,17 @@ impl FloodFill {
         grid: &Grid,
         heads: impl Iterator<Item = (Vec2D, bool, u8)>,
     ) -> [u16; 4] {
-        assert_eq!(self.width, grid.width);
-        assert_eq!(self.height, grid.height);
-
         #[inline]
         fn owns(cell: FCell, you: bool, num: u16, food: u16, health: u8) -> bool {
             cell.is_free()
+                // we can reach this location with higher health
+                || (cell.is_owned() && cell.is_you() == you && cell.get_num() < health as u16)
                 || (cell.is_occupied()
                     // follow your tail
                     && ((cell.is_you() == you && cell.get_num() <= num - food)
                         // follow enemy tail
                         // distance of 1 as buffer for eating
                         || (cell.is_you() != you && (cell.get_num() <= 1 || cell.get_num() <= num - you as u16))))
-                // we can reach this location with higher health
-                || (cell.is_owned() && cell.is_you() == you && cell.get_num() < health as u16)
         }
 
         let mut food_distances = [u16::MAX; 4];
@@ -300,7 +293,7 @@ impl FloodFill {
         // Prepare board with snakes (tail = 1, ..., head = n)
         for &(you, snake) in &snakes {
             for (i, p) in snake.body.iter().enumerate() {
-                let num = (i + 1).min(1 << FCELL_NUM - 1) as _;
+                let num = (i + 1).min(1 << (FCELL_NUM - 1)) as _;
                 self[*p] = FCell::with_occupier(you, num)
             }
         }

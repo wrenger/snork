@@ -11,7 +11,7 @@ pub async fn expectimax<H: Heuristic>(
     heuristic: &H,
 ) -> (Direction, f64) {
     assert!(game.snakes.len() <= 4);
-    let (dir, h, _count) = expectimax_rec(&game, depth, 0, [Direction::Up; 4], heuristic).await;
+    let (dir, h, _count) = expectimax_rec(game, depth, 0, [Direction::Up; 4], heuristic).await;
     (dir, h)
 }
 
@@ -88,7 +88,7 @@ async fn expectimax_rec<H: Heuristic>(
                 total += LOSS;
                 continue;
             }
-            let mut actions = actions.clone();
+            let mut actions = actions;
             actions[ply] = d;
             let (_, val, c) = expectimax_rec(game, depth, ply + 1, actions, heuristic).await;
             total += val;

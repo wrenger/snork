@@ -12,24 +12,27 @@ use rand::seq::IteratorRandom;
 use std::time::Instant;
 
 #[derive(structopt::StructOpt)]
-#[structopt(
-    name = "rusty snake simulator",
-    about = "Simulate a game with different agents."
-)]
+#[structopt(name = "snork simulator", about = "Simulate a game between agents.")]
 struct Opts {
+    /// Time each snake has for a turn.
     #[structopt(long, default_value = "200")]
     timeout: u64,
+    /// Board height.
     #[structopt(long, default_value = "11")]
     width: usize,
+    /// Board width.
     #[structopt(long, default_value = "11")]
     height: usize,
+    /// Chance new food spawns.
     #[structopt(long, default_value = "0.15")]
     food_rate: f64,
+    /// Number of turns after which the hazard expands.
     #[structopt(short, long, default_value = "25")]
     shrink_turns: usize,
+    /// Number of games that are played.
     #[structopt(short, long, default_value = "1")]
     game_count: usize,
-
+    /// Configurations.
     agents: Vec<Agent>,
 }
 
