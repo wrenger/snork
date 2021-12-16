@@ -286,8 +286,8 @@ impl FloodFill {
         let mut snakes: Vec<(bool, &Snake)> = snakes
             .iter()
             .enumerate()
-            .map(|(i, s)| (i == 0, s))
             .filter(|&(_, s)| s.alive())
+            .map(|(i, s)| (i == 0, s))
             .collect();
 
         // Prepare board with snakes (tail = 1, ..., head = n)

@@ -42,9 +42,12 @@ impl Heuristic for FloodHeuristic {
 
             let max_enemy_len = game.snakes[1..]
                 .iter()
+                .filter(|s| s.alive())
                 .map(|s| s.body.len())
                 .max()
-                .unwrap_or(1) as f64;
+                .unwrap_or(1)
+                .max(1) as f64;
+
             // Sqrt because if we are larger we do not have to as grow much anymore.
             let len_advantage =
                 ((own_len + food_distance * self.food_distance) / max_enemy_len).sqrt();

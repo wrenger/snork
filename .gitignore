@@ -6,3 +6,9 @@ Cargo.lock
 .DS_Store
 *~*
 /start.zsh
+
+# Python
+venv/
+__pycache__
+optim_output/
+dask-worker-space/

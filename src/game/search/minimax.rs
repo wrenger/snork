@@ -31,7 +31,7 @@ async fn async_max_n_rec<H: Heuristic>(
         game.step(&actions[..]);
 
         match game.outcome() {
-            Outcome::Winner(0) => return [WIN; 4],
+            Outcome::Winner(0) => return [WIN + heuristic.eval(&game), DRAW, DRAW, DRAW],
             Outcome::Winner(_) => return [LOSS; 4],
             Outcome::Match => return [DRAW; 4],
             Outcome::None => {}
@@ -81,23 +81,24 @@ async fn async_max_n_rec<H: Heuristic>(
 
         result
     } else {
-        let mut min = WIN;
+        let mut min = 2.0 * WIN;
         let mut moved = false;
         for d in Direction::iter() {
             if !game.move_is_valid(ply as u8, d) {
                 continue;
             }
-            moved = true;
 
             let mut actions = actions;
             actions[ply] = d;
             let val = async_max_n_rec(game, depth, ply + 1, actions, heuristic).await[0];
             if val < min {
                 min = val;
-            }
-            // skip if already lowest possible outcome
-            if val <= LOSS {
-                break;
+                moved = true;
+
+                // skip if already lowest possible outcome
+                if val <= LOSS {
+                    break;
+                }
             }
         }
         if !moved {
@@ -139,7 +140,7 @@ where
         game.step(&actions[..]);
 
         match game.outcome() {
-            Outcome::Winner(0) => return [WIN; 4],
+            Outcome::Winner(0) => return [WIN + heuristic.eval(&game), DRAW, DRAW, DRAW],
             Outcome::Winner(_) => return [LOSS; 4],
             Outcome::Match => return [DRAW; 4],
             Outcome::None => {}
@@ -171,7 +172,7 @@ where
         }
         result
     } else {
-        let mut min = WIN;
+        let mut min = 2.0 * WIN;
         let mut moved = false;
         for d in Direction::iter() {
             if !game.move_is_valid(ply as u8, d) {
