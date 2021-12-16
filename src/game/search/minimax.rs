@@ -178,17 +178,18 @@ where
             if !game.move_is_valid(ply as u8, d) {
                 continue;
             }
-            moved = true;
 
             let mut actions = actions;
             actions[ply] = d;
             let val = max_n_rec(game, depth, ply + 1, actions, heuristic)[0];
             if val < min {
                 min = val;
-            }
-            // skip if already lowest possible outcome
-            if val <= LOSS {
-                break;
+                moved = true;
+
+                // skip if already lowest possible outcome
+                if val <= LOSS {
+                    break;
+                }
             }
         }
         if !moved {
