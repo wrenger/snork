@@ -1,3 +1,4 @@
+use log::info;
 use log::{debug, warn};
 use owo_colors::OwoColorize;
 use snork::logging;
@@ -32,6 +33,9 @@ struct Opts {
     /// Number of games that are played.
     #[structopt(short, long, default_value = "1")]
     game_count: usize,
+    /// Seed for the random number generator.
+    #[structopt(short, long, default_value = "0")]
+    seed: u64,
     /// Configurations.
     agents: Vec<Agent>,
 }
@@ -47,17 +51,33 @@ async fn main() {
         food_rate,
         shrink_turns,
         game_count,
+        seed,
         agents,
     } = Opts::from_args();
 
     assert!(agents.len() <= 4, "Only up to 4 snakes are supported");
+    info!("agents: {:?}", agents);
 
     let start = Instant::now();
 
     let mut wins = 0;
+    let mut rng = if seed == 0 {
+        SmallRng::from_entropy()
+    } else {
+        SmallRng::seed_from_u64(seed)
+    };
 
     for i in 0..game_count {
-        let win = play_game(&agents, width, height, timeout, food_rate, shrink_turns).await;
+        let win = play_game(
+            &agents,
+            width,
+            height,
+            timeout,
+            food_rate,
+            shrink_turns,
+            &mut rng,
+        )
+        .await;
         wins += win as usize;
         warn!(
             "{}: {} {}ms",
@@ -77,10 +97,10 @@ async fn play_game(
     timeout: u64,
     food_rate: f64,
     shrink_turns: usize,
+    rng: &mut SmallRng,
 ) -> bool {
-    let mut game = init_game(width, height, agents.len());
+    let mut game = init_game(width, height, agents.len(), rng);
     let mut food_count = 4;
-    let mut rng = rand::thread_rng();
 
     debug!("init: {:?}", game);
 
@@ -128,7 +148,7 @@ async fn play_game(
                 .cells
                 .iter_mut()
                 .filter(|c| !c.food() && !c.owned())
-                .choose(&mut rng)
+                .choose(rng)
             {
                 cell.set_food(true);
                 food_count += 1;
@@ -167,12 +187,11 @@ async fn play_game(
     false
 }
 
-fn init_game(width: usize, height: usize, num_agents: usize) -> Game {
-    let mut rng = rand::thread_rng();
+fn init_game(width: usize, height: usize, num_agents: usize, rng: &mut SmallRng) -> Game {
     let start_positions = (0..width * height)
         .filter(|i| i % 2 == 0)
         .map(|i| v2((i % width) as i16, (i / width) as i16))
-        .choose_multiple(&mut rng, num_agents);
+        .choose_multiple(rng, num_agents);
 
     let snakes = start_positions
         .into_iter()
@@ -196,7 +215,7 @@ fn init_game(width: usize, height: usize, num_agents: usize) -> Game {
         .into_iter()
         .map(|p| snake.head() + p)
         .filter(|&p| game.grid.has(p) && !game.grid[p].owned())
-        .choose(&mut rng);
+        .choose(rng);
         if let Some(p) = p {
             game.grid[p].set_food(true);
         }

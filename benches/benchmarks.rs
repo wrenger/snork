@@ -1,5 +1,6 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
+use rand::{SeedableRng, rngs::SmallRng};
 use snork::agents::{maxn, FloodHeuristic, MobilityAgent, TreeHeuristic};
 use snork::game::search::{self, Heuristic};
 use snork::game::{FloodFill, Game, Outcome, Snake};
@@ -75,7 +76,7 @@ fn game_step_random(c: &mut Criterion) {
 
     c.bench_function("game_step_random", |b| {
         b.iter(|| {
-            let mut rng = rand::thread_rng();
+            let mut rng = SmallRng::from_entropy();
             // let mut turn = 0;
             let mut game = game.clone();
             loop {
