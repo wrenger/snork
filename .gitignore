@@ -9,6 +9,7 @@ Cargo.lock
 
 # Python
 venv/
-__pycache__
+__pycache__/
 optim_output/
 dask-worker-space/
+
