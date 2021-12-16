@@ -13,4 +13,4 @@ __pycache__/
 optim_output/
 dask-worker-space/
 venv/
-
+*_output/

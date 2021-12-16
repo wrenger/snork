@@ -147,11 +147,10 @@ def optim_dehb(args):
             # parameters expected as **kwargs in target_function is passed here (surpassed by wrapper)
         )
 
-    config, score, cost, budget, _info = history[-1]
-    print("Last evaluated configuration, ")
-    print(dehb.vector_to_configspace(config), end="")
-    print(f"got a score of {score}, was evaluated at a budget of {budget:.2f} and "
-          f"took {cost/1000:.3f} seconds to run.")
+    best_config = dehb.vector_to_configspace(dehb.inc_config)
+    inc_value = f(best_config)
+    print(f"Optimized Configuration {best_config} evaluates to a win percentage of {(1 - inc_value['fitness']) * 100:.2f}%")
+
 
 def optim_smac(args):
     tae = snake_from_config_wrapper("SMAC", args.num_opponents, args.num_games_per_eval, args.timeout)
@@ -204,13 +203,13 @@ if __name__ == "__main__":
                         help="Max time in seconds optimizer runs for. DEHB overwrites this with runtime, pass 0 as runcount_limit to prevent this..")
     parser.add_argument("-j", "--n_jobs", type=int, default=8,
                         help="Number of workers that are started. Uses pSMAC if optimizer == SMAC.")
-    parser.add_argument("-o", "--output_dir", type=str, default="./optim_output",
+    parser.add_argument("-o", "--output_dir", type=str, default="./optim",
                         help="Location of log directory. pSMAC for example uses it also for internal communication,"
-                             " so if using SMAC make sure that the directory is empty.")
+                             " so if using SMAC make sure that the directory is empty. '_output' will be appended.")
     parser.add_argument("--num_opponents", type=int, default=1,
                         help="Number of opponents agent is trained against: [1,3]")
     args = parser.parse_args()
-
+    args.output_dir += "_output"
     cs = get_cs(args.agents)
 
     if args.optimizer == "DEHB":
