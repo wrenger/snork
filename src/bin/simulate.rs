@@ -10,6 +10,7 @@ use snork::game::*;
 
 use rand::prelude::*;
 use rand::seq::IteratorRandom;
+use std::iter::repeat;
 use std::time::Instant;
 
 #[derive(structopt::StructOpt)]
@@ -60,7 +61,7 @@ async fn main() {
 
     let start = Instant::now();
 
-    let mut wins = 0;
+    let mut wins = repeat(0).take(agents.len()).collect::<Vec<usize>>();
     let mut rng = if seed == 0 {
         SmallRng::from_entropy()
     } else {
@@ -68,7 +69,7 @@ async fn main() {
     };
 
     for i in 0..game_count {
-        let win = play_game(
+        let outcome = play_game(
             &agents,
             width,
             height,
@@ -78,7 +79,10 @@ async fn main() {
             &mut rng,
         )
         .await;
-        wins += win as usize;
+        match outcome {
+            Outcome::Winner(winner) => wins[winner as usize] += 1,
+            _ => {},
+        }
         warn!(
             "{}: {} {}ms",
             "Finish Game".bright_green(),
@@ -87,7 +91,7 @@ async fn main() {
         );
     }
 
-    println!("Result: {}/{}", wins, game_count);
+    println!("Result: {:?}", wins);
 }
 
 async fn play_game(
@@ -98,7 +102,7 @@ async fn play_game(
     food_rate: f64,
     shrink_turns: usize,
     rng: &mut SmallRng,
-) -> bool {
+) -> Outcome {
     let mut game = init_game(width, height, agents.len(), rng);
     let mut food_count = 4;
 
@@ -125,13 +129,10 @@ async fn play_game(
 
         debug!("{}: {:?}", turn, game);
 
-        if !game.snake_is_alive(0) {
-            warn!("game: loss after {} turns", turn);
-            return false;
-        }
-        if game.outcome() == Outcome::Winner(0) {
-            warn!("game: win after {} turns", turn);
-            return true;
+        let outcome = game.outcome();
+        if outcome != Outcome::None {
+            warn!("game: {:?} after {} turns", outcome, turn);
+            return outcome;
         }
 
         // Check if snakes have consumed food
@@ -184,7 +185,7 @@ async fn play_game(
             }
         }
     }
-    false
+    return Outcome::Match;
 }
 
 fn init_game(width: usize, height: usize, num_agents: usize, rng: &mut SmallRng) -> Game {
