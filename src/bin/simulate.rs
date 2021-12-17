@@ -35,8 +35,11 @@ struct Opts {
     #[structopt(short, long, default_value = "1")]
     game_count: usize,
     /// Seed for the random number generator.
-    #[structopt(short, long, default_value = "0")]
+    #[structopt(long, default_value = "0")]
     seed: u64,
+    /// Start config.
+    #[structopt(long, parse(try_from_str = serde_json::from_str))]
+    init: Option<GameRequest>,
     /// Configurations.
     agents: Vec<Agent>,
 }
@@ -53,6 +56,7 @@ async fn main() {
         shrink_turns,
         game_count,
         seed,
+        init,
         agents,
     } = Opts::from_args();
 
@@ -69,10 +73,16 @@ async fn main() {
     };
 
     for i in 0..game_count {
+        let mut game =
+        if let Some(request) = &init {
+            Game::from_request(request)
+        } else {
+            init_game(width, height, agents.len(), &mut rng)
+        };
+
         let outcome = play_game(
             &agents,
-            width,
-            height,
+            &mut game,
             timeout,
             food_rate,
             shrink_turns,
@@ -96,14 +106,12 @@ async fn main() {
 
 async fn play_game(
     agents: &[Agent],
-    width: usize,
-    height: usize,
+    game: &mut Game,
     timeout: u64,
     food_rate: f64,
     shrink_turns: usize,
     rng: &mut SmallRng,
 ) -> Outcome {
-    let mut game = init_game(width, height, agents.len(), rng);
     let mut food_count = 4;
 
     debug!("init: {:?}", game);

@@ -44,7 +44,7 @@ impl Heuristic for TreeHeuristic {
 
         let mut flood_fill = FloodFill::new(game.grid.width, game.grid.height);
         let food_distances = flood_fill.flood_snakes(&game.grid, &game.snakes);
-        let space = flood_fill.count_space(true);
+        let space = flood_fill.count_space(0);
         let mobility = space as f64 / (game.grid.width * game.grid.height) as f64;
 
         let health = game.snakes[0].health as f64 / 100.0;

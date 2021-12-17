@@ -215,7 +215,7 @@ mod test {
             let mut flood_fill = FloodFill::new(game.grid.width, game.grid.height);
             if game.snake_is_alive(0) {
                 flood_fill.flood_snakes(&game.grid, &game.snakes);
-                flood_fill.count_space(true) as f64
+                flood_fill.count_space(0) as f64
             } else {
                 0.0
             }

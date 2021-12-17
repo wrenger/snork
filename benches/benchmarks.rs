@@ -1,6 +1,6 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
-use rand::{SeedableRng, rngs::SmallRng};
+use rand::{rngs::SmallRng, SeedableRng};
 use snork::agents::{maxn, FloodHeuristic, MobilityAgent, TreeHeuristic};
 use snork::game::search::{self, Heuristic};
 use snork::game::{FloodFill, Game, Outcome, Snake};
@@ -14,7 +14,7 @@ impl Heuristic for TestH {
         let mut flood_fill = FloodFill::new(game.grid.width, game.grid.height);
         if game.snake_is_alive(0) {
             flood_fill.flood_snakes(&game.grid, &game.snakes);
-            flood_fill.count_space(true) as f64
+            flood_fill.count_space(0) as f64
         } else {
             0.0
         }
@@ -173,6 +173,17 @@ fn async_alphabeta(c: &mut Criterion) {
     });
 }
 
+fn floodfill_normal(c: &mut Criterion) {
+    logging();
+    let request: GameRequest = serde_json::from_str(
+            r#"{"game":{"id":"bcb8c2e8-4fb7-485b-9ade-9df947dd9623","ruleset":{"name":"standard","version":"v1.0.15"},"timeout":500},"turn":69,"board":{"height":11,"width":11,"food":[{"x":7,"y":9},{"x":1,"y":0}],"hazards":[],"snakes":[{"id":"gs_3MjqcwQJxYG7VrvjbbkRW9JB","name":"Nessegrev-flood","health":85,"body":[{"x":7,"y":10},{"x":8,"y":10},{"x":8,"y":9},{"x":9,"y":9},{"x":10,"y":9},{"x":10,"y":8},{"x":10,"y":7}],"shout":""},{"id":"gs_c9JrKQcQqHHPJFm43W47RKMd","name":"Rufio the Tenacious","health":80,"body":[{"x":5,"y":8},{"x":4,"y":8},{"x":4,"y":9},{"x":3,"y":9},{"x":2,"y":9},{"x":2,"y":8},{"x":2,"y":7}],"shout":""},{"id":"gs_ffjK7pqCwVXYGtwhWtk3vtJX","name":"marrrvin","health":89,"body":[{"x":8,"y":7},{"x":8,"y":8},{"x":7,"y":8},{"x":7,"y":7},{"x":7,"y":6},{"x":6,"y":6},{"x":5,"y":6},{"x":5,"y":5},{"x":6,"y":5}],"shout":""},{"id":"gs_Kr6BCBwbDpdGDpWbw9vMS6qV","name":"kostka","health":93,"body":[{"x":7,"y":2},{"x":7,"y":3},{"x":6,"y":3},{"x":5,"y":3},{"x":4,"y":3},{"x":3,"y":3}],"shout":""}]},"you":{"id":"gs_ffjK7pqCwVXYGtwhWtk3vtJX","name":"marrrvin","health":89,"body":[{"x":8,"y":7},{"x":8,"y":8},{"x":7,"y":8},{"x":7,"y":7},{"x":7,"y":6},{"x":6,"y":6},{"x":5,"y":6},{"x":5,"y":5},{"x":6,"y":5}],"shout":""}}"#
+        ).unwrap();
+
+    let game = Game::from_request(&request);
+    let heuristic = TestH::default();
+    c.bench_function("floodfill_normal", |b| b.iter(|| heuristic.eval(black_box(&game))));
+}
+
 fn tree_heuristic(c: &mut Criterion) {
     logging();
     let request: GameRequest = serde_json::from_str(
@@ -270,6 +281,7 @@ criterion_group!(
     expectimax,
     async_alphabeta,
     normal_alphabeta,
+    floodfill_normal,
     tree_heuristic,
     tree_search,
     flood_heuristic,

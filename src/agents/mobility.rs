@@ -6,7 +6,7 @@ use log::{info, warn};
 
 use crate::env::*;
 use crate::game::search::Heuristic;
-use crate::game::{search, FloodFill, Game, Snake};
+use crate::game::{search, FloodFill, Game, Snake, FCell};
 use crate::util::{argmax, OrdPair};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -39,7 +39,7 @@ impl Heuristic for MobilityHeuristic {
         if game.snake_is_alive(0) {
             let mut flood_fill = FloodFill::new(game.grid.width, game.grid.width);
             flood_fill.flood_snakes(&game.grid, &game.snakes);
-            flood_fill.count_space(true) as f64
+            flood_fill.count_space(0) as f64
         } else {
             0.0
         }
@@ -87,7 +87,11 @@ impl MobilityAgent {
         for p in food {
             if let Some(path) = grid.a_star(you.head(), p, &first_move_costs) {
                 if path.len() >= 2 {
-                    let costs = path.len() + if flood_fill[p].is_you() { 0 } else { 5 };
+                    let costs = path.len() + match flood_fill[p] {
+                        FCell::Owned(0, _, _, _) => 0,
+                        FCell::Owned(_, _, _, _) => 5,
+                        _ => todo!(),
+                    };
                     food_dirs.push(OrdPair(Reverse(costs), Direction::from(path[1] - path[0])));
                 }
             }

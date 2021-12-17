@@ -31,6 +31,7 @@ async fn main() {
     } = Opts::from_args();
 
     let game = Game::from_request(&request);
+    info!("{:?}", config);
     info!("{:?}", game);
 
     let mut flood_fill = FloodFill::new(request.board.width, request.board.height);
