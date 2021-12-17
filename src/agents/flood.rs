@@ -8,6 +8,7 @@ pub struct FloodHeuristic {
     board_control: f64,
     health: f64,
     len_advantage: f64,
+    len_advantage_decay: f64,
     food_distance: f64,
     flood_space: bool,
 }
@@ -18,6 +19,7 @@ impl Default for FloodHeuristic {
             board_control: 0.9,
             health: 0.045,
             len_advantage: 6.4,
+            len_advantage_decay: 0.0,
             food_distance: 0.415,
             flood_space: false,
         }
@@ -61,7 +63,9 @@ impl Heuristic for FloodHeuristic {
 
             self.board_control * board_control
                 + self.health * health
-                + self.len_advantage * len_advantage
+                + self.len_advantage
+                    * len_advantage
+                    * (-(game.turn as f64) * self.len_advantage_decay).exp()
         } else {
             search::LOSS
         }
