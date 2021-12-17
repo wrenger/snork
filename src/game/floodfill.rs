@@ -171,7 +171,7 @@ impl FloodFill {
                 // Follow own tail
                 FCell::Occupied { id, tail_dist } if id == s_id => tail_dist + food <= s_distance,
                 // Follow enemy tail
-                FCell::Occupied { tail_dist, .. } => tail_dist < s_distance, // <= enemy eats!
+                FCell::Occupied { tail_dist, .. } => tail_dist <= s_distance, // <= enemy eats!
                 // Reached in same step?
                 FCell::Owned {
                     id,
