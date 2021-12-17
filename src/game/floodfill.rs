@@ -3,6 +3,7 @@ use std::ops::{Index, IndexMut};
 
 use super::{Grid, Snake};
 use crate::env::{Direction, Vec2D, HAZARD_DAMAGE};
+use crate::game::CellT;
 
 use owo_colors::{AnsiColors, OwoColorize};
 
@@ -10,12 +11,11 @@ use owo_colors::{AnsiColors, OwoColorize};
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum FCell {
     Free,
-    /// id, tail_dist
     Occupied {
         id: u8,
+        /// Distance from the tail
         tail_dist: u16,
     },
-    /// id, health, len, distance
     Owned {
         id: u8,
         health: u8,
@@ -209,12 +209,12 @@ impl FloodFill {
                     let g_cell = grid[p];
                     let cell = self[p];
 
-                    let is_food = g_cell.food();
+                    let is_food = g_cell.t == CellT::Food;
 
                     let health = if is_food {
                         100
                     } else {
-                        health.saturating_sub(if g_cell.hazard() { HAZARD_DAMAGE } else { 1 })
+                        health.saturating_sub(if g_cell.hazard { HAZARD_DAMAGE } else { 1 })
                     };
 
                     // Collect food
@@ -256,7 +256,7 @@ impl FloodFill {
             for (i, p) in snake.body.iter().enumerate() {
                 self[*p] = FCell::Occupied {
                     id: id as _,
-                    tail_dist: i as u16 + 1,
+                    tail_dist: i as u16,
                 }
             }
         }
@@ -268,7 +268,7 @@ impl FloodFill {
                 .iter()
                 .enumerate()
                 .filter(|&(_, s)| s.alive())
-                .map(|(id, s)| SnakePos::new(s.head(), id as _, 1, 0, s.body.len() as _, s.health)),
+                .map(|(id, s)| SnakePos::new(s.head(), id as _, 0, 0, s.body.len() as _, s.health)),
         )
     }
 }
@@ -566,7 +566,7 @@ mod test {
         game.snakes[0].health = 50;
         for y in 0..game.grid.height {
             for x in game.grid.width / 2 + 1..game.grid.width {
-                game.grid[Vec2D::new(x as _, y as _)].set_hazard(true);
+                game.grid[Vec2D::new(x as _, y as _)].hazard = true;
             }
         }
 
@@ -597,6 +597,7 @@ mod test {
             > > > > ^ ^ < . . . ."#,
         )
         .unwrap();
+        info!("{:?}", game);
 
         let mut floodfill = FloodFill::new(game.grid.width, game.grid.height);
         floodfill.flood_snakes(&game.grid, &game.snakes);
@@ -618,6 +619,8 @@ mod test {
             > > > > ^ ^ < . . . ."#,
         )
         .unwrap();
+        info!("{:?}", game);
+
         let mut floodfill = FloodFill::new(game.grid.width, game.grid.height);
         floodfill.flood_snakes(&game.grid, &game.snakes);
         info!("Filled {} {:?}", floodfill.count_space(0), floodfill);

@@ -73,8 +73,7 @@ async fn main() {
     };
 
     for i in 0..game_count {
-        let mut game =
-        if let Some(request) = &init {
+        let mut game = if let Some(request) = &init {
             Game::from_request(request)
         } else {
             init_game(width, height, agents.len(), &mut rng)
@@ -91,7 +90,7 @@ async fn main() {
         .await;
         match outcome {
             Outcome::Winner(winner) => wins[winner as usize] += 1,
-            _ => {},
+            _ => {}
         }
         warn!(
             "{}: {} {}ms",
@@ -156,10 +155,10 @@ async fn play_game(
                 .grid
                 .cells
                 .iter_mut()
-                .filter(|c| !c.food() && !c.owned())
+                .filter(|c| c.t == CellT::Free)
                 .choose(rng)
             {
-                cell.set_food(true);
+                cell.t = CellT::Food;
                 food_count += 1;
             }
         }
@@ -179,7 +178,7 @@ async fn play_game(
                     game.grid.height - hazard_insets[dir]
                 };
                 for x in 0..game.grid.width {
-                    game.grid[v2(x as _, y as _)].set_hazard(true);
+                    game.grid[v2(x as _, y as _)].hazard = true;
                 }
             } else {
                 let x = if dir == 1 {
@@ -188,7 +187,7 @@ async fn play_game(
                     game.grid.width - hazard_insets[dir]
                 };
                 for y in 0..game.grid.height {
-                    game.grid[v2(x as _, y as _)].set_hazard(true);
+                    game.grid[v2(x as _, y as _)].hazard = true;
                 }
             }
         }
@@ -223,10 +222,10 @@ fn init_game(width: usize, height: usize, num_agents: usize, rng: &mut SmallRng)
         ]
         .into_iter()
         .map(|p| snake.head() + p)
-        .filter(|&p| game.grid.has(p) && !game.grid[p].owned())
+        .filter(|&p| game.grid.has(p) && game.grid[p].t != CellT::Owned)
         .choose(rng);
         if let Some(p) = p {
-            game.grid[p].set_food(true);
+            game.grid[p].t = CellT::Food;
         }
     }
 

@@ -6,59 +6,24 @@ use std::{f64, usize};
 use crate::env::{Direction, Vec2D, HAZARD_DAMAGE};
 use crate::util::OrdPair;
 
-const FOOD: usize = 0;
-const OWNED: usize = 1;
-const HAZARD: usize = 2;
+#[derive(Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum CellT {
+    Free,
+    Food,
+    Owned,
+}
 
 /// Represents a single tile of the board
-#[derive(Clone, Copy, PartialEq, Eq, Default)]
-#[repr(transparent)]
-pub struct Cell(u8);
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub struct Cell {
+    pub t: CellT,
+    pub hazard: bool,
+}
 
 impl Cell {
-    #[inline(always)]
-    pub const fn empty() -> Self {
-        Self(0)
-    }
-    #[inline(always)]
-    pub const fn new(food: bool, owned: bool, hazard: bool) -> Self {
-        Self((food as u8) << FOOD | (owned as u8) << OWNED | (hazard as u8) << HAZARD)
-    }
-    #[inline(always)]
-    pub const fn food(self) -> bool {
-        self.0 & (1 << FOOD) != 0
-    }
-    #[inline(always)]
-    pub fn set_food(&mut self, food: bool) {
-        if food {
-            self.0 |= 1 << FOOD;
-        } else {
-            self.0 &= !(1 << FOOD);
-        }
-    }
-    #[inline(always)]
-    pub const fn owned(self) -> bool {
-        self.0 & (1 << OWNED) != 0
-    }
-    #[inline(always)]
-    pub fn set_owned(&mut self, owned: bool) {
-        if owned {
-            self.0 |= 1 << OWNED;
-        } else {
-            self.0 &= !(1 << OWNED);
-        }
-    }
-    #[inline(always)]
-    pub const fn hazard(self) -> bool {
-        self.0 & (1 << HAZARD) != 0
-    }
-    #[inline(always)]
-    pub fn set_hazard(&mut self, hazard: bool) {
-        if hazard {
-            self.0 |= 1 << HAZARD;
-        } else {
-            self.0 &= !(1 << HAZARD);
-        }
+    pub const fn new(t: CellT, hazard: bool) -> Self {
+        Self { t, hazard }
     }
 }
 
@@ -66,18 +31,16 @@ impl std::fmt::Debug for Cell {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         use owo_colors::{OwoColorize, Style};
 
-        let style = if self.hazard() {
+        let style = if self.hazard {
             Style::new().on_bright_black()
         } else {
             Style::new()
         };
 
-        if self.owned() {
-            write!(f, "{}", "X".blue().style(style))
-        } else if self.food() {
-            write!(f, "{}", "o".red().style(style))
-        } else {
-            write!(f, "{}", ".".style(style))
+        match self.t {
+            CellT::Free => write!(f, "{}", "X".blue().style(style)),
+            CellT::Food => write!(f, "{}", "o".red().style(style)),
+            CellT::Owned => write!(f, "{}", ".".style(style)),
         }
     }
 }
@@ -99,7 +62,7 @@ impl Grid {
         Grid {
             width,
             height,
-            cells: vec![Cell::default(); width * height],
+            cells: vec![Cell::new(CellT::Free, false); width * height],
         }
     }
 
@@ -119,7 +82,7 @@ impl Grid {
     /// Clears the grid.
     pub fn clear(&mut self) {
         for c in &mut self.cells {
-            *c = Cell::new(false, false, false);
+            *c = Cell::new(CellT::Food, false);
         }
     }
 
@@ -127,7 +90,7 @@ impl Grid {
     pub fn add_snake(&mut self, body: impl Iterator<Item = Vec2D>) {
         for p in body {
             if self.has(p) {
-                self[p].set_owned(true);
+                self[p].t = CellT::Owned;
             }
         }
     }
@@ -136,7 +99,7 @@ impl Grid {
     pub fn add_food(&mut self, food: &[Vec2D]) {
         for &p in food {
             if self.has(p) {
-                self[p].set_food(true);
+                self[p].t = CellT::Food;
             }
         }
     }
@@ -145,14 +108,14 @@ impl Grid {
     pub fn add_hazards(&mut self, hazards: &[Vec2D]) {
         for &p in hazards {
             if self.has(p) {
-                self[p].set_hazard(true);
+                self[p].hazard = true;
             }
         }
     }
 
     /// Returns if the cell is hazardous.
     pub fn is_hazardous(&self, p: Vec2D) -> bool {
-        self.has(p) && self[p].hazard()
+        self.has(p) && self[p].hazard
     }
 
     /// Returns if `p` is within the boundaries of this grid.
@@ -202,7 +165,7 @@ impl Grid {
                     neighbor_cost += first_move_heuristic[d as usize]
                 }
 
-                if self.has(neighbor) && !self[neighbor].owned() {
+                if self.has(neighbor) && self[neighbor].t != CellT::Owned {
                     let cost_so_far = data.get(&neighbor).map(|(_, c)| *c).unwrap_or(f64::MAX);
                     if neighbor_cost < cost_so_far {
                         data.insert(neighbor, (front, neighbor_cost));
@@ -253,9 +216,8 @@ impl std::fmt::Debug for Grid {
 
 #[cfg(test)]
 mod test {
-    use log::info;
     use crate::logging;
-
+    use log::info;
 
     #[test]
     #[ignore]

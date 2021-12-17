@@ -6,7 +6,7 @@ use log::{info, warn};
 
 use crate::env::*;
 use crate::game::search::Heuristic;
-use crate::game::{search, FCell, FloodFill, Game, Snake};
+use crate::game::{search, CellT, FCell, FloodFill, Game, Snake};
 use crate::util::{argmax, OrdPair};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -67,7 +67,7 @@ impl MobilityAgent {
                 for d in Direction::iter() {
                     let p = snake.head().apply(d);
                     if grid.has(p) {
-                        grid[p].set_owned(true);
+                        grid[p].t = CellT::Owned;
                     }
                 }
             }
@@ -77,7 +77,7 @@ impl MobilityAgent {
         let mut food = Vec::new();
         for y in 0..game.grid.height as i16 {
             for x in 0..game.grid.width as i16 {
-                if game.grid[v2(x, y)].food() {
+                if game.grid[v2(x, y)].t == CellT::Food {
                     food.push(v2(x, y));
                 }
             }

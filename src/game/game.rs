@@ -4,7 +4,7 @@ use std::fmt::{self, Debug};
 
 use owo_colors::{AnsiColors, OwoColorize};
 
-use super::{Cell, Grid};
+use super::{Cell, CellT, Grid};
 use crate::env::{Direction, GameRequest, SnakeData, Vec2D, HAZARD_DAMAGE};
 use crate::util::OrdPair;
 
@@ -168,7 +168,7 @@ impl Game {
         let p = snake.head().apply(dir);
         // Free or occupied by tail (free in the next turn)
         self.grid.has(p)
-            && (!self.grid[p].owned()
+            && (self.grid[p].t != CellT::Owned
                 || self
                     .snakes
                     .iter()
@@ -187,7 +187,7 @@ impl Game {
                 let tail = snake.body.pop_front().unwrap();
                 let new_tail = snake.body[0];
                 if tail != new_tail {
-                    self.grid[tail].set_owned(false);
+                    self.grid[tail].t = CellT::Free;
                 }
             }
         }
@@ -206,18 +206,18 @@ impl Game {
                 snake.body.push_back(head);
 
                 let g_cell = self.grid[head];
-                if g_cell.owned() {
+                if g_cell.t == CellT::Owned {
                     snake.health = 0;
                     continue;
                 }
 
-                snake.health = if g_cell.food() {
+                snake.health = if g_cell.t == CellT::Food {
                     snake.body.push_front(*snake.body.front().unwrap());
                     100
                 } else {
                     snake
                         .health
-                        .saturating_sub(if g_cell.hazard() { HAZARD_DAMAGE } else { 1 })
+                        .saturating_sub(if g_cell.hazard { HAZARD_DAMAGE } else { 1 })
                 };
             }
         }
@@ -247,11 +247,10 @@ impl Game {
         for snake in &mut self.snakes {
             if snake.alive() {
                 let head_cell = &mut grid[snake.head()];
-                head_cell.set_owned(true);
-                head_cell.set_food(false);
+                head_cell.t = CellT::Owned;
             } else if !snake.body.is_empty() {
                 for &p in &snake.body {
-                    grid[p].set_owned(false);
+                    grid[p].t = CellT::Free;
                 }
                 snake.body.clear();
             }
@@ -301,9 +300,9 @@ impl Game {
         let mut grid = Grid::new(width, height);
         for (i, cell) in raw_cells.iter().enumerate() {
             grid[Vec2D::new((i % width) as _, (i / width) as _)] = match cell {
-                RawCell::Free => Cell::empty(),
-                RawCell::Food => Cell::new(true, false, false),
-                _ => Cell::new(false, true, false),
+                RawCell::Free => Cell::new(CellT::Free, false),
+                RawCell::Food => Cell::new(CellT::Food, false),
+                _ => Cell::new(CellT::Owned, false),
             }
         }
 
@@ -384,12 +383,12 @@ impl Debug for Game {
             for x in 0..self.grid.height {
                 let cell = &mut cells[y * self.grid.width + x];
                 let g_cell = self.grid[Vec2D::new(x as _, y as _)];
-                cell.0 = if g_cell.food() {
+                cell.0 = if g_cell.t == CellT::Food {
                     FmtCell::Food
                 } else {
                     FmtCell::Free
                 };
-                cell.1 = g_cell.hazard();
+                cell.1 = g_cell.hazard;
             }
         }
 
@@ -517,8 +516,8 @@ mod test {
 
         assert_eq!(game.grid.width, 11);
         assert_eq!(game.grid.height, 11);
-        assert!(game.grid[Vec2D::new(5, 6)].owned());
-        assert!(game.grid[Vec2D::new(8, 9)].food());
+        assert!(game.grid[Vec2D::new(5, 6)].t == CellT::Owned);
+        assert!(game.grid[Vec2D::new(8, 9)].t == CellT::Food);
         assert_eq!(game.snakes.len(), 2);
 
         let snake = &game.snakes[0];
@@ -575,18 +574,18 @@ mod test {
             info!("{:?}", game);
             assert!(game.snake_is_alive(0));
             assert!(game.snake_is_alive(1));
-            assert!(!game.grid[Vec2D::new(4, 6)].owned());
-            assert!(game.grid[Vec2D::new(5, 8)].owned());
-            assert!(!game.grid[Vec2D::new(6, 6)].owned());
-            assert!(game.grid[Vec2D::new(7, 8)].owned());
+            assert!(game.grid[Vec2D::new(4, 6)].t != CellT::Owned);
+            assert!(game.grid[Vec2D::new(5, 8)].t == CellT::Owned);
+            assert!(game.grid[Vec2D::new(6, 6)].t != CellT::Owned);
+            assert!(game.grid[Vec2D::new(7, 8)].t == CellT::Owned);
 
             // Snake 0 runs into 1
             game.step(&[Right, Right]);
             info!("{:?}", game);
             assert!(!game.snake_is_alive(0));
-            assert!(!game.grid[Vec2D::new(5, 8)].owned());
+            assert!(game.grid[Vec2D::new(5, 8)].t != CellT::Owned);
             assert!(game.snake_is_alive(1));
-            assert!(game.grid[Vec2D::new(8, 8)].owned());
+            assert!(game.grid[Vec2D::new(8, 8)].t == CellT::Owned);
         }
 
         {
