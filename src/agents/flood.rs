@@ -15,10 +15,10 @@ pub struct FloodHeuristic {
 impl Default for FloodHeuristic {
     fn default() -> Self {
         Self {
-            board_control: 1.9,
-            health: 1.58,
-            len_advantage: 9.36,
-            food_distance: 0.46,
+            board_control: 0.9,
+            health: 0.045,
+            len_advantage: 6.4,
+            food_distance: 0.415,
             flood_space: false,
         }
     }
