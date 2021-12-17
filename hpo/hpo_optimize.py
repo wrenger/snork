@@ -51,7 +51,6 @@ def snake_from_config_wrapper(type, num_opponents, num_games_per_eval, timeout):
                     f" --timeout {timeout}"
                     f" --seed {rs}"
                     ]
-            print(call)
             run = subprocess.run(call, capture_output=True,
                                 shell=True, text=True, check=True)
 
