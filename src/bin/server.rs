@@ -108,7 +108,7 @@ async fn main() {
                 request.game.ruleset.name,
                 request.game.id,
                 request.you.id,
-                request.you.health == 0
+                request.you.health != 0
             );
             warp::reply()
         });
