@@ -51,6 +51,7 @@ def snake_from_config_wrapper(type, num_opponents, num_games_per_eval, timeout):
                     f" --timeout {timeout}"
                     f" --seed {rs}"
                     ]
+            print(call)
             run = subprocess.run(call, capture_output=True,
                                 shell=True, text=True, check=True)
 
@@ -126,6 +127,7 @@ def get_cs(agentlist=["Flood"]):
             "health": {"min": 1e-6, "max": 1, "default": 0.045, "log": True},
             "len_advantage": {"min": 6, "max": 15, "default": 6.4, "log": False},
             "food_distance": {"min": 0, "max": 1, "default": 0.415, "log": False},
+            "food_distance": {"min": 0, "max": 1, "default": 0.415, "log": False},
         }
 
         for hp in flood_hps:
@@ -136,6 +138,12 @@ def get_cs(agentlist=["Flood"]):
                                                        log=flood_hps[hp]["log"])
             cs.add_hyperparameter(flood_hps[hp])
             cs.add_condition(InCondition(flood_hps[hp], agent, ["Flood"]))
+        
+        flood_space = CategoricalHyperparameter(PREFIXES["Flood"] + "flood_space",
+                                                choices=[True, False])
+        cs.add_hyperparameter(flood_space)
+        cs.add_condition(InCondition(flood_space, agent, ["Flood"]))
+
     return cs
 
 
