@@ -1,4 +1,3 @@
-use std::cmp::Reverse;
 use std::collections::VecDeque;
 use std::ops::{Index, IndexMut};
 
@@ -154,6 +153,7 @@ impl FloodFill {
     ///
     /// Food on the way is been accounted for the own tail.
     fn flood(&mut self, grid: &Grid, heads: impl Iterator<Item = SnakePos>) -> [u16; 4] {
+        // Assuming there are at most n^2 elements in the queue
         let mut queue = VecDeque::with_capacity(self.width * self.height);
         queue.extend(heads);
 
@@ -168,8 +168,11 @@ impl FloodFill {
         ) -> bool {
             match cell {
                 FCell::Free => true,
+                // Follow own tail
                 FCell::Occupied { id, tail_dist } if id == s_id => tail_dist + food <= s_distance,
+                // Follow enemy tail
                 FCell::Occupied { tail_dist, .. } => tail_dist < s_distance, // <= enemy eats!
+                // Reached in same step?
                 FCell::Owned {
                     id,
                     health,
@@ -178,14 +181,17 @@ impl FloodFill {
                 } => {
                     distance == s_distance
                         && if id != s_id {
+                            // Longer snake wins (on draw we loose)
                             len < s_len || len == s_len && id < s_id
                         } else {
+                            // We can reach this with more health
                             health < s_health
                         }
                 }
             }
         }
 
+        // Collect food on the way
         let mut food_distances = [u16::MAX; 4];
         let mut food_distance_i = 0;
 
@@ -194,7 +200,7 @@ impl FloodFill {
             id,
             distance,
             food,
-            mut len,
+            len,
             health,
         }) = queue.pop_front()
         {
@@ -203,23 +209,26 @@ impl FloodFill {
                     let g_cell = grid[p];
                     let cell = self[p];
 
-                    let health = if g_cell.food() {
-                        len += 1;
-                        if id == 0 && cell == FCell::Free && food_distance_i < food_distances.len()
-                        {
-                            food_distances[food_distance_i] = distance;
-                            food_distance_i += 1;
-                        }
+                    let is_food = g_cell.food();
+
+                    let health = if is_food {
                         100
                     } else {
-                        health.saturating_sub(if g_cell.hazard() {
-                            HAZARD_DAMAGE as u8
-                        } else {
-                            1
-                        })
+                        health.saturating_sub(if g_cell.hazard() { HAZARD_DAMAGE } else { 1 })
                     };
 
-                    let food = food + g_cell.food() as u16;
+                    // Collect food
+                    if is_food
+                        && id == 0
+                        && cell == FCell::Free
+                        && food_distance_i < food_distances.len()
+                    {
+                        food_distances[food_distance_i] = distance;
+                        food_distance_i += 1;
+                    }
+
+                    let food = food + is_food as u16;
+                    let len = len + is_food as u16;
 
                     if health > 0 && owns(cell, id, distance, food, len, health) {
                         self[p] = FCell::Owned {

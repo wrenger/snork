@@ -215,11 +215,9 @@ impl Game {
                     snake.body.push_front(*snake.body.front().unwrap());
                     100
                 } else {
-                    snake.health.saturating_sub(if g_cell.hazard() {
-                        HAZARD_DAMAGE as u8
-                    } else {
-                        1
-                    })
+                    snake
+                        .health
+                        .saturating_sub(if g_cell.hazard() { HAZARD_DAMAGE } else { 1 })
                 };
             }
         }

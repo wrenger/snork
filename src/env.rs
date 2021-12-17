@@ -11,7 +11,7 @@ use std::ops::{Add, Neg, Sub};
 
 pub const API_VERSION: &str = "1";
 
-pub const HAZARD_DAMAGE: usize = 15;
+pub const HAZARD_DAMAGE: u8 = 15;
 
 /// Position in the a 2D grid.
 #[derive(Serialize, Deserialize, Default, Clone, Copy, Debug, PartialEq, Eq, Hash)]
