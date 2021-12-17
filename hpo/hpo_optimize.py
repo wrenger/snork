@@ -55,7 +55,7 @@ def snake_from_config_wrapper(type, num_opponents, num_games_per_eval, timeout):
                                 shell=True, text=True, check=True)
 
             # extract games won and time taken from output
-            games_won = run.stdout[8:run.stdout.find("/")]
+            games_won = run.stdout[9:run.stdout.find(",")]
             # inverse to minimize (treat games won as loss)
             fitness += 1.0 - int(games_won) / num_games_per_eval
 
