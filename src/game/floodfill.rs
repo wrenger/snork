@@ -8,19 +8,21 @@ use crate::env::{Direction, Vec2D, HAZARD_DAMAGE};
 use owo_colors::{AnsiColors, OwoColorize};
 
 /// Floodfill Cell that stores the important data in a single Byte.
-///
-/// Bitfield:
-/// - 15: you?
-/// - 14: owned?
-/// - 13: occupied?
-/// - 11..0: num (head distance if occupied, health if owned)
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum FCell {
     Free,
-    /// id, tail-dist
-    Occupied(u8, u16),
+    /// id, tail_dist
+    Occupied {
+        id: u8,
+        tail_dist: u16,
+    },
     /// id, health, len, distance
-    Owned(u8, u8, u16, u16),
+    Owned {
+        id: u8,
+        health: u8,
+        len: u16,
+        distance: u16,
+    },
 }
 
 impl std::fmt::Debug for FCell {
@@ -36,10 +38,10 @@ impl std::fmt::Debug for FCell {
         }
 
         match self {
-            FCell::Occupied(id, tail_dist) => {
+            FCell::Occupied { id, tail_dist } => {
                 write!(f, "{:0>3}", tail_dist.color(id_color(*id)))
             }
-            FCell::Owned(id, _health, _len, distance) => {
+            FCell::Owned { id, distance, .. } => {
                 write!(f, "{:0>3}", distance.on_bright_black().color(id_color(*id)),)
             }
             FCell::Free => write!(f, "___"),
@@ -75,7 +77,6 @@ impl SnakePos {
 /// This struct also contains all necessary buffers for the floodfill algorithm.
 pub struct FloodFill {
     cells: Vec<FCell>,
-    queue: VecDeque<SnakePos>,
     pub width: usize,
     pub height: usize,
 }
@@ -84,7 +85,6 @@ impl FloodFill {
     pub fn new(width: usize, height: usize) -> FloodFill {
         FloodFill {
             cells: vec![FCell::Free; width * height],
-            queue: VecDeque::with_capacity(width * height),
             width,
             height,
         }
@@ -96,29 +96,29 @@ impl FloodFill {
     }
 
     /// Counts the total health of you or the enemies.
-    pub fn count_health(&self, id: u8) -> usize {
+    pub fn count_health(&self, i: u8) -> usize {
         self.cells
             .iter()
             .filter_map(|&c| match c {
-                FCell::Owned(o_id, health, _, _) if o_id == id => Some(health as usize),
+                FCell::Owned { id, health, .. } if id == i => Some(health as usize),
                 _ => None,
             })
             .sum()
     }
 
     /// Counts the space of you or the enemies.
-    pub fn count_space(&self, id: u8) -> usize {
+    pub fn count_space(&self, i: u8) -> usize {
         self.cells
             .iter()
             .filter(|&c| match c {
-                FCell::Owned(o_id, _, _, _) if *o_id == id => true,
+                FCell::Owned { id, .. } if *id == i => true,
                 _ => false,
             })
             .count()
     }
 
     /// Counts the space of you or the enemies weighted by the weight function.
-    pub fn count_space_0<F: FnMut(Vec2D, FCell) -> f64>(
+    pub fn count_space_weighted<F: FnMut(Vec2D, FCell) -> f64>(
         &self,
         id: u8,
         mut weight: F,
@@ -128,7 +128,7 @@ impl FloodFill {
             .cloned()
             .enumerate()
             .map(|(i, c)| match c {
-                FCell::Owned(o_id, _, _, _) if o_id == id => weight(
+                FCell::Owned { id: o_id, .. } if o_id == id => weight(
                     Vec2D::new((i % self.width) as i16, (i / self.width) as i16),
                     c,
                 ),
@@ -142,7 +142,6 @@ impl FloodFill {
         for c in &mut self.cells {
             *c = FCell::Free;
         }
-        self.queue.clear();
     }
 
     /// Flood fill combined with ignoring tails depending on distance to head.
@@ -155,62 +154,40 @@ impl FloodFill {
     ///
     /// Food on the way is been accounted for the own tail.
     fn flood(&mut self, grid: &Grid, heads: impl Iterator<Item = SnakePos>) -> [u16; 4] {
+        let mut queue = VecDeque::with_capacity(self.width * self.height);
+        queue.extend(heads);
 
         #[inline]
-        fn owns(cell: FCell, id: u8, distance: u16, food: u16, len: u16, health: u8) -> bool {
+        fn owns(
+            cell: FCell,
+            s_id: u8,
+            s_distance: u16,
+            food: u16,
+            s_len: u16,
+            s_health: u8,
+        ) -> bool {
             match cell {
                 FCell::Free => true,
-                FCell::Occupied(o_id, tail_dist) if o_id == id => tail_dist + food <= distance,
-                FCell::Occupied(_, tail_dist) => tail_dist < distance, // <= enemy eats!
-                FCell::Owned(o_id, _, o_len, o_distance) if o_id != id => {
-                    o_distance == distance && o_len < len
-                }
-                FCell::Owned(_, o_health, _, o_distance) => {
-                    o_distance == distance && o_health < health
+                FCell::Occupied { id, tail_dist } if id == s_id => tail_dist + food <= s_distance,
+                FCell::Occupied { tail_dist, .. } => tail_dist < s_distance, // <= enemy eats!
+                FCell::Owned {
+                    id,
+                    health,
+                    len,
+                    distance,
+                } => {
+                    distance == s_distance
+                        && if id != s_id {
+                            len < s_len || len == s_len && id < s_id
+                        } else {
+                            health < s_health
+                        }
                 }
             }
         }
 
         let mut food_distances = [u16::MAX; 4];
         let mut food_distance_i = 0;
-
-        for SnakePos {
-            p,
-            id,
-            distance,
-            food: _,
-            mut len,
-            health,
-        } in heads
-        {
-            if self.has(p) {
-                let num = 1;
-                let cell = self[p];
-                let g_cell = grid[p];
-
-                let health = if g_cell.food() {
-                    if id == 0 && cell == FCell::Free && food_distance_i < food_distances.len() {
-                        food_distances[food_distance_i] = 1;
-                        food_distance_i += 1;
-                    }
-                    len += 1;
-                    100
-                } else {
-                    health.saturating_sub(if g_cell.hazard() {
-                        HAZARD_DAMAGE as u8
-                    } else {
-                        1
-                    })
-                };
-
-                let food = g_cell.food() as u16;
-                if owns(cell, id, num, food, len, health) {
-                    self[p] = FCell::Owned(id, health, len, distance);
-                    self.queue
-                        .push_back(SnakePos::new(p, id, num + 1, food, len, health));
-                }
-            }
-        }
 
         while let Some(SnakePos {
             p,
@@ -219,7 +196,7 @@ impl FloodFill {
             food,
             mut len,
             health,
-        }) = self.queue.pop_front()
+        }) = queue.pop_front()
         {
             for p in Direction::iter().map(|d| p.apply(d)) {
                 if self.has(p) {
@@ -245,9 +222,13 @@ impl FloodFill {
                     let food = food + g_cell.food() as u16;
 
                     if health > 0 && owns(cell, id, distance, food, len, health) {
-                        self[p] = FCell::Owned(id, health, len, distance);
-                        self.queue
-                            .push_back(SnakePos::new(p, id, distance + 1, food, len, health));
+                        self[p] = FCell::Owned {
+                            id,
+                            health,
+                            len,
+                            distance,
+                        };
+                        queue.push_back(SnakePos::new(p, id, distance + 1, food, len, health));
                     }
                 }
             }
@@ -260,29 +241,25 @@ impl FloodFill {
     /// agent and the other snakes are the enemies.
     pub fn flood_snakes(&mut self, grid: &Grid, snakes: &[Snake]) -> [u16; 4] {
         self.clear();
-        let mut snakes: Vec<(u8, &Snake)> = snakes
-            .iter()
-            .enumerate()
-            .map(|(i, s)| (i as u8, s))
-            .filter(|&(_, s)| s.alive())
-            .collect();
 
         // Prepare board with snakes (tail = 1, ..., head = n)
-        for &(id, snake) in &snakes {
+        for (id, snake) in snakes.iter().enumerate() {
             for (i, p) in snake.body.iter().enumerate() {
-                self[*p] = FCell::Occupied(id, i as u16 + 1)
+                self[*p] = FCell::Occupied {
+                    id: id as _,
+                    tail_dist: i as u16 + 1,
+                }
             }
         }
 
         // Longer or equally long snakes first
-        snakes.sort_by_key(|&(id, s)| Reverse(2 * s.body.len() - (id == 0) as usize));
         self.flood(
             grid,
-            snakes.iter().flat_map(|&(id, s)| {
-                Direction::iter().map(move |d| {
-                    SnakePos::new(s.head().apply(d), id, 1, 0, s.body.len() as _, s.health)
-                })
-            }),
+            snakes
+                .iter()
+                .enumerate()
+                .filter(|&(_, s)| s.alive())
+                .map(|(id, s)| SnakePos::new(s.head(), id as _, 1, 0, s.body.len() as _, s.health)),
         )
     }
 }
@@ -333,7 +310,10 @@ mod test {
         let grid = Grid::new(11, 11);
 
         let mut floodfill = FloodFill::new(grid.width, grid.height);
-        floodfill.flood(&grid, [SnakePos::new(Vec2D::new(0, 0), 0, 0, 0, 3, 100)].into_iter());
+        floodfill.flood(
+            &grid,
+            [SnakePos::new(Vec2D::new(0, 0), 0, 0, 0, 3, 100)].into_iter(),
+        );
         info!("Filled {} {:?}", floodfill.count_space(0), floodfill);
         assert_eq!(floodfill.count_space(0), 11 * 11);
 
@@ -342,7 +322,7 @@ mod test {
         floodfill.flood(
             &grid,
             [
-                SnakePos::new(Vec2D::new(0, 0), 0, 0, 0, 3, 100),
+                SnakePos::new(Vec2D::new(0, 0), 0, 0, 0, 4, 100),
                 SnakePos::new(Vec2D::new(10, 10), 1, 0, 0, 3, 100),
             ]
             .iter()
@@ -355,9 +335,9 @@ mod test {
         floodfill.flood(
             &grid,
             [
-                SnakePos::new(Vec2D::new(0, 0), 2, 0, 0, 4, 100),
-                SnakePos::new(Vec2D::new(10, 10), 1, 0, 0, 3, 100),
                 SnakePos::new(Vec2D::new(5, 5), 0, 0, 0, 2, 100),
+                SnakePos::new(Vec2D::new(10, 10), 1, 0, 0, 3, 100),
+                SnakePos::new(Vec2D::new(0, 0), 2, 0, 0, 4, 100),
             ]
             .iter()
             .cloned(),

@@ -6,7 +6,7 @@ use log::{info, warn};
 
 use crate::env::*;
 use crate::game::search::Heuristic;
-use crate::game::{search, FloodFill, Game, Snake, FCell};
+use crate::game::{search, FCell, FloodFill, Game, Snake};
 use crate::util::{argmax, OrdPair};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -87,11 +87,11 @@ impl MobilityAgent {
         for p in food {
             if let Some(path) = grid.a_star(you.head(), p, &first_move_costs) {
                 if path.len() >= 2 {
-                    let costs = path.len() + match flood_fill[p] {
-                        FCell::Owned(0, _, _, _) => 0,
-                        FCell::Owned(_, _, _, _) => 5,
-                        _ => todo!(),
-                    };
+                    let costs = path.len()
+                        + match flood_fill[p] {
+                            FCell::Owned { id: 0, .. } => 0,
+                            _ => 5,
+                        };
                     food_dirs.push(OrdPair(Reverse(costs), Direction::from(path[1] - path[0])));
                 }
             }
