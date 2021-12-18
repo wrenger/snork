@@ -3,7 +3,7 @@ use crate::game::{FloodFill, Game};
 
 /// The new floodfill agent for royale games
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct FloodHeuristic {
     board_control: f64,
     health: f64,

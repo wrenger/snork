@@ -19,6 +19,7 @@ use super::env::{GameRequest, MoveResponse};
 const MAX_BOARD_SIZE: usize = 19;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
 pub enum Agent {
     Mobility(MobilityAgent),
     Tree(TreeHeuristic),
