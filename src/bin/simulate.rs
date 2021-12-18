@@ -34,6 +34,9 @@ struct Opts {
     /// Number of games that are played.
     #[structopt(short, long, default_value = "1")]
     game_count: usize,
+    /// Swap agent positions to get more accurate results.
+    #[structopt(long)]
+    swap: bool,
     /// Seed for the random number generator.
     #[structopt(long, default_value = "0")]
     seed: u64,
@@ -55,9 +58,10 @@ async fn main() {
         food_rate,
         shrink_turns,
         game_count,
+        swap,
         seed,
         init,
-        agents,
+        mut agents,
     } = Opts::from_args();
 
     assert!(agents.len() <= 4, "Only up to 4 snakes are supported");
@@ -66,38 +70,48 @@ async fn main() {
     let start = Instant::now();
 
     let mut wins = repeat(0).take(agents.len()).collect::<Vec<usize>>();
-    let mut rng = if seed == 0 {
-        SmallRng::from_entropy()
-    } else {
-        SmallRng::seed_from_u64(seed)
-    };
 
-    for i in 0..game_count {
-        let mut game = if let Some(request) = &init {
-            Game::from_request(request)
+    for _ in 0..agents.len() {
+        let mut rng = if seed == 0 {
+            SmallRng::from_entropy()
         } else {
-            init_game(width, height, agents.len(), &mut rng)
+            SmallRng::seed_from_u64(seed)
         };
 
-        let outcome = play_game(
-            &agents,
-            &mut game,
-            timeout,
-            food_rate,
-            shrink_turns,
-            &mut rng,
-        )
-        .await;
-        match outcome {
-            Outcome::Winner(winner) => wins[winner as usize] += 1,
-            _ => {}
+        for i in 0..game_count {
+            let mut game = if let Some(request) = &init {
+                Game::from_request(request)
+            } else {
+                init_game(width, height, agents.len(), &mut rng)
+            };
+
+            let outcome = play_game(
+                &agents,
+                &mut game,
+                timeout,
+                food_rate,
+                shrink_turns,
+                &mut rng,
+            )
+            .await;
+            match outcome {
+                Outcome::Winner(winner) => wins[winner as usize] += 1,
+                _ => {}
+            }
+            warn!(
+                "{}: {} {}ms",
+                "Finish Game".bright_green(),
+                i,
+                start.elapsed().as_millis()
+            );
         }
-        warn!(
-            "{}: {} {}ms",
-            "Finish Game".bright_green(),
-            i,
-            start.elapsed().as_millis()
-        );
+
+        if !swap {
+            break;
+        }
+        // Swap agents
+        wins.rotate_left(1);
+        agents.rotate_left(1);
     }
 
     println!("Result: {:?}", wins);
