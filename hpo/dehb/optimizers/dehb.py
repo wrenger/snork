@@ -93,17 +93,22 @@ class DEHBBase:
         self.population = None
         self.fitness = None
         self.inc_score = np.inf
+        self.inc_run = None
         self.inc_config = None
         self.history = []
+        self.smac_history = {"data": [], "config_origins": {}, "configs": {}}
 
     def reset(self):
         self.inc_score = np.inf
         self.inc_config = None
+        self.inc_run = None
         self.population = None
         self.fitness = None
         self.traj = []
+        self.smac_trajectory = []
         self.runtime = []
         self.history = []
+        self.smac_history = {"data": [], "config_origins": {}, "configs": {}}
         self.logger.info("\n\nRESET at {}\n\n".format(time.strftime("%x %X %Z")))
 
     def init_population(self):
@@ -156,7 +161,7 @@ class DEHBBase:
 
 class DEHB(DEHBBase):
     def __init__(self, cs=None, f=None, dimensions=None, mutation_factor=0.5,
-                 crossover_prob=0.5, strategy='rand1_bin', min_budget=None,
+                 crossover_prob=0.5, strategy='rand1_bin', min_budget=None, save_smac=False,
                  max_budget=None, eta=3, min_clip=None, max_clip=None, configspace=True,
                  boundary_fix_type='random', max_age=np.inf, n_workers=None, client=None, **kwargs):
         super().__init__(cs=cs, f=f, dimensions=dimensions, mutation_factor=mutation_factor,
@@ -169,9 +174,12 @@ class DEHB(DEHBBase):
         self._max_pop_size = None
         self.active_brackets = []  # list of SHBracketManager objects
         self.traj = []
+        self.smac_trajectory = []
         self.runtime = []
         self.history = []
+        self.smac_history = {"data": [], "config_origins": {}, "configs": {}}
         self.start = None
+        self.save_smac = save_smac
 
         # Dask variables
         if n_workers is None and client is None:
@@ -303,8 +311,10 @@ class DEHB(DEHBBase):
         self.start = None
         self.active_brackets = []
         self.traj = []
+        self.smac_trajectory = []
         self.runtime = []
         self.history = []
+        self.smac_history = {"data": [], "config_origins": {}, "configs": {}}
         self._get_pop_sizes()
         self._init_subpop()
         self.available_gpus = None
@@ -328,14 +338,53 @@ class DEHB(DEHBBase):
         ]
         return
 
+    # Also generates SMAC like History
     def _update_trackers(self, traj, runtime, history):
-        self.traj.append(traj)
+        if len(self.traj) == self.inc_run:
+            incumbent = ConfigSpace.Configuration(self.cs, vector=traj[1]).get_dictionary()
+            for key in list(incumbent.keys()):
+                if key != "agent":
+                    incumbent[key[2:]] = incumbent.pop(key)
+            traj_obj = {
+                        "cpu_time": time.time() - self.start,
+                        "wall_clocktime": time.time() - self.start,
+                        "evaluations": len(self.traj),
+                        "cost": traj[0],
+                        "incumbent": incumbent,
+                        "budget": 0,
+                        "origin": "DEHB"
+                        }
+            self.smac_trajectory.append(traj_obj)
+        self.smac_history["data"].append(([len(self.traj) + 1, # config id
+                                           None, # instance id
+                                           0, # seed...
+                                           history[-2], # budget
+                                          ],
+                                          [
+                                            history[1], # cost / fitness
+                                            history[2], # time / cost
+                                            {           # status
+                                            "__enum__": "StatusType.SUCCESS"
+                                            },
+                                            time.time() - history[2], # start time
+                                            time.time(), # end time,
+                                            history[-1] # info
+                                          ]))
+        self.smac_history["config_origins"][str(len(self.traj) + 1)] = "DEHB"
+        config = ConfigSpace.Configuration(self.cs, vector=history[0]).get_dictionary()
+        for key in list(config.keys()):
+            if key != "agent":
+                config[key[2:]] = config.pop(key)
+        self.smac_history["configs"][str(len(self.traj) + 1)] = config
+
+        self.traj.append(traj[0])
         self.runtime.append(runtime)
         self.history.append(history)
 
-    def _update_incumbents(self, config, score, info):
+    def _update_incumbents(self, config, score, run, info):
         self.inc_config = config
         self.inc_score = score
+        self.inc_run = run
         self.inc_info = info
 
     def _get_pop_sizes(self):
@@ -621,12 +670,13 @@ class DEHB(DEHBBase):
                 self._update_incumbents(
                     config=self.de[budget].population[parent_id],
                     score=self.de[budget].fitness[parent_id],
+                    run=len(self.traj),
                     info=info
                 )
             # book-keeping
             self._update_trackers(
-                traj=self.inc_score, runtime=cost, history=(
-                    config.tolist(), float(fitness), float(cost), float(budget), info
+                traj=(self.inc_score, self.inc_config), runtime=cost, history=(
+                    config, float(fitness), float(cost), float(budget), info
                 )
             )
         # remove processed future
@@ -684,6 +734,13 @@ class DEHB(DEHBBase):
         try:
             with open(os.path.join(self.output_path, "history_{}.pkl".format(name)), 'wb') as f:
                 pickle.dump(self.history, f)
+            if self.save_smac:
+                with open(os.path.join(self.output_path, "runhistory_{}.json".format(name)), 'w') as f:
+                    json.dump(self.smac_history, f, indent=2)
+                with open(os.path.join(self.output_path, "traj_{}.json".format(name)), 'w') as f:
+                    for traj in self.smac_trajectory:
+                        json.dump(traj, f)
+                        f.write("\n")
         except Exception as e:
             self.logger.warning("History not saved: {}".format(repr(e)))
 
