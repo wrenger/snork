@@ -10,7 +10,6 @@ pub struct FloodHeuristic {
     len_advantage: f64,
     len_advantage_decay: f64,
     food_distance: f64,
-    flood_space: bool,
 }
 
 impl Default for FloodHeuristic {
@@ -21,7 +20,6 @@ impl Default for FloodHeuristic {
             len_advantage: 6.4,
             len_advantage_decay: 0.0,
             food_distance: 0.415,
-            flood_space: false,
         }
     }
 }
@@ -35,11 +33,7 @@ impl Heuristic for FloodHeuristic {
             let mut flood_fill = FloodFill::new(game.grid.width, game.grid.height);
             let food_distances = flood_fill.flood_snakes(&game.grid, &game.snakes);
 
-            let board_control = if self.flood_space {
-                (flood_fill.count_space(0) as f64 / area).sqrt()
-            } else {
-                (flood_fill.count_health(0) as f64 / (area * 100.0)).sqrt()
-            };
+            let board_control = (flood_fill.count_health(0) as f64 / (area * 100.0)).sqrt();
 
             let food_distance = food_distances
                 .into_iter()
