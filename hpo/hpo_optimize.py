@@ -6,7 +6,8 @@ import numpy as np
 from ConfigSpace import ConfigurationSpace
 from ConfigSpace.hyperparameters import (CategoricalHyperparameter,
                                          UniformFloatHyperparameter,
-                                         UniformIntegerHyperparameter)
+                                         UniformIntegerHyperparameter,
+                                         NormalFloatHyperparameter)
 from ConfigSpace.conditions import InCondition
 from dehb import DEHB
 from smac.facade.smac_hpo_facade import SMAC4HPO
@@ -122,11 +123,12 @@ def get_cs(agentlist=["Flood"]):
 
     if "Flood" in agentlist:
         flood_hps = {
-            "board_control": {"min": 1e-6, "max": 3, "default": 0.9, "log": True},
-            "health": {"min": 1e-6, "max": 1, "default": 0.045, "log": True},
-            "len_advantage": {"min": 6, "max": 15, "default": 6.4, "log": False},
-            "food_distance": {"min": 0, "max": 1, "default": 0.415, "log": False},
-            "food_distance": {"min": 0, "max": 1, "default": 0.415, "log": False},
+            "health": {"min": -1.5, "max": 1.5, "default": 0.045, "log": False},
+            "food_distance": {"min": -2, "max": 2, "default": 0.415, "log": False},
+            "space": {"min": -6, "max": 6, "default": 0.9, "log": False},
+            "space_adv": {"min": -6, "max": 6, "default": 0.9, "log": False},
+            "size_adv": {"min": -15, "max": 15, "default": 6.4, "log": False},
+            "size_adv_decay": {"min": 1e-10, "max": 0.1, "default": 1e-10, "log": True},
         }
 
         for hp in flood_hps:
@@ -137,11 +139,6 @@ def get_cs(agentlist=["Flood"]):
                                                        log=flood_hps[hp]["log"])
             cs.add_hyperparameter(flood_hps[hp])
             cs.add_condition(InCondition(flood_hps[hp], agent, ["Flood"]))
-        
-        flood_space = CategoricalHyperparameter(PREFIXES["Flood"] + "flood_space",
-                                                choices=[True, False])
-        cs.add_hyperparameter(flood_space)
-        cs.add_condition(InCondition(flood_space, agent, ["Flood"]))
 
     return cs
 
@@ -158,7 +155,8 @@ def optim_dehb(args):
                 min_budget=1,
                 max_budget=2,
                 n_workers=args.n_jobs,
-                output_path=args.output_dir)
+                output_path=args.output_dir,
+                save_smac=True)
 
     def_value = f(cs.get_default_configuration())
     print(
