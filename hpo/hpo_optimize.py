@@ -2,6 +2,7 @@ import subprocess
 import json
 import argparse
 import numpy as np
+from time import time
 
 from ConfigSpace import ConfigurationSpace
 from ConfigSpace.hyperparameters import (CategoricalHyperparameter,
@@ -43,28 +44,27 @@ def snake_from_config_wrapper(type, num_opponents, num_games_per_eval, timeout):
         # if budget is None:
         #     budget = kwargs["max_budget"]
         fitness = 0.0
-        time_used = 0.0
+        time_begin = time()
         opponents = ["'{\"Flood\":{}}'"] * num_opponents
         for rs in RANDOMSTATES:
-            call = ["cargo run --release --bin simulate --"
+            call = ["RUST_LOG=error cargo run --release --bin simulate --"
                     f" '{json.dumps(cfg)}' " + " ".join(opponents) +
                     f" --game-count {num_games_per_eval}"
                     f" --timeout {timeout}"
                     f" --seed {rs}"
+                    " --swap"
                     ]
             run = subprocess.run(call, capture_output=True,
                                 shell=True, text=True, check=True)
 
             # extract games won and time taken from output
-            games_won = run.stdout[9:run.stdout.find(",")]
+            games_won = int(run.stdout[9:run.stdout.find(",")])
+            print("Games Won:", games_won, json.dumps(cfg))
             # inverse to minimize (treat games won as loss)
-            fitness += 1.0 - int(games_won) / num_games_per_eval
-
-            stderr = run.stderr
-            time_used += float(stderr[stderr.rfind(f" "):stderr.rfind("ms")])
+            fitness += 1.0 - games_won / (num_games_per_eval * (1 + num_opponents))
 
         fitness /= len(RANDOMSTATES)
-        time_used / len(RANDOMSTATES)
+        time_used = (time() - time_begin) * 1000 / len(RANDOMSTATES)
         if type == "DEHB":
             return {"fitness": fitness,
                     "cost": time_used,
@@ -123,11 +123,12 @@ def get_cs(agentlist=["Flood"]):
 
     if "Flood" in agentlist:
         flood_hps = {
-            "board_control": {"min": 0, "max": 6, "default": 0.0026, "log": False},
             "health": {"min": 0, "max": 1.5, "default": 0.00044, "log": False},
-            "len_advantage": {"min": 0, "max": 15, "default": 7.049, "log": False},
-            "len_advantage_decay": {"min": 1e-10, "max": 0.1, "default": 0.041, "log": True},
             "food_distance": {"min": 0, "max": 2, "default": 0.173, "log": False},
+            "space": {"min": 0, "max": 5, "default": 0.0026, "log": False},
+            "space_adv": {"min": 0, "max": 5, "default": 0.108, "log": False},
+            "size_adv": {"min": 0, "max": 15, "default": 7.049, "log": False},
+            "size_adv_decay": {"min": 1e-10, "max": 0.1, "default": 0.041, "log": True},
         }
 
         for hp in flood_hps:
