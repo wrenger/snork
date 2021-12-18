@@ -196,10 +196,23 @@ async fn play_game(
 }
 
 fn init_game(width: usize, height: usize, num_agents: usize, rng: &mut SmallRng) -> Game {
-    let start_positions = (0..width * height)
-        .filter(|i| i % 2 == 0)
-        .map(|i| v2((i % width) as i16, (i / width) as i16))
-        .choose_multiple(rng, num_agents);
+    let start_positions = if rng.gen() {
+        [
+            v2(1, 1),
+            v2((width - 2) as _, 1),
+            v2((width - 2) as _, (height - 2) as _),
+            v2(1, (height - 2) as _),
+        ]
+    } else {
+        [
+            v2((width / 2) as _, 1),
+            v2((width - 2) as _, (height / 2) as _),
+            v2((width / 2) as _, (height - 2) as _),
+            v2(1, (height / 2) as _),
+        ]
+    }
+    .into_iter()
+    .choose_multiple(rng, num_agents);
 
     let snakes = start_positions
         .into_iter()
