@@ -123,18 +123,11 @@ def get_cs(agentlist=["Flood"]):
 
     if "Flood" in agentlist:
         flood_hps = {
-            "board_control": {"min": -6, "max": 6, "default": 0.9, "log": False},
-            "board_control_decay": {"min": 1e-10, "max": 0.1, "default": 1e-10, "log": True},
-            "board_control_offset": {"min": -5, "max": 5, "default": 0, "log": False},
-            "health": {"min": -1.5, "max": 1.5, "default": 0.045, "log": False},
-            "health_decay": {"min": 1e-10, "max": 0.1, "default": 1e-10, "log": True},
-            "health_offset": {"min": -5, "max": 5, "default": 0, "log": False},
-            "len_advantage": {"min": -15, "max": 15, "default": 6.4, "log": False},
-            "len_advantage_decay": {"min": 1e-10, "max": 0.1, "default": 1e-10, "log": True},
-            "len_advantage_offset": {"min": -5, "max": 5, "default": 0, "log": False},
-            "food_distance": {"min": -2, "max": 2, "default": 0.415, "log": False},
-            "food_distance_decay": {"min": 1e-10, "max": 0.1, "default": 1e-10, "log": True},
-            "food_distance_offset": {"min": -5, "max": 5, "default": 0, "log": False},
+            "board_control": {"min": 0, "max": 6, "default": 0.0026, "log": False},
+            "health": {"min": 0, "max": 1.5, "default": 0.00044, "log": False},
+            "len_advantage": {"min": 0, "max": 15, "default": 7.049, "log": False},
+            "len_advantage_decay": {"min": 1e-10, "max": 0.1, "default": 0.041, "log": True},
+            "food_distance": {"min": 0, "max": 2, "default": 0.173, "log": False},
         }
 
         for hp in flood_hps:
