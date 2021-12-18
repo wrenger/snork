@@ -219,24 +219,22 @@ fn init_game(width: usize, height: usize, num_agents: usize, rng: &mut SmallRng)
         .map(|p| Snake::new(vec![p; 3].into(), 100))
         .collect();
 
-    let mut game = Game::new(0, width, height, snakes, &[], &[]);
+    let mut game = Game::new(
+        0,
+        width,
+        height,
+        snakes,
+        &[(width / 2, height / 2).into()],
+        &[],
+    );
 
     // Spawn 1 food 2 steps away from each snake
     for snake in game.snakes.clone() {
-        let p = [
-            v2(-1, -1),
-            v2(-2, 0),
-            v2(-1, 1),
-            v2(0, 2),
-            v2(1, 1),
-            v2(2, 0),
-            v2(1, -1),
-            v2(0, -2),
-        ]
-        .into_iter()
-        .map(|p| snake.head() + p)
-        .filter(|&p| game.grid.has(p) && game.grid[p].t != CellT::Owned)
-        .choose(rng);
+        let p = [v2(-1, -1), v2(-1, 1), v2(1, 1), v2(1, -1)]
+            .into_iter()
+            .map(|p| snake.head() + p)
+            .filter(|&p| game.grid.has(p) && game.grid[p].t != CellT::Owned)
+            .choose(rng);
         if let Some(p) = p {
             game.grid[p].t = CellT::Food;
         }

@@ -51,6 +51,12 @@ impl From<(i16, i16)> for Vec2D {
     }
 }
 
+impl From<(usize, usize)> for Vec2D {
+    fn from(val: (usize, usize)) -> Self {
+        Vec2D::new(val.0 as _, val.1 as _)
+    }
+}
+
 impl From<Direction> for Vec2D {
     fn from(d: Direction) -> Self {
         match d {
