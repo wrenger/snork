@@ -1,10 +1,13 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use std::fmt::{Debug, Display};
 
-use rand::{rngs::SmallRng, SeedableRng};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+
+use rand::{rngs::SmallRng, Rng, SeedableRng};
 use snork::agents::{maxn, FloodHeuristic, MobilityAgent, TreeHeuristic};
+use snork::env::*;
 use snork::game::search::{self, Heuristic};
 use snork::game::{FloodFill, Game, Outcome, Snake};
-use snork::{env::*, logging};
+use snork::logging;
 
 #[derive(Debug, Clone, Default)]
 struct TestH;
@@ -181,7 +184,9 @@ fn floodfill_normal(c: &mut Criterion) {
 
     let game = Game::from_request(&request);
     let heuristic = TestH::default();
-    c.bench_function("floodfill_normal", |b| b.iter(|| heuristic.eval(black_box(&game))));
+    c.bench_function("floodfill_normal", |b| {
+        b.iter(|| heuristic.eval(black_box(&game)))
+    });
 }
 
 fn tree_heuristic(c: &mut Criterion) {
@@ -272,6 +277,34 @@ fn mobility_agent(c: &mut Criterion) {
     });
 }
 
+#[derive(Clone, Copy)]
+struct PF4([f64; 4]);
+impl Display for PF4 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "[{:.3}, {:.3}, {:.3}, {:.3}]",
+            self.0[0], self.0[1], self.0[2], self.0[3]
+        )
+    }
+}
+
+fn math(c: &mut Criterion) {
+    let mut group = c.benchmark_group("math");
+    let mut rng = SmallRng::seed_from_u64(42);
+    let values = PF4(rng.gen());
+    group.bench_with_input(BenchmarkId::new("expE", values), &values, |b, values| {
+        b.iter(|| black_box(values).0.map(f64::exp))
+    });
+    group.bench_with_input(BenchmarkId::new("exp2", values), &values, |b, values| {
+        b.iter(|| black_box(values).0.map(f64::exp2))
+    });
+    group.bench_with_input(BenchmarkId::new("sqrt", values), &values, |b, values| {
+        b.iter(|| black_box(values).0.map(f64::sqrt))
+    });
+    group.finish()
+}
+
 criterion_group!(
     benches,
     game_step_circle,
@@ -288,5 +321,6 @@ criterion_group!(
     flood_search,
     flood_2_search,
     mobility_agent,
+    math,
 );
 criterion_main!(benches);

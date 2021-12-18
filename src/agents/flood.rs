@@ -5,21 +5,23 @@ use crate::game::{FloodFill, Game};
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct FloodHeuristic {
-    board_control: f64,
     health: f64,
-    len_advantage: f64,
-    len_advantage_decay: f64,
     food_distance: f64,
+    space: f64,
+    space_adv: f64,
+    size_adv: f64,
+    size_adv_decay: f64,
 }
 
 impl Default for FloodHeuristic {
     fn default() -> Self {
         Self {
-            board_control: 0.0026,
             health: 0.00044,
-            len_advantage: 7.049,
-            len_advantage_decay: 0.041,
             food_distance: 0.173,
+            space: 0.0026,
+            space_adv: 1.0,
+            size_adv: 7.049,
+            size_adv_decay: 0.041,
         }
     }
 }
@@ -31,35 +33,43 @@ impl Heuristic for FloodHeuristic {
             let area = (game.grid.width * game.grid.height) as f64;
 
             let mut flood_fill = FloodFill::new(game.grid.width, game.grid.height);
+
+            // Distance to the nearest four food cells
             let food_distances = flood_fill.flood_snakes(&game.grid, &game.snakes);
-
-            let board_control = (flood_fill.count_health(0) as f64 / (area * 100.0)).sqrt();
-
             let food_distance = food_distances
                 .into_iter()
                 .filter(|&d| d < u16::MAX)
                 .map(|d| (area - d as f64) / area)
                 .sum::<f64>();
 
+            // Health is more important if we have not much
             let health = (game.snakes[0].health as f64 / 100.0).sqrt();
 
-            let max_enemy_len = game.snakes[1..]
+            let (enemy_len, enemy_space) = if let Some((i, longest_enemy)) = game.snakes[1..]
                 .iter()
-                .filter(|s| s.alive())
-                .map(|s| s.body.len())
-                .max()
-                .unwrap_or(1)
-                .max(1) as f64;
+                .enumerate()
+                .filter(|(_, s)| s.alive())
+                .max_by_key(|(_, s)| s.body.len())
+            {
+                (
+                    longest_enemy.body.len() as f64,
+                    flood_fill.count_health(i as _) as f64,
+                )
+            } else {
+                (1.0, 0.0)
+            };
 
             // Sqrt because if we are larger we do not have to as grow much anymore.
-            let len_advantage =
-                ((own_len + food_distance * self.food_distance) / max_enemy_len).sqrt();
+            let size_adv = ((own_len + food_distance * self.food_distance) / enemy_len).sqrt();
 
-            self.board_control * board_control
-                + self.health * health
-                + self.len_advantage
-                    * len_advantage
-                    * (-(game.turn as f64) * self.len_advantage_decay).exp()
+            // Space advantage becomes increasingly better when higher
+            let space = flood_fill.count_health(0) as f64 / (area * 100.0);
+            let space_adv = 1.0 - (1.0 - space / (enemy_space + space)).sqrt();
+
+            self.health * health
+                + self.space_adv * space_adv
+                + self.space * space.sqrt()
+                + self.size_adv * size_adv * (-(game.turn as f64) * self.size_adv_decay).exp2()
         } else {
             search::LOSS
         }

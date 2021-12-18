@@ -41,9 +41,9 @@ The default config for the `Flood` agent is for example:
 ```json
 {
   "Flood": {
-    "board_control": 2.0,
+    "space": 2.0,
     "health": 0.5,
-    "len_advantage": 4.0,
+    "size_adv": 4.0,
     "food_distance": 0.5
   }
 }
@@ -58,7 +58,7 @@ The provided Configurations play a number of games against each other and the
 number of wins of the first configuration is returned.
 
 ```bash
-cargo run --release --bin simulate -- '{"Flood":{"board_control":8.0}}' '{"Tree":{"centrality":0}}' --game-count 10
+cargo run --release --bin simulate -- '{"Flood":{"space":8.0}}' '{"Tree":{"centrality":0}}' --game-count 10
 ```
 
 > Play `--game-count` games.
