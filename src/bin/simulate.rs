@@ -131,7 +131,7 @@ async fn play_game(
 
     let mut hazard_insets = [0; 4];
 
-    for turn in 0.. {
+    for turn in game.turn.. {
         let mut moves = [Direction::Up; 4];
         for i in 0..game.snakes.len() {
             if game.snakes[i].alive() {
