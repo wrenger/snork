@@ -98,9 +98,9 @@ impl FloodFill {
     pub fn count_health(&self, i: u8) -> usize {
         self.cells
             .iter()
-            .filter_map(|&c| match c {
-                FCell::Owned { id, health, .. } if id == i => Some(health as usize),
-                _ => None,
+            .map(|&c| match c {
+                FCell::Owned { id, health, .. } if id == i => health as usize,
+                _ => 0,
             })
             .sum()
     }

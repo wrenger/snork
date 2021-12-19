@@ -45,9 +45,11 @@ impl Heuristic for FloodHeuristic {
             // Health is more important if we have not much
             let health = (game.snakes[0].health as f64 / 100.0).sqrt();
 
-            let (enemy_len, enemy_space) = if let Some((i, longest_enemy)) = game.snakes[1..]
+            let (enemy_len, enemy_space) = if let Some((i, longest_enemy)) = game
+                .snakes
                 .iter()
                 .enumerate()
+                .skip(1)
                 .filter(|(_, s)| s.alive())
                 .max_by_key(|(_, s)| s.body.len())
             {
@@ -63,12 +65,17 @@ impl Heuristic for FloodHeuristic {
             let size_adv = ((own_len + food_distance * self.food_distance) / enemy_len).sqrt();
 
             // Space advantage becomes increasingly better when higher
-            let space = flood_fill.count_health(0) as f64 / (area * 100.0);
-            let space_adv = 1.0 - (1.0 - space / (enemy_space + space)).sqrt();
+            let space = flood_fill.count_health(0) as f64;
+            let space_adv = if space > 0.0 {
+                (space / (enemy_space + space)).powi(3)
+            } else {
+                0.0
+            };
+            let space = (space / (area * 100.0)).sqrt();
 
             self.health * health
                 + self.space_adv * space_adv
-                + self.space * space.sqrt()
+                + self.space * space
                 + self.size_adv * size_adv * (-(game.turn as f64) * self.size_adv_decay).exp2()
         } else {
             search::LOSS
