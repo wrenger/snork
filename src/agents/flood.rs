@@ -19,7 +19,7 @@ impl Default for FloodHeuristic {
             health: 0.00044,
             food_distance: 0.173,
             space: 0.0026,
-            space_adv: 1.0,
+            space_adv: 0.108,
             size_adv: 7.049,
             size_adv_decay: 0.041,
         }
