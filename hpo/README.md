@@ -6,7 +6,7 @@ Simple script for optimizing the rusty snakes hyperparameters with [SMAC3](https
 
 ### Hyperparameter Search
 
-Install the [requirements.txt](hpo/requirements.txt). Python 3.9 is recommended.
+Install the [requirements.txt](requirements.txt). Python 3.9 is recommended.
 
 Run the script:
 
@@ -45,24 +45,24 @@ Which performs all the different types of analysis available to PyImp but doesn'
 
 |                      | Ablation          | Forward-Selection | fANOVA            | LPI               |
 | -------------------- | ----------------- | ----------------- | ----------------- | ----------------- |
-| food_distance_offset | $         31.820$ | $          0.163$ | $         17.847$ | $         12.216$ |
-| board_control_decay  | $          0.000$ | $          0.058$ | $          0.685$ | $          2.131$ |
-| board_control_flip   | $          0.000$ | -                 | $          0.029$ | $          0.000$ |
-| board_control_offset | $          0.000$ | $          0.126$ | $          8.851$ | $         35.516$ |
-| food_distance_decay  | $          0.000$ | $          0.077$ | $          0.112$ | $         11.054$ |
-| food_distance_flip   | $          0.000$ | -                 | $          0.066$ | $          0.000$ |
-| health               | $          0.000$ | -                 | $          0.274$ | $          0.408$ |
-| health_flip          | $          0.000$ | -                 | $          0.008$ | $          0.000$ |
-| health_offset        | $          0.000$ | -                 | $          0.177$ | $          0.067$ |
-| len_advantage        | $          0.000$ | -                 | $          0.719$ | $          0.027$ |
-| len_advantage_flip   | $          0.000$ | -                 | $          0.000$ | $          0.000$ |
-| food_distance        | $         -0.012$ | $          0.067$ | $          6.770$ | $          1.181$ |
-| len_advantage_offset | $          8.973$ | $          0.089$ | $          4.390$ | $         33.512$ |
-| board_control        | $         22.752$ | -                 | $          2.628$ | $          1.490$ |
-| len_advantage_decay  | $         19.313$ | -                 | $          3.606$ | $          1.783$ |
-| health_decay         | $         17.156$ | -                 | $          0.002$ | $          0.614$ |
-| None                 | -                 | $          0.199$ | -                 | -                 |
-| agent                | -                 | -                 | $          0.000$ | -                 |
+| food_distance_offset |           31.820  |            0.163  |           17.847  |           12.216  |
+| board_control_decay  |            0.000  |            0.058  |            0.685  |            2.131  |
+| board_control_flip   |            0.000  | -                 |            0.029  |            0.000  |
+| board_control_offset |            0.000  |            0.126  |            8.851  |           35.516  |
+| food_distance_decay  |            0.000  |            0.077  |            0.112  |           11.054  |
+| food_distance_flip   |            0.000  | -                 |            0.066  |            0.000  |
+| health               |            0.000  | -                 |            0.274  |            0.408  |
+| health_flip          |            0.000  | -                 |            0.008  |            0.000  |
+| health_offset        |            0.000  | -                 |            0.177  |            0.067  |
+| len_advantage        |            0.000  | -                 |            0.719  |            0.027  |
+| len_advantage_flip   |            0.000  | -                 |            0.000  |            0.000  |
+| food_distance        |           -0.012  |            0.067  |            6.770  |            1.181  |
+| len_advantage_offset |            8.973  |            0.089  |            4.390  |           33.512  |
+| board_control        |           22.752  | -                 |            2.628  |            1.490  |
+| len_advantage_decay  |           19.313  | -                 |            3.606  |            1.783  |
+| health_decay         |           17.156  | -                 |            0.002  |            0.614  |
+| None                 | -                 |            0.199  | -                 | -                 |
+| agent                | -                 | -                 |            0.000  | -                 |
 
 > Parameter Importance values, obtained using the PIMP package. Ablation values are percentages of improvement a single parameter change obtained between the default and an incumbent configuration.
 >
