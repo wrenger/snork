@@ -20,11 +20,14 @@ This allowed us to perform parameter optimization (bayesian optimization) to fur
 
 We also developed a fast simulator to execute moves and analyze their outcomes.
 
+Additionaly the [hpo folder](hpo) contains a code and instructions to update the hyperparameters
+ of an agent.
+
 ## Usage
 
 ### Running the Server
 
-Fist the rust toolchain has to be installed (https://www.rust-lang.org/learn/get-started).
+First the rust toolchain has to be installed (https://www.rust-lang.org/learn/get-started).
 
 Starting the server:
 

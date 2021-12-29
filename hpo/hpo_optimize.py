@@ -12,7 +12,6 @@ from ConfigSpace.conditions import InCondition
 from dehb import DEHB
 from smac.facade.smac_hpo_facade import SMAC4HPO
 from smac.scenario.scenario import Scenario
-from fanova import fANOVA
 
 RANDOMSTATES = [42, 5, 725]
 # To remove naming conflicts between agents, must be 2 characters long
