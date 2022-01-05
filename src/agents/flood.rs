@@ -33,19 +33,15 @@ impl Heuristic for FloodHeuristic {
             let area = (game.grid.width * game.grid.height) as f64;
 
             let mut flood_fill = FloodFill::new(game.grid.width, game.grid.height);
-
-            // Distance to the nearest four food cells
             let food_distances = flood_fill.flood_snakes(&game.grid, &game.snakes);
-            let food_distance = food_distances
-                .into_iter()
-                .filter(|&d| d < u16::MAX)
-                .map(|d| (area - d as f64) / area)
-                .sum::<f64>();
 
             // Health is more important if we have not much
             let health = (game.snakes[0].health as f64 / 100.0).sqrt();
 
-            let (enemy_len, enemy_space) = if let Some((i, longest_enemy)) = game
+            // Space advantage becomes increasingly better when higher
+            let space = flood_fill.count_health(0) as f64;
+
+            let (size_adv, space_adv) = if let Some((i, longest_enemy)) = game
                 .snakes
                 .iter()
                 .enumerate()
@@ -53,24 +49,28 @@ impl Heuristic for FloodHeuristic {
                 .filter(|(_, s)| s.alive())
                 .max_by_key(|(_, s)| s.body.len())
             {
-                (
-                    longest_enemy.body.len() as f64,
-                    flood_fill.count_health(i as _) as f64,
-                )
+                // Distance to the nearest four food cells
+                let food_distance = food_distances
+                    .into_iter()
+                    .filter(|&d| d < u16::MAX)
+                    .map(|d| (area - d as f64) / area)
+                    .sum::<f64>();
+                let enemy_len = longest_enemy.body.len() as f64;
+                // Sqrt because if we are larger we do not have to as grow much anymore.
+                let size_adv = ((own_len + food_distance * self.food_distance) / enemy_len).sqrt();
+
+                let enemy_space = flood_fill.count_health(i as _) as f64;
+                let space_adv = if space > 0.0 {
+                    // x^3 so that the effect is stronger when the value is higher.
+                    (space / (enemy_space + space)).powi(3)
+                } else {
+                    0.0
+                };
+                (size_adv, space_adv)
             } else {
-                (1.0, 0.0)
+                (0.0, 0.0)
             };
 
-            // Sqrt because if we are larger we do not have to as grow much anymore.
-            let size_adv = ((own_len + food_distance * self.food_distance) / enemy_len).sqrt();
-
-            // Space advantage becomes increasingly better when higher
-            let space = flood_fill.count_health(0) as f64;
-            let space_adv = if space > 0.0 {
-                (space / (enemy_space + space)).powi(3)
-            } else {
-                0.0
-            };
             let space = (space / (area * 100.0)).sqrt();
 
             self.health * health

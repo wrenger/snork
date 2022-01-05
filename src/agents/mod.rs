@@ -11,6 +11,8 @@ mod random;
 pub use random::*;
 pub mod expectimax;
 pub mod maxn;
+mod solo;
+pub use solo::*;
 
 use crate::game::Game;
 
@@ -25,6 +27,7 @@ pub enum Agent {
     Tree(TreeHeuristic),
     Flood(FloodHeuristic),
     FloodExp(FloodHeuristic),
+    Solo(SoloHeuristic),
     Random(RandomAgent),
 }
 
@@ -52,6 +55,7 @@ impl Agent {
             Agent::Tree(agent) => maxn::step(agent, timeout, game).await,
             Agent::Flood(agent) => maxn::step(agent, timeout, game).await,
             Agent::FloodExp(agent) => expectimax::step(agent, timeout, game).await,
+            Agent::Solo(agent) => maxn::step(agent, timeout, game).await,
             Agent::Random(agent) => agent.step(game).await,
         }
     }
