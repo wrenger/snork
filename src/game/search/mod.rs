@@ -1,5 +1,3 @@
-mod expectimax;
-pub use expectimax::*;
 mod minimax;
 pub use minimax::*;
 mod alphabeta;

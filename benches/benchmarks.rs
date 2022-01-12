@@ -133,22 +133,6 @@ fn async_max_n(c: &mut Criterion) {
     });
 }
 
-fn expectimax(c: &mut Criterion) {
-    logging();
-    let snakes = vec![
-        Snake::new(vec![v2(0, 3), v2(1, 3), v2(2, 3), v2(3, 3)].into(), 100),
-        Snake::new(vec![v2(3, 7), v2(3, 6), v2(3, 5)].into(), 100),
-        Snake::new(vec![v2(10, 7), v2(10, 6), v2(10, 5)].into(), 100),
-        Snake::new(vec![v2(10, 0), v2(9, 0), v2(8, 0)].into(), 100),
-    ];
-    let game = Game::new(0, 11, 11, snakes, &[], &[]);
-
-    c.bench_function("expectimax", |b| {
-        b.to_async(tokio::runtime::Runtime::new().unwrap())
-            .iter(|| search::expectimax(black_box(&game), 2, &TestH))
-    });
-}
-
 fn normal_alphabeta(c: &mut Criterion) {
     logging();
     let snakes = vec![
@@ -311,7 +295,6 @@ criterion_group!(
     game_step_random,
     async_max_n,
     normal_max_n,
-    expectimax,
     async_alphabeta,
     normal_alphabeta,
     floodfill_normal,

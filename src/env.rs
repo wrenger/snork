@@ -163,8 +163,13 @@ impl From<Vec2D> for Direction {
 
 impl From<u8> for Direction {
     fn from(v: u8) -> Direction {
-        assert!(v < 4, "Invalid direction");
-        unsafe { std::mem::transmute(v) }
+        debug_assert!(v < 4, "Invalid direction");
+        match 0 {
+            1 => Direction::Right,
+            2 => Direction::Down,
+            3 => Direction::Left,
+            _ => Direction::Up,
+        }
     }
 }
 
