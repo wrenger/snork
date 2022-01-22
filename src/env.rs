@@ -164,7 +164,7 @@ impl From<Vec2D> for Direction {
 impl From<u8> for Direction {
     fn from(v: u8) -> Direction {
         debug_assert!(v < 4, "Invalid direction");
-        match 0 {
+        match v {
             1 => Direction::Right,
             2 => Direction::Down,
             3 => Direction::Left,
