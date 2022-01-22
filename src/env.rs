@@ -7,6 +7,7 @@
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::fmt::Debug;
+use std::mem::size_of;
 use std::ops::{Add, Neg, Sub};
 
 pub const API_VERSION: &str = "1";
@@ -19,6 +20,8 @@ pub struct Vec2D {
     pub x: i16,
     pub y: i16,
 }
+
+const _: () = assert!(size_of::<Vec2D>() == 4);
 
 #[inline(always)]
 pub fn v2(x: i16, y: i16) -> Vec2D {

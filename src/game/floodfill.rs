@@ -1,9 +1,11 @@
 use std::collections::VecDeque;
+use std::mem::size_of;
 use std::ops::{Index, IndexMut};
 
 use super::{Grid, Snake};
 use crate::env::{Direction, Vec2D, HAZARD_DAMAGE};
 use crate::game::CellT;
+use crate::util::FixedVec;
 
 use owo_colors::{AnsiColors, OwoColorize};
 
@@ -23,6 +25,8 @@ pub enum FCell {
         distance: u16,
     },
 }
+
+const _: () = assert!(size_of::<FCell>() == 8);
 
 impl std::fmt::Debug for FCell {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -57,6 +61,8 @@ struct SnakePos {
     len: u16,
     health: u8,
 }
+
+const _: () = assert!(size_of::<SnakePos>() == 4 + 8);
 
 impl SnakePos {
     fn new(p: Vec2D, id: u8, distance: u16, food: u16, len: u16, health: u8) -> Self {
@@ -152,7 +158,7 @@ impl FloodFill {
     /// This allows the snake to follow its tail or enemy tails.
     ///
     /// Food on the way is been accounted for the own tail.
-    fn flood(&mut self, grid: &Grid, heads: impl Iterator<Item = SnakePos>) -> [u16; 4] {
+    fn flood(&mut self, grid: &Grid, heads: impl Iterator<Item = SnakePos>) -> FixedVec<u16, 4> {
         // Assuming there are at most n^2 elements in the queue
         let mut queue = VecDeque::with_capacity(self.width * self.height);
         queue.extend(heads);
@@ -192,8 +198,7 @@ impl FloodFill {
         }
 
         // Collect food on the way
-        let mut food_distances = [u16::MAX; 4];
-        let mut food_distance_i = 0;
+        let mut food_distances = FixedVec::new();
 
         while let Some(SnakePos {
             p,
@@ -204,41 +209,37 @@ impl FloodFill {
             health,
         }) = queue.pop_front()
         {
-            for p in Direction::iter().map(|d| p.apply(d)) {
-                if self.has(p) {
-                    let g_cell = grid[p];
-                    let cell = self[p];
+            for p in Direction::iter()
+                .map(|d| p.apply(d))
+                .filter(|&p| grid.has(p))
+            {
+                let g_cell = grid[p];
+                let cell = self[p];
 
-                    let is_food = g_cell.t == CellT::Food;
+                let is_food = g_cell.t == CellT::Food;
 
-                    let health = if is_food {
-                        100
-                    } else {
-                        health.saturating_sub(if g_cell.hazard { HAZARD_DAMAGE } else { 1 })
+                let health = if is_food {
+                    100
+                } else {
+                    health.saturating_sub(if g_cell.hazard { HAZARD_DAMAGE } else { 1 })
+                };
+
+                // Collect food
+                if is_food && id == 0 && cell == FCell::Free {
+                    food_distances.push(distance);
+                }
+
+                let food = food + is_food as u16;
+                let len = len + is_food as u16;
+
+                if health > 0 && owns(cell, id, distance, food, len, health) {
+                    self[p] = FCell::Owned {
+                        id,
+                        health,
+                        len,
+                        distance,
                     };
-
-                    // Collect food
-                    if is_food
-                        && id == 0
-                        && cell == FCell::Free
-                        && food_distance_i < food_distances.len()
-                    {
-                        food_distances[food_distance_i] = distance;
-                        food_distance_i += 1;
-                    }
-
-                    let food = food + is_food as u16;
-                    let len = len + is_food as u16;
-
-                    if health > 0 && owns(cell, id, distance, food, len, health) {
-                        self[p] = FCell::Owned {
-                            id,
-                            health,
-                            len,
-                            distance,
-                        };
-                        queue.push_back(SnakePos::new(p, id, distance + 1, food, len, health));
-                    }
+                    queue.push_back(SnakePos::new(p, id, distance + 1, food, len, health));
                 }
             }
         }
@@ -248,7 +249,7 @@ impl FloodFill {
     /// Prepare the board and compute flood fill.
     /// It is assumed that the snake at position and id 0 is the evaluated
     /// agent and the other snakes are the enemies.
-    pub fn flood_snakes(&mut self, grid: &Grid, snakes: &[Snake]) -> [u16; 4] {
+    pub fn flood_snakes(&mut self, grid: &Grid, snakes: &[Snake]) -> FixedVec<u16, 4> {
         self.clear();
 
         // Prepare board with snakes (tail = 1, ..., head = n)
@@ -323,7 +324,7 @@ mod test {
             &grid,
             [SnakePos::new(Vec2D::new(0, 0), 0, 0, 0, 3, 100)].into_iter(),
         );
-        info!("Filled {} {:?}", floodfill.count_space(0), floodfill);
+        info!("Filled {} {floodfill:?}", floodfill.count_space(0));
         assert_eq!(floodfill.count_space(0), 11 * 11);
 
         let grid = Grid::new(11, 11);
@@ -337,7 +338,7 @@ mod test {
             .iter()
             .cloned(),
         );
-        info!("Filled {} {:?}", floodfill.count_space(0), floodfill);
+        info!("Filled {} {floodfill:?}", floodfill.count_space(0));
         assert_eq!(floodfill.count_space(0), 66);
         let grid = Grid::new(11, 11);
         floodfill.clear();
@@ -351,7 +352,7 @@ mod test {
             .iter()
             .cloned(),
         );
-        info!("Filled {} {:?}", floodfill.count_space(0), floodfill);
+        info!("Filled {} {floodfill:?}", floodfill.count_space(0));
         assert_eq!(floodfill.count_space(0), 61);
     }
 
@@ -380,7 +381,7 @@ mod test {
         let mut floodfill = FloodFill::new(game.grid.width, game.grid.height);
         floodfill.flood_snakes(&game.grid, &game.snakes);
 
-        info!("Filled {} {:?}", floodfill.count_space(0), floodfill);
+        info!("Filled {} {floodfill:?}", floodfill.count_space(0));
         assert_eq!(floodfill.count_space(0), 11 * 11);
 
         let game = Game::parse(
@@ -402,7 +403,7 @@ mod test {
         let mut floodfill = FloodFill::new(game.grid.width, game.grid.height);
         floodfill.flood_snakes(&game.grid, &game.snakes);
 
-        info!("Filled {} {:?}", floodfill.count_space(0), floodfill);
+        info!("Filled {} {floodfill:?}", floodfill.count_space(0));
         assert_eq!(floodfill.count_space(0), 11 * 11);
     }
 
@@ -431,7 +432,7 @@ mod test {
         let mut floodfill = FloodFill::new(game.grid.width, game.grid.height);
         floodfill.flood_snakes(&game.grid, &game.snakes);
 
-        info!("Filled {} {:?}", floodfill.count_space(0), floodfill);
+        info!("Filled {} {floodfill:?}", floodfill.count_space(0));
         assert_eq!(floodfill.count_space(0), 4);
     }
 
@@ -460,7 +461,7 @@ mod test {
         let mut floodfill = FloodFill::new(game.grid.width, game.grid.height);
         floodfill.flood_snakes(&game.grid, &game.snakes);
 
-        info!("Filled {} {:?}", floodfill.count_space(0), floodfill);
+        info!("Filled {} {floodfill:?}", floodfill.count_space(0));
         assert_eq!(floodfill.count_space(0), 11 * 11);
 
         let game = Game::parse(
@@ -481,7 +482,7 @@ mod test {
 
         floodfill.clear();
         floodfill.flood_snakes(&game.grid, &game.snakes);
-        info!("Filled {} {:?}", floodfill.count_space(0), floodfill);
+        info!("Filled {} {floodfill:?}", floodfill.count_space(0));
         assert_eq!(floodfill.count_space(0), 1);
     }
 
@@ -509,7 +510,7 @@ mod test {
 
         let mut floodfill = FloodFill::new(game.grid.width, game.grid.height);
         floodfill.flood_snakes(&game.grid, &game.snakes);
-        info!("Filled {} {:?}", floodfill.count_space(0), floodfill);
+        info!("Filled {} {floodfill:?}", floodfill.count_space(0));
         assert_eq!(floodfill.count_space(0), 24);
     }
 
@@ -538,7 +539,7 @@ mod test {
 
         let mut floodfill = FloodFill::new(game.grid.width, game.grid.height);
         floodfill.flood_snakes(&game.grid, &game.snakes);
-        info!("Filled {} {:?}", floodfill.count_space(0), floodfill);
+        info!("Filled {} {floodfill:?}", floodfill.count_space(0));
         assert_eq!(floodfill.count_space(0), 59);
     }
 
@@ -572,7 +573,7 @@ mod test {
 
         let mut floodfill = FloodFill::new(game.grid.width, game.grid.height);
         floodfill.flood_snakes(&game.grid, &game.snakes);
-        info!("Filled {} {:?}", floodfill.count_space(0), floodfill);
+        info!("Filled {} {floodfill:?}", floodfill.count_space(0));
         assert_eq!(floodfill.count_space(0), 96);
     }
 
@@ -601,7 +602,7 @@ mod test {
 
         let mut floodfill = FloodFill::new(game.grid.width, game.grid.height);
         floodfill.flood_snakes(&game.grid, &game.snakes);
-        info!("Filled {} {:?}", floodfill.count_space(0), floodfill);
+        info!("Filled {} {floodfill:?}", floodfill.count_space(0));
         assert_eq!(29, floodfill.count_space(0));
 
         let game = Game::parse(
@@ -623,7 +624,7 @@ mod test {
 
         let mut floodfill = FloodFill::new(game.grid.width, game.grid.height);
         floodfill.flood_snakes(&game.grid, &game.snakes);
-        info!("Filled {} {:?}", floodfill.count_space(0), floodfill);
+        info!("Filled {} {floodfill:?}", floodfill.count_space(0));
         assert_eq!(35, floodfill.count_space(0));
     }
 }

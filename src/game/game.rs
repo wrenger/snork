@@ -420,7 +420,7 @@ impl Debug for Game {
                 if hazard {
                     write!(f, "{:?} ", cell.on_bright_black())?;
                 } else {
-                    write!(f, "{:?} ", cell)?;
+                    write!(f, "{cell:?} ")?;
                 }
             }
             writeln!(f)?;
@@ -435,7 +435,7 @@ impl Debug for Game {
             } else {
                 first = false;
             }
-            write!(f, "({}: {})", id, snake.health)?;
+            write!(f, "({id}: {})", snake.health)?;
         }
         writeln!(f, "]")?;
 
@@ -542,7 +542,7 @@ mod test {
             VecDeque::from(vec![Vec2D::new(0, 1), Vec2D::new(0, 1), Vec2D::new(0, 0),])
         );
 
-        info!("{:?}", game);
+        info!("{game:?}");
     }
 
     #[test]
@@ -571,7 +571,7 @@ mod test {
             // Both right
             let mut game = game.clone();
             game.step(&[Right, Right]);
-            info!("{:?}", game);
+            info!("{game:?}");
             assert!(game.snake_is_alive(0));
             assert!(game.snake_is_alive(1));
             assert!(game.grid[Vec2D::new(4, 6)].t != CellT::Owned);
@@ -581,7 +581,7 @@ mod test {
 
             // Snake 0 runs into 1
             game.step(&[Right, Right]);
-            info!("{:?}", game);
+            info!("{game:?}");
             assert!(!game.snake_is_alive(0));
             assert!(game.grid[Vec2D::new(5, 8)].t != CellT::Owned);
             assert!(game.snake_is_alive(1));
@@ -591,7 +591,7 @@ mod test {
         {
             // Head to head equal len
             game.step(&[Right, Left]);
-            info!("{:?}", game);
+            info!("{game:?}");
             assert!(!game.snake_is_alive(0));
             assert!(!game.snake_is_alive(1));
         }
@@ -628,7 +628,7 @@ mod test {
             VecDeque::from(vec![Vec2D::new(6, 0), Vec2D::new(6, 1), Vec2D::new(5, 1)])
         );
 
-        info!("{:?}", game.grid);
+        info!("{game:?}");
         assert!([Right].iter().cloned().eq(game.valid_moves(0)));
     }
 }

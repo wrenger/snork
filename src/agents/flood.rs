@@ -51,9 +51,8 @@ impl Heuristic for FloodHeuristic {
             {
                 // Distance to the nearest four food cells
                 let food_distance = food_distances
-                    .into_iter()
-                    .filter(|&d| d < u16::MAX)
-                    .map(|d| (area - d as f64) / area)
+                    .iter()
+                    .map(|&d| (area - d as f64) / area)
                     .sum::<f64>();
                 let enemy_len = longest_enemy.body.len() as f64;
                 // Sqrt because if we are larger we do not have to as grow much anymore.

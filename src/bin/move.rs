@@ -31,14 +31,14 @@ async fn main() {
     } = Opts::from_args();
 
     let game = Game::from_request(&request);
-    info!("{:?}", config);
-    info!("{:?}", game);
+    info!("{config:?}");
+    info!("{game:?}");
 
     let mut flood_fill = FloodFill::new(request.board.width, request.board.height);
     flood_fill.flood_snakes(&game.grid, &game.snakes);
-    info!("{:?}", flood_fill);
+    info!("{flood_fill:?}");
 
     let step = config.step(&request, latency as _).await;
 
-    info!("Step: {:?}", step);
+    info!("Step: {step:?}");
 }

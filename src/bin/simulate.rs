@@ -65,7 +65,7 @@ async fn main() {
     } = Opts::from_args();
 
     assert!(agents.len() <= 4, "Only up to 4 snakes are supported");
-    info!("agents: {:?}", agents);
+    info!("agents: {agents:?}");
 
     let start = Instant::now();
 
@@ -99,9 +99,8 @@ async fn main() {
                 _ => {}
             }
             warn!(
-                "{}: {} {}ms",
+                "{}: {i} {}ms",
                 "Finish Game".bright_green(),
-                i,
                 start.elapsed().as_millis()
             );
         }
@@ -114,7 +113,7 @@ async fn main() {
         agents.rotate_left(1);
     }
 
-    println!("Result: {:?}", wins);
+    println!("Result: {wins:?}");
 }
 
 async fn play_game(
@@ -127,7 +126,7 @@ async fn play_game(
 ) -> Outcome {
     let mut food_count = 4;
 
-    debug!("init: {:?}", game);
+    debug!("init: {game:?}");
 
     let mut hazard_insets = [0; 4];
 
@@ -144,7 +143,7 @@ async fn play_game(
                 game.snakes.swap(0, i);
             }
         }
-        debug!("Moves: {:?}", moves);
+        debug!("Moves: {moves:?}");
 
         game.step(&moves);
 
@@ -152,7 +151,7 @@ async fn play_game(
 
         let outcome = game.outcome();
         if outcome != Outcome::None {
-            warn!("game: {:?} after {} turns", outcome, turn);
+            warn!("game: {outcome:?} after {turn} turns");
             return outcome;
         }
 

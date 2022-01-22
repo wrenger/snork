@@ -104,11 +104,8 @@ async fn main() {
         .and(warp::body::json::<GameRequest>())
         .map(|request: GameRequest| {
             warn!(
-                "end {} game {},{} win={}",
-                request.game.ruleset.name,
-                request.game.id,
-                request.you.id,
-                request.you.health != 0
+                "end {} game {},{}",
+                request.game.ruleset.name, request.game.id, request.you.id,
             );
             warp::reply()
         });

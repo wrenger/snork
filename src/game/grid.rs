@@ -1,5 +1,6 @@
 use std::cmp::Reverse;
 use std::collections::{BinaryHeap, HashMap};
+use std::mem::size_of;
 use std::ops::{Index, IndexMut};
 use std::{f64, usize};
 
@@ -20,6 +21,7 @@ pub struct Cell {
     pub t: CellT,
     pub hazard: bool,
 }
+const _: () = assert!(size_of::<Cell>() == 2);
 
 impl Cell {
     pub const fn new(t: CellT, hazard: bool) -> Self {
@@ -55,6 +57,8 @@ pub struct Grid {
     pub height: usize,
     pub cells: Vec<Cell>,
 }
+
+const _: () = assert!(size_of::<Grid>() == 5 * 8);
 
 impl Grid {
     /// Creates a new grid with the provided dimensions.
@@ -218,16 +222,6 @@ impl std::fmt::Debug for Grid {
 mod test {
     use crate::logging;
     use log::info;
-
-    #[test]
-    #[ignore]
-    fn grid_size() {
-        use super::*;
-        use std::mem;
-        println!("Cell: {}", mem::size_of::<Cell>());
-        println!("Grid: {}", mem::size_of::<Grid>());
-        println!("[Cell; 11 * 11]: {}", mem::size_of::<[Cell; 11 * 11]>());
-    }
 
     #[test]
     fn grid_a_star() {

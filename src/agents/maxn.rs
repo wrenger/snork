@@ -44,11 +44,7 @@ pub fn step_fast<H: Heuristic>(heuristic: &H, game: &Game) -> MoveResponse {
     let start = Instant::now();
     let result = search::max_n(game, 1, heuristic);
 
-    info!(
-        ">>> max_n 1 {:?}ms {:?}",
-        start.elapsed().as_millis(),
-        result
-    );
+    info!(">>> max_n 1 {:?}ms {result:?}", start.elapsed().as_millis());
 
     if let Some(dir) = argmax(result.iter()) {
         if result[dir] > search::LOSS {
@@ -94,10 +90,8 @@ pub async fn tree_search<H: Heuristic>(
     let result = search::async_max_n(game, depth, heuristic).await;
 
     info!(
-        ">>> max_n {} {:?}ms {:?}",
-        depth,
+        ">>> max_n {depth} {:?}ms {result:?}",
         start.elapsed().as_millis(),
-        result
     );
 
     argmax(result.iter())
