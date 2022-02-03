@@ -1,13 +1,15 @@
+use std::sync::Arc;
+
 use super::{Heuristic, DRAW, LOSS, WIN};
 use crate::env::*;
 use crate::game::{Game, Outcome};
 
 use async_recursion::async_recursion;
 
-pub async fn async_alphabeta<H: Heuristic>(
+pub async fn async_alphabeta(
     game: &Game,
     depth: usize,
-    heuristic: &H,
+    heuristic: Arc<dyn Heuristic>,
 ) -> (Direction, f64) {
     async_alphabeta_rec(game, [Direction::Up; 4], depth, 0, LOSS, WIN, heuristic).await
 }
@@ -16,14 +18,14 @@ pub async fn async_alphabeta<H: Heuristic>(
 /// This version is very slow, even slower than the synchronous alphabeta
 /// and much slower than multithreaded max n
 #[async_recursion]
-async fn async_alphabeta_rec<H: Heuristic>(
+async fn async_alphabeta_rec(
     game: &Game,
     actions: [Direction; 4],
     depth: usize,
     ply: usize,
     mut alpha: f64,
     mut beta: f64,
-    heuristic: &H,
+    heuristic: Arc<dyn Heuristic>,
 ) -> (Direction, f64) {
     if ply == game.snakes.len() {
         let mut game = game.clone();
@@ -58,7 +60,7 @@ async fn async_alphabeta_rec<H: Heuristic>(
             let heuristic = heuristic.clone();
             let actions = [d, Direction::Up, Direction::Up, Direction::Up];
             futures[d as u8 as usize] = Some(tokio::task::spawn(async move {
-                async_alphabeta_rec(&game, actions, depth, ply + 1, alpha, beta, &heuristic).await
+                async_alphabeta_rec(&game, actions, depth, ply + 1, alpha, beta, heuristic).await
             }));
         }
 
@@ -83,8 +85,16 @@ async fn async_alphabeta_rec<H: Heuristic>(
         for d in Direction::iter() {
             let mut actions = actions;
             actions[ply] = d;
-            let newval =
-                async_alphabeta_rec(game, actions, depth, ply + 1, alpha, beta, heuristic).await;
+            let newval = async_alphabeta_rec(
+                game,
+                actions,
+                depth,
+                ply + 1,
+                alpha,
+                beta,
+                heuristic.clone(),
+            )
+            .await;
             if newval.1 < value.1 {
                 value = (d, newval.1);
             }
@@ -103,18 +113,18 @@ async fn async_alphabeta_rec<H: Heuristic>(
 /// @see https://en.wikipedia.org/wiki/Alpha%E2%80%93beta_pruning
 /// Assuming the maximizing agent has id 0
 /// Assuming only two snakes are alive
-pub fn alphabeta<H: Heuristic>(game: &Game, depth: usize, heuristic: &H) -> (Direction, f64) {
+pub fn alphabeta(game: &Game, depth: usize, heuristic: &dyn Heuristic) -> (Direction, f64) {
     alphabeta_rec(game, [Direction::Up; 4], depth, 0, LOSS, WIN, heuristic)
 }
 
-fn alphabeta_rec<H: Heuristic>(
+fn alphabeta_rec(
     game: &Game,
     actions: [Direction; 4],
     depth: usize,
     ply: usize,
     mut alpha: f64,
     mut beta: f64,
-    heuristic: &H,
+    heuristic: &dyn Heuristic,
 ) -> (Direction, f64) {
     if ply == game.snakes.len() {
         let mut game = game.clone();

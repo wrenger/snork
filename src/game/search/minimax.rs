@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::game::Game;
 use crate::{env::Direction, game::Outcome};
 
@@ -12,18 +14,18 @@ use super::{Heuristic, DRAW, LOSS, WIN};
 ///
 /// If the maximizing player dies traversal ends and min is returned.
 /// Dead enemies are skipped.
-pub async fn async_max_n<H: Heuristic>(game: &Game, depth: usize, heuristic: &H) -> [f64; 4] {
+pub async fn async_max_n(game: &Game, depth: usize, heuristic: Arc<dyn Heuristic>) -> [f64; 4] {
     assert!(game.snakes.len() <= 4);
     async_max_n_rec(game, depth, 0, [Direction::Up; 4], heuristic).await
 }
 
 #[async_recursion]
-async fn async_max_n_rec<H: Heuristic>(
+async fn async_max_n_rec(
     game: &Game,
     depth: usize,
     ply: usize,
     actions: [Direction; 4],
-    heuristic: &H,
+    heuristic: Arc<dyn Heuristic>,
 ) -> [f64; 4] {
     if ply == game.snakes.len() {
         // simulate
@@ -68,7 +70,7 @@ async fn async_max_n_rec<H: Heuristic>(
 
             // Create tasks for subtrees.
             futures[d as u8 as usize] = Some(tokio::task::spawn(async move {
-                async_max_n_rec(&game, depth, ply + 1, actions, &heuristic).await
+                async_max_n_rec(&game, depth, ply + 1, actions, heuristic).await
             }));
         }
         for (i, future) in futures.into_iter().enumerate() {
@@ -90,7 +92,7 @@ async fn async_max_n_rec<H: Heuristic>(
 
             let mut actions = actions;
             actions[ply] = d;
-            let val = async_max_n_rec(game, depth, ply + 1, actions, heuristic).await[0];
+            let val = async_max_n_rec(game, depth, ply + 1, actions, heuristic.clone()).await[0];
             if val < min {
                 min = val;
                 moved = true;
@@ -116,24 +118,18 @@ async fn async_max_n_rec<H: Heuristic>(
 ///
 /// If the maximizing player dies traversal ends and min is returned.
 /// Dead enemies are skipped.
-pub fn max_n<H>(game: &Game, depth: usize, heuristic: &H) -> [f64; 4]
-where
-    H: Heuristic,
-{
+pub fn max_n(game: &Game, depth: usize, heuristic: &dyn Heuristic) -> [f64; 4] {
     assert!(game.snakes.len() <= 4);
     max_n_rec(game, depth, 0, [Direction::Up; 4], heuristic)
 }
 
-fn max_n_rec<H>(
+fn max_n_rec(
     game: &Game,
     depth: usize,
     ply: usize,
     actions: [Direction; 4],
-    heuristic: &H,
-) -> [f64; 4]
-where
-    H: Heuristic,
-{
+    heuristic: &dyn Heuristic,
+) -> [f64; 4] {
     if ply == game.snakes.len() {
         // simulate
         let mut game = game.clone();
@@ -303,7 +299,7 @@ mod test {
         let game = Game::new(0, 11, 11, snakes, &[], &[]);
         info!("{:?}", game.grid);
         let start = Instant::now();
-        let moves = async_max_n(&game, 3, &TestH).await;
+        let moves = async_max_n(&game, 3, Arc::new(TestH)).await;
         let end = Instant::now();
         info!("{:?}", moves);
         info!("async time {}ms", (end - start).as_millis());

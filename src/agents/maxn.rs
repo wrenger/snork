@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use std::time::Duration;
 use std::time::Instant;
 
@@ -14,9 +15,9 @@ use tokio::time;
 const FAST_TIMEOUT: u64 = 150;
 const MAX_DEPTH: usize = 16;
 
-pub async fn step<H: Heuristic>(heuristic: &H, timeout: u64, game: &Game) -> MoveResponse {
+pub async fn step(heuristic: Arc<dyn Heuristic>, timeout: u64, game: &Game) -> MoveResponse {
     if timeout <= FAST_TIMEOUT {
-        return step_fast(heuristic, game);
+        return step_fast(&*heuristic, game);
     }
 
     let (sender, mut receiver) = mpsc::channel(MAX_DEPTH);
@@ -40,7 +41,7 @@ pub async fn step<H: Heuristic>(heuristic: &H, timeout: u64, game: &Game) -> Mov
     MoveResponse::new(game.valid_moves(0).next().unwrap_or(Direction::Up))
 }
 
-pub fn step_fast<H: Heuristic>(heuristic: &H, game: &Game) -> MoveResponse {
+pub fn step_fast(heuristic: &dyn Heuristic, game: &Game) -> MoveResponse {
     let start = Instant::now();
     let result = search::max_n(game, 1, heuristic);
 
@@ -56,13 +57,14 @@ pub fn step_fast<H: Heuristic>(heuristic: &H, game: &Game) -> MoveResponse {
     MoveResponse::new(game.valid_moves(0).next().unwrap_or(Direction::Up))
 }
 
-async fn iterative_tree_search<H: Heuristic>(
-    heuristic: &H,
+async fn iterative_tree_search(
+    heuristic: Arc<dyn Heuristic>,
     game: &Game,
     sender: mpsc::Sender<Direction>,
 ) {
     // Iterative deepening
     for depth in 1..MAX_DEPTH {
+        let heuristic = heuristic.clone();
         let (dir, value) = tree_search(heuristic, game, depth).await;
 
         // Stop and fallback to random possible move
@@ -80,8 +82,8 @@ async fn iterative_tree_search<H: Heuristic>(
 }
 
 /// Performes a tree search and returns the maximized heuristic and move.
-pub async fn tree_search<H: Heuristic>(
-    heuristic: &H,
+pub async fn tree_search(
+    heuristic: Arc<dyn Heuristic>,
     game: &Game,
     depth: usize,
 ) -> (Direction, f64) {

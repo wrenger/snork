@@ -1,5 +1,6 @@
 use std::str::FromStr;
 use std::string::ToString;
+use std::sync::Arc;
 
 mod original;
 pub use original::*;
@@ -50,9 +51,9 @@ impl Agent {
 
         match self {
             Agent::Mobility(agent) => agent.step(game).await,
-            Agent::Tree(agent) => maxn::step(agent, timeout, game).await,
-            Agent::Flood(agent) => maxn::step(agent, timeout, game).await,
-            Agent::Solo(agent) => maxn::step(agent, timeout, game).await,
+            Agent::Tree(agent) => maxn::step(Arc::new(agent.clone()), timeout, game).await,
+            Agent::Flood(agent) => maxn::step(Arc::new(agent.clone()), timeout, game).await,
+            Agent::Solo(agent) => maxn::step(Arc::new(agent.clone()), timeout, game).await,
             Agent::Random(agent) => agent.step(game).await,
         }
     }

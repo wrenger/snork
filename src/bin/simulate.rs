@@ -1,47 +1,46 @@
-use log::info;
-use log::{debug, warn};
+use clap::Parser;
+use log::{debug, info, warn};
 use owo_colors::OwoColorize;
-use snork::logging;
-use structopt::StructOpt;
 
 use snork::agents::*;
 use snork::env::*;
 use snork::game::*;
+use snork::logging;
 
 use rand::prelude::*;
 use rand::seq::IteratorRandom;
 use std::iter::repeat;
 use std::time::Instant;
 
-#[derive(structopt::StructOpt)]
-#[structopt(name = "snork simulator", about = "Simulate a game between agents.")]
+#[derive(clap::Parser)]
+#[clap(version, author, about = "Simulate a game between agents.")]
 struct Opts {
     /// Time each snake has for a turn.
-    #[structopt(long, default_value = "200")]
+    #[clap(long, default_value_t = 200)]
     timeout: u64,
     /// Board height.
-    #[structopt(long, default_value = "11")]
+    #[clap(long, default_value_t = 11)]
     width: usize,
     /// Board width.
-    #[structopt(long, default_value = "11")]
+    #[clap(long, default_value_t = 11)]
     height: usize,
     /// Chance new food spawns.
-    #[structopt(long, default_value = "0.15")]
+    #[clap(long, default_value_t = 0.15)]
     food_rate: f64,
     /// Number of turns after which the hazard expands.
-    #[structopt(short, long, default_value = "25")]
+    #[clap(short, long, default_value_t = 25)]
     shrink_turns: usize,
     /// Number of games that are played.
-    #[structopt(short, long, default_value = "1")]
+    #[clap(short, long, default_value_t = 1)]
     game_count: usize,
     /// Swap agent positions to get more accurate results.
-    #[structopt(long)]
+    #[clap(long)]
     swap: bool,
     /// Seed for the random number generator.
-    #[structopt(long, default_value = "0")]
+    #[clap(long, default_value_t = 0)]
     seed: u64,
     /// Start config.
-    #[structopt(long, parse(try_from_str = serde_json::from_str))]
+    #[clap(long, parse(try_from_str = serde_json::from_str))]
     init: Option<GameRequest>,
     /// Configurations.
     agents: Vec<Agent>,
@@ -62,7 +61,7 @@ async fn main() {
         seed,
         init,
         mut agents,
-    } = Opts::from_args();
+    } = Opts::parse();
 
     assert!(agents.len() <= 4, "Only up to 4 snakes are supported");
     info!("agents: {agents:?}");

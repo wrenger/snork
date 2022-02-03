@@ -7,7 +7,7 @@ use log::{info, warn};
 use snork::agents::*;
 use snork::env::{GameRequest, IndexResponse, API_VERSION};
 
-use structopt::StructOpt;
+use clap::Parser;
 use warp::Filter;
 
 pub const PACKAGE_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -22,27 +22,27 @@ struct State {
     config: Agent,
 }
 
-#[derive(Debug, StructOpt)]
-#[structopt(name = "snork server", about = "High performant rust snake.")]
+#[derive(Debug, Parser)]
+#[clap(version, author, about = "High performant rust snake.")]
 struct Opt {
     /// IP and Port of the webserver.
     /// **Note**: Use the IP Address of your device if you want to access it from another device. (`127.0.0.1` or `localhost` is private to your computer)
-    #[structopt(long, default_value = "127.0.0.1:5001")]
+    #[clap(long, default_value = "127.0.0.1:5001")]
     host: SocketAddr,
     /// Time in ms that is subtracted from the game timeouts.
-    #[structopt(long, default_value = "100")]
+    #[clap(long, default_value_t = 100)]
     latency: u64,
     /// Color in hex format.
-    #[structopt(long, default_value = "#FF7043")]
+    #[clap(long, default_value = "#FF7043")]
     color: String,
     /// Head @see https://docs.battlesnake.com/references/personalization
-    #[structopt(long, default_value = "sand-worm")]
+    #[clap(long, default_value = "sand-worm")]
     head: String,
     /// Tail @see https://docs.battlesnake.com/references/personalization
-    #[structopt(long, default_value = "pixel")]
+    #[clap(long, default_value = "pixel")]
     tail: String,
     /// Default configuration.
-    #[structopt(long, default_value)]
+    #[clap(long, default_value_t)]
     config: Agent,
 }
 
@@ -57,7 +57,7 @@ async fn main() {
         head,
         tail,
         config,
-    } = Opt::from_args();
+    } = Opt::parse();
 
     let state = Arc::new(State {
         latency,

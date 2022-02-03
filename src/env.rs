@@ -216,9 +216,9 @@ impl PartialEq for SnakeData {
 /// The game board is represented by a standard 2D grid, oriented with (0,0) in the bottom left.
 /// The Y-Axis is positive in the up direction, and X-Axis is positive to the right.
 ///
-/// Thus a board with width `w` and hight `m` is represented as shown below.
+/// Thus a board with width `w` and hight `h` is represented as shown below.
 /// ```txt
-/// (  0,m-1)    (w-1,h-1)
+/// (  0,h-1)    (w-1,h-1)
 ///     ^       .
 ///     |   .
 /// (  0,  0) -> (w-1,  0)

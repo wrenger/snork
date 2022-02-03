@@ -1,4 +1,5 @@
 use std::fmt::{Debug, Display};
+use std::sync::Arc;
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 
@@ -129,7 +130,7 @@ fn async_max_n(c: &mut Criterion) {
 
     c.bench_function("async_max_n", |b| {
         b.to_async(tokio::runtime::Runtime::new().unwrap())
-            .iter(|| search::async_max_n(black_box(&game), 2, &TestH))
+            .iter(|| search::async_max_n(black_box(&game), 2, Arc::new(TestH)))
     });
 }
 
@@ -156,7 +157,7 @@ fn async_alphabeta(c: &mut Criterion) {
 
     c.bench_function("async_alphabeta", |b| {
         b.to_async(tokio::runtime::Runtime::new().unwrap())
-            .iter(|| search::async_alphabeta(black_box(&game), 5, &TestH))
+            .iter(|| search::async_alphabeta(black_box(&game), 5, Arc::new(TestH)))
     });
 }
 
@@ -194,11 +195,11 @@ fn tree_search(c: &mut Criterion) {
         ).unwrap();
 
     let game = Game::from_request(&request);
-    let heuristic = TreeHeuristic::default();
+    let heuristic = Arc::new(TreeHeuristic::default());
 
     c.bench_function("tree_search", |b| {
         b.to_async(tokio::runtime::Runtime::new().unwrap())
-            .iter(|| maxn::tree_search(&heuristic, black_box(&game), 3))
+            .iter(|| maxn::tree_search(heuristic.clone(), black_box(&game), 3))
     });
 }
 
@@ -223,11 +224,11 @@ fn flood_search(c: &mut Criterion) {
         ).unwrap();
 
     let game = Game::from_request(&request);
-    let heuristic = FloodHeuristic::default();
+    let heuristic = Arc::new(FloodHeuristic::default());
 
     c.bench_function("flood_search", |b| {
         b.to_async(tokio::runtime::Runtime::new().unwrap())
-            .iter(|| maxn::tree_search(&heuristic, black_box(&game), 3))
+            .iter(|| maxn::tree_search(heuristic.clone(), black_box(&game), 3))
     });
 }
 
@@ -238,11 +239,11 @@ fn flood_2_search(c: &mut Criterion) {
         ).unwrap();
 
     let game = Game::from_request(&request);
-    let heuristic = FloodHeuristic::default();
+    let heuristic = Arc::new(FloodHeuristic::default());
 
     c.bench_function("flood_2_search", |b| {
         b.to_async(tokio::runtime::Runtime::new().unwrap())
-            .iter(|| maxn::tree_search(&heuristic, black_box(&game), 6))
+            .iter(|| maxn::tree_search(heuristic.clone(), black_box(&game), 6))
     });
 }
 
