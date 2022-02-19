@@ -314,14 +314,10 @@ impl Game {
                 body.push_front(p);
                 while let Some(next) = Direction::iter().find_map(|d| {
                     let next = p.apply(d);
-                    if next.within(width, height)
+                    (next.within(width, height)
                         && raw_cells[(next.x + next.y * width as i16) as usize]
-                            == RawCell::Body(d.invert())
-                    {
-                        Some(next)
-                    } else {
-                        None
-                    }
+                            == RawCell::Body(d.invert()))
+                    .then(|| next)
                 }) {
                     p = next;
                     body.push_front(p);

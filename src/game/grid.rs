@@ -58,8 +58,6 @@ pub struct Grid {
     pub cells: Vec<Cell>,
 }
 
-const _: () = assert!(size_of::<Grid>() == 5 * 8);
-
 impl Grid {
     /// Creates a new grid with the provided dimensions.
     pub fn new(width: usize, height: usize) -> Grid {

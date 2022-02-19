@@ -113,9 +113,8 @@ impl MobilityAgent {
         let start = Instant::now();
         let space_after_move = search::max_n(game, 1, &MobilityHeuristic);
         info!(
-            "max_n {:?}ms {:?}",
-            start.elapsed().as_millis(),
-            space_after_move
+            "max_n {:?}ms {space_after_move:?}",
+            start.elapsed().as_millis()
         );
 
         let mut flood_fill = FloodFill::new(game.grid.width, game.grid.height);
