@@ -6,9 +6,10 @@ use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criteri
 use rand::{rngs::SmallRng, Rng, SeedableRng};
 use snork::agents::{maxn, FloodHeuristic, MobilityAgent, TreeHeuristic};
 use snork::env::*;
-use snork::game::search::{self, Heuristic};
-use snork::game::{FloodFill, Game, Outcome, Snake};
+use snork::floodfill::FloodFill;
+use snork::game::{Game, Outcome, Snake};
 use snork::logging;
+use snork::search::{self, Heuristic};
 
 #[derive(Debug, Clone, Default)]
 struct TestH;

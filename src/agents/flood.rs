@@ -1,5 +1,6 @@
-use crate::game::search::{self, Heuristic};
-use crate::game::{FloodFill, Game};
+use crate::floodfill::FloodFill;
+use crate::game::Game;
+use crate::search::{self, Heuristic};
 
 /// The new floodfill agent for royale games
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

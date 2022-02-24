@@ -4,7 +4,7 @@ use std::fmt::{self, Debug};
 
 use owo_colors::{AnsiColors, OwoColorize};
 
-use super::{Cell, CellT, Grid};
+use crate::grid::{Cell, CellT, Grid};
 use crate::env::{Direction, GameRequest, SnakeData, Vec2D, HAZARD_DAMAGE};
 use crate::util::OrdPair;
 

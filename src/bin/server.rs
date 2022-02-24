@@ -26,7 +26,8 @@ struct State {
 #[clap(version, author, about = "High performant rust snake.")]
 struct Opt {
     /// IP and Port of the webserver.
-    /// **Note**: Use the IP Address of your device if you want to access it from another device. (`127.0.0.1` or `localhost` is private to your computer)
+    /// **Note**: Use the IP Address of your device if you want to access it from
+    /// another device. (`127.0.0.1` or `localhost` is private to your computer)
     #[clap(long, default_value = "127.0.0.1:5001")]
     host: SocketAddr,
     /// Time in ms that is subtracted from the game timeouts.

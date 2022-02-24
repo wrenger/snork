@@ -1,5 +1,6 @@
-use crate::{env::*, game::Game};
-use rand::{seq::IteratorRandom, SeedableRng, rngs::SmallRng};
+use crate::env::*;
+use crate::game::Game;
+use rand::{rngs::SmallRng, seq::IteratorRandom, SeedableRng};
 
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct RandomAgent;

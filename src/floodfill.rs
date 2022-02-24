@@ -2,9 +2,9 @@ use std::collections::VecDeque;
 use std::mem::size_of;
 use std::ops::{Index, IndexMut};
 
-use super::{Grid, Snake};
 use crate::env::{Direction, Vec2D, HAZARD_DAMAGE};
-use crate::game::CellT;
+use crate::game::Snake;
+use crate::grid::{CellT, Grid};
 use crate::util::FixedVec;
 
 use owo_colors::{AnsiColors, OwoColorize};

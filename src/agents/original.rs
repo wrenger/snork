@@ -1,6 +1,7 @@
 use crate::env::*;
-use crate::game::search::{self, Heuristic};
-use crate::game::{FloodFill, Game};
+use crate::floodfill::FloodFill;
+use crate::game::Game;
+use crate::search::{self, Heuristic};
 
 /// Configuration of the tree search heuristic.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

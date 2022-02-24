@@ -200,9 +200,10 @@ fn max_n_rec(
 mod test {
     use log::info;
 
-    use crate::game::search::{alphabeta, Heuristic};
-    use crate::game::{FloodFill, Game};
+    use crate::floodfill::FloodFill;
+    use crate::game::Game;
     use crate::logging;
+    use crate::search::{alphabeta, Heuristic};
 
     #[derive(Debug, Clone, Default)]
     struct TestH;

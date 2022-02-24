@@ -3,8 +3,8 @@ use std::time::Duration;
 use std::time::Instant;
 
 use crate::env::*;
-use crate::game::search::{self, Heuristic};
 use crate::game::Game;
+use crate::search::{self, Heuristic};
 
 use crate::util::argmax;
 

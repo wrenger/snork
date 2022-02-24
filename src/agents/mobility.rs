@@ -5,8 +5,10 @@ use std::time::Instant;
 use log::{info, warn};
 
 use crate::env::*;
-use crate::game::search::Heuristic;
-use crate::game::{search, CellT, FCell, FloodFill, Game, Snake};
+use crate::floodfill::{FCell, FloodFill};
+use crate::game::{Game, Snake};
+use crate::grid::CellT;
+use crate::search::{self, Heuristic};
 use crate::util::{argmax, OrdPair};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

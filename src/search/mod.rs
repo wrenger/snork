@@ -5,7 +5,7 @@ pub use alphabeta::*;
 
 use std::fmt::Debug;
 
-use super::Game;
+use crate::game::Game;
 
 pub const WIN: f64 = 10000.0;
 pub const DRAW: f64 = 0.0;

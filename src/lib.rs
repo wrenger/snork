@@ -5,9 +5,12 @@ use std::io::Write;
 // Exported to be accessable in benchmarks
 pub mod agents;
 pub mod env;
+pub mod floodfill;
 pub mod game;
-pub mod savegame;
-pub mod util;
+pub mod grid;
+mod savegame;
+mod util;
+pub mod search;
 
 pub fn logging() {
     #[cfg(not(test))]

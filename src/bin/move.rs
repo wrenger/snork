@@ -2,6 +2,7 @@ use log::info;
 
 use snork::agents::*;
 use snork::env::GameRequest;
+use snork::floodfill::FloodFill;
 use snork::game::*;
 use snork::logging;
 

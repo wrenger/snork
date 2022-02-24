@@ -2,9 +2,10 @@ use clap::Parser;
 use log::{debug, info, warn};
 use owo_colors::OwoColorize;
 
-use snork::agents::*;
+use snork::agents::Agent;
 use snork::env::*;
-use snork::game::*;
+use snork::game::{Game, Outcome, Snake};
+use snork::grid::CellT;
 use snork::logging;
 
 use rand::prelude::*;
