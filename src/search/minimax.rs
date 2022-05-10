@@ -48,7 +48,7 @@ async fn async_max_n_rec(
             // max
             for i in 1..4 {
                 if result[i] > result[0] {
-                    result[0] = result[i]
+                    result[0] = result[i];
                 }
             }
             result
@@ -150,7 +150,7 @@ fn max_n_rec(
             // max
             for i in 1..4 {
                 if result[i] > result[0] {
-                    result[0] = result[i]
+                    result[0] = result[i];
                 }
             }
             result

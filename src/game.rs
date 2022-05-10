@@ -4,8 +4,8 @@ use std::fmt::{self, Debug};
 
 use owo_colors::{AnsiColors, OwoColorize};
 
-use crate::grid::{Cell, CellT, Grid};
 use crate::env::{Direction, GameRequest, SnakeData, Vec2D, HAZARD_DAMAGE};
+use crate::grid::{Cell, CellT, Grid};
 use crate::util::OrdPair;
 
 /// The outcome of a simulated game.
@@ -29,6 +29,7 @@ impl Snake {
         Snake { body, health }
     }
 
+    #[must_use]
     pub fn from(snake: &SnakeData) -> Snake {
         Snake::new(snake.body.iter().cloned().rev().collect(), snake.health)
     }
@@ -55,6 +56,7 @@ pub struct Game {
 
 impl Game {
     /// Creates the game state.
+    #[must_use]
     pub fn new(
         turn: usize,
         width: usize,
@@ -68,13 +70,14 @@ impl Game {
         grid.add_hazards(hazards);
 
         for snake in &snakes {
-            grid.add_snake(snake.body.iter().cloned());
+            grid.add_snake(snake.body.iter().copied());
         }
 
         Self { turn, snakes, grid }
     }
 
     /// Loads the game state from the provided request.
+    #[must_use]
     pub fn from_request(request: &GameRequest) -> Self {
         let mut snakes = Vec::with_capacity(4);
         snakes.push(Snake::from(&request.you));
@@ -262,9 +265,8 @@ impl Game {
 
 impl Game {
     /// Parses textual human readable board representation used in test.
+    #[must_use]
     pub fn parse(txt: &str) -> Option<Game> {
-        let txt = txt.trim();
-
         #[derive(PartialEq)]
         enum RawCell {
             Free,
@@ -273,6 +275,7 @@ impl Game {
             Body(Direction),
         }
 
+        let txt = txt.trim();
         let raw_cells: Vec<RawCell> = txt
             .lines()
             .rev()

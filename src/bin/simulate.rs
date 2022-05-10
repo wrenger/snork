@@ -94,9 +94,8 @@ async fn main() {
                 &mut rng,
             )
             .await;
-            match outcome {
-                Outcome::Winner(winner) => wins[winner as usize] += 1,
-                _ => {}
+            if let Outcome::Winner(winner) = outcome {
+                wins[winner as usize] += 1;
             }
             warn!(
                 "{}: {i} {}ms",
@@ -137,7 +136,7 @@ async fn play_game(
                 // Agents assume player 0 is you.
                 game.snakes.swap(0, i);
 
-                let response = agents[i].step_internal(timeout, &game).await;
+                let response = agents[i].step_internal(timeout, game).await;
                 moves[i] = response.r#move;
 
                 game.snakes.swap(0, i);
@@ -205,7 +204,7 @@ async fn play_game(
             }
         }
     }
-    return Outcome::Match;
+    Outcome::Match
 }
 
 fn init_game(width: usize, height: usize, num_agents: usize, rng: &mut SmallRng) -> Game {

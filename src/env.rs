@@ -104,7 +104,7 @@ impl Neg for Vec2D {
     }
 }
 
-/// The Direction is returned as part of a MoveResponse.
+/// The Direction is returned as part of a `MoveResponse`.
 ///
 /// The Y-Axis is positive in the up direction, and X-Axis is positive to the right.
 #[derive(Serialize, Debug, Clone, Copy, Hash, PartialEq, Eq)]
@@ -122,44 +122,44 @@ pub enum Direction {
 }
 
 impl Direction {
-    pub fn iter() -> impl Iterator<Item = Direction> {
+    pub fn iter() -> impl Iterator<Item = Self> {
         [
-            Direction::Up,
-            Direction::Right,
-            Direction::Down,
-            Direction::Left,
+            Self::Up,
+            Self::Right,
+            Self::Down,
+            Self::Left,
         ]
         .iter()
         .copied()
     }
 
     /// Returns the invert direction (eg. Left for Right)
-    pub fn invert(&self) -> Direction {
+    pub fn invert(&self) -> Self {
         match self {
-            Direction::Up => Direction::Down,
-            Direction::Right => Direction::Left,
-            Direction::Down => Direction::Up,
-            Direction::Left => Direction::Right,
+            Self::Up => Self::Down,
+            Self::Right => Self::Left,
+            Self::Down => Self::Up,
+            Self::Left => Self::Right,
         }
     }
 }
 
 impl Default for Direction {
     fn default() -> Self {
-        Direction::Up
+        Self::Up
     }
 }
 
 impl From<Vec2D> for Direction {
-    fn from(p: Vec2D) -> Direction {
+    fn from(p: Vec2D) -> Self {
         if p.x < 0 {
-            Direction::Left
+            Self::Left
         } else if p.x > 0 {
-            Direction::Right
+            Self::Right
         } else if p.y < 0 {
-            Direction::Down
+            Self::Down
         } else {
-            Direction::Up
+            Self::Up
         }
     }
 }
@@ -168,10 +168,10 @@ impl From<u8> for Direction {
     fn from(v: u8) -> Direction {
         debug_assert!(v < 4, "Invalid direction");
         match v {
-            1 => Direction::Right,
-            2 => Direction::Down,
-            3 => Direction::Left,
-            _ => Direction::Up,
+            1 => Self::Right,
+            2 => Self::Down,
+            3 => Self::Left,
+            _ => Self::Up,
         }
     }
 }

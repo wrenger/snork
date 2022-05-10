@@ -74,6 +74,14 @@ impl<T, const N: usize> FixedVec<T, N> {
     pub fn len(&self) -> usize {
         self.len
     }
+    pub fn capacity(&self) -> usize {
+        N
+    }
+}
+impl<T, const N: usize> Default for FixedVec<T, N> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 impl<T, const N: usize> Deref for FixedVec<T, N> {
     type Target = [T];

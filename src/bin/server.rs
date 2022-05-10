@@ -26,6 +26,7 @@ struct State {
 #[clap(version, author, about = "High performant rust snake.")]
 struct Opt {
     /// IP and Port of the webserver.
+    ///
     /// **Note**: Use the IP Address of your device if you want to access it from
     /// another device. (`127.0.0.1` or `localhost` is private to your computer)
     #[clap(long, default_value = "127.0.0.1:5001")]
@@ -113,7 +114,7 @@ async fn main() {
 
     warp::serve(index.or(start).or(r#move).or(end))
         .run(host)
-        .await
+        .await;
 }
 
 fn with_state(

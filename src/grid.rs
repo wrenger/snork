@@ -60,6 +60,7 @@ pub struct Grid {
 
 impl Grid {
     /// Creates a new grid with the provided dimensions.
+    #[must_use]
     pub fn new(width: usize, height: usize) -> Grid {
         Grid {
             width,
@@ -71,6 +72,7 @@ impl Grid {
     /// Creates a grid from a `cells` buffer.
     /// If the buffer is not dividable by `height` the buffer is truncated
     /// accordingly.
+    #[must_use]
     pub fn from(mut cells: Vec<Cell>, height: usize) -> Grid {
         let width = cells.len() / height;
         cells.truncate(width * height);
@@ -128,6 +130,7 @@ impl Grid {
 
     /// Performes an A* search that applies the `first_move_heuristic` as
     /// additional costs for the first move.
+    #[must_use]
     pub fn a_star(
         &self,
         start: Vec2D,
@@ -164,11 +167,11 @@ impl Grid {
                     neighbor_cost += HAZARD_DAMAGE as f64;
                 }
                 if front == start {
-                    neighbor_cost += first_move_heuristic[d as usize]
+                    neighbor_cost += first_move_heuristic[d as usize];
                 }
 
                 if self.has(neighbor) && self[neighbor].t != CellT::Owned {
-                    let cost_so_far = data.get(&neighbor).map(|(_, c)| *c).unwrap_or(f64::MAX);
+                    let cost_so_far = data.get(&neighbor).map_or(f64::MAX,  |(_, c)| *c);
                     if neighbor_cost < cost_so_far {
                         data.insert(neighbor, (front, neighbor_cost));
                         // queue does not accept float

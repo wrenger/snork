@@ -87,6 +87,7 @@ pub struct FloodFill {
 }
 
 impl FloodFill {
+    #[must_use]
     pub fn new(width: usize, height: usize) -> FloodFill {
         FloodFill {
             cells: vec![FCell::Free; width * height],
@@ -115,10 +116,7 @@ impl FloodFill {
     pub fn count_space(&self, i: u8) -> usize {
         self.cells
             .iter()
-            .filter(|&c| match c {
-                FCell::Owned { id, .. } if *id == i => true,
-                _ => false,
-            })
+            .filter(|&c| matches!(c, FCell::Owned { id, .. } if *id == i))
             .count()
     }
 
@@ -130,7 +128,7 @@ impl FloodFill {
     ) -> f64 {
         self.cells
             .iter()
-            .cloned()
+            .copied()
             .enumerate()
             .map(|(i, c)| match c {
                 FCell::Owned { id: o_id, .. } if o_id == id => weight(
@@ -159,10 +157,6 @@ impl FloodFill {
     ///
     /// Food on the way is been accounted for the own tail.
     fn flood(&mut self, grid: &Grid, heads: impl Iterator<Item = SnakePos>) -> FixedVec<u16, 4> {
-        // Assuming there are at most n^2 elements in the queue
-        let mut queue = VecDeque::with_capacity(self.width * self.height);
-        queue.extend(heads);
-
         #[inline]
         fn owns(
             cell: FCell,
@@ -196,6 +190,10 @@ impl FloodFill {
                 }
             }
         }
+
+        // Assuming there are at most n^2 elements in the queue
+        let mut queue = VecDeque::with_capacity(self.width * self.height);
+        queue.extend(heads);
 
         // Collect food on the way
         let mut food_distances = FixedVec::new();

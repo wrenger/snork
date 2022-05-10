@@ -60,7 +60,7 @@ impl Heuristic for TreeHeuristic {
         let len_advantage = own_len as f64 / max_enemy_len as f64;
 
         // Owned food
-        let accessable_food = food_distances.into_iter().count() as f64;
+        let accessable_food = food_distances.iter().count() as f64;
         let food_ownership = accessable_food / game.grid.width as f64;
 
         // Centrality
