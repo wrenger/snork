@@ -1,14 +1,17 @@
 # Rusty Snakes
 
 Fast [battlesnake](https://play.battlesnake.com) agents written in rust.
-
 This project has been developed as part of an AI games course at the Leibniz University Hannover.
-During this phase our tree agent ("ich heisse marvin") managed to score the second place in the global and dual arenas.
-We even surpassed the best snake ([Kreuzotter](https://github.com/m-schier/battlesnake-2019)) of our university from the last year.
 
-## Content
+Our `Tree` agent ("ich heisse marvin") managed to reach the second and first place in the global, dual and royale arenas.
+In the Spring League 2021 we even surpassed the best snake ([Kreuzotter](https://github.com/m-schier/battlesnake-2019)) of our university from the last year.
 
-This repository contains a webserver that runs with the battlesnake api version 1
+At the end of 2021, the new `Flood` agent reached the second place in the Elite Division of the Winter Classic Invitational 2021.
+
+
+## Structure of this Repository
+
+This repository contains a web server that runs with the battlesnake API version 1
 and abstractions for the used data types ([src/env.rs](src/env.rs)).
 
 We developed multiple different agents ([src/agents](src/agents)),
@@ -19,15 +22,18 @@ their influence over time can be specified on startup.
 This allowed us to perform parameter optimization (bayesian optimization) to further improve the heuristic.
 
 We also developed a fast simulator to execute moves and analyze their outcomes.
+It was used to evaluate the heuristics and optimize their parameters.
 
-Additionaly the [hpo folder](hpo) contains a code and instructions to update the hyperparameters
- of an agent.
+The [hpo folder](hpo) contains code for automatically optimizing the agent's hyperparameters.
+It utilizes the simulator, mentioned below, to simulate the generated configs and to find the best performing parameters.
+The current default configurations of the `Flood`, `Tree`, and `Mobility` agents are the results of several optimization campaigns.
+
 
 ## Usage
 
 ### Running the Server
 
-First the rust toolchain has to be installed (https://www.rust-lang.org/learn/get-started).
+First, the rust toolchain has to be installed (https://www.rust-lang.org/learn/get-started).
 
 Starting the server:
 
@@ -57,25 +63,27 @@ The default config for the `Flood` agent is for example:
 ### Simulating Configs
 
 This tool was developed to simulate different configurations.
-The provided Configurations play a number of games against each other and the
-number of wins of the first configuration is returned.
+These configurations specify the agent and its hyperparameters.
+If no parameters are provided, the default values for the agent are used.
+The number of simulated games can be specified with `--game-count`.
+Use `-h` for more information about other arguments to specify the board size and game rules.
+
+The example below simulates the `Flood` and `Tree` agents for 10 games:
 
 ```bash
 cargo run --release --bin simulate -- '{"Flood":{"space":8.0}}' '{"Tree":{"centrality":0}}' --game-count 10
 ```
 
-> Play `--game-count` games.
-
 The last line of the standard output contains the number of wins of the first
-snake and the total amount of games played:
+snake and the total number of games played:
 
 ```
-Result: 3/8
+Result: 3/10
 ```
 
 ### Testing moves
 
-There is also an additional `move` program that outputs the chosen move for a given game input.
+There is also an additional `move` program that outputs the chosen move for a given game state and agent configuration.
 The game input can be downloaded from the [battlesnake](https://play.battlesnake.com) with this [Firefox extension](https://addons.mozilla.org/firefox/addon/battlesnake-downloader/).
 
 ```bash
@@ -84,15 +92,15 @@ cargo run --release --bin move -- [--config <json>] [--runtime] <json>
 
 ### Running tests & benchmarks
 
-There are multiple tests for the different modules that can be run as shown below.
+There are multiple tests for the different modules that can be run, as shown below.
 For more information on unit-testing in rust see https://doc.rust-lang.org/book/ch11-01-writing-tests.html.
 
 ```bash
 cargo test -- [--nocapture] [testname]
 ```
 
-There are a number of benchmark tests that ignored when running normal unit tests, because they have a longer runtime.
-These test are executed with the release config that include a number of compiler and linker optimizations.
+There are several benchmarks that are ignored when running normal unit tests because they have a longer runtime.
+They are executed with the release config with compiler and linker optimizations.
 
 ```bash
 cargo bench -- [testname]
