@@ -25,13 +25,13 @@ pub struct Snake {
     pub health: u8,
 }
 impl Snake {
-    pub fn new(body: VecDeque<Vec2D>, health: u8) -> Snake {
-        Snake { body, health }
+    pub fn new(body: VecDeque<Vec2D>, health: u8) -> Self {
+        Self { body, health }
     }
 
     #[must_use]
-    pub fn from(snake: &SnakeData) -> Snake {
-        Snake::new(snake.body.iter().cloned().rev().collect(), snake.health)
+    pub fn from(snake: &SnakeData) -> Self {
+        Self::new(snake.body.iter().cloned().rev().collect(), snake.health)
     }
 
     pub fn alive(&self) -> bool {
@@ -266,7 +266,7 @@ impl Game {
 impl Game {
     /// Parses textual human readable board representation used in test.
     #[must_use]
-    pub fn parse(txt: &str) -> Option<Game> {
+    pub fn parse(txt: &str) -> Option<Self> {
         #[derive(PartialEq)]
         enum RawCell {
             Free,
@@ -334,7 +334,7 @@ impl Game {
             }
         }
 
-        Some(Game {
+        Some(Self {
             turn: 0,
             grid,
             snakes,
@@ -452,8 +452,8 @@ pub struct ValidMoves<'a> {
 }
 
 impl<'a> ValidMoves<'a> {
-    fn empty(game: &'a Game) -> ValidMoves {
-        ValidMoves {
+    fn empty(game: &'a Game) -> Self {
+        Self {
             game,
             snake: None,
             dir: 0,
@@ -461,7 +461,7 @@ impl<'a> ValidMoves<'a> {
     }
 
     fn new(game: &'a Game, snake: &'a Snake) -> ValidMoves<'a> {
-        ValidMoves {
+        Self {
             game,
             snake: Some(snake),
             dir: 0,

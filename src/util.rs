@@ -74,7 +74,7 @@ impl<T, const N: usize> FixedVec<T, N> {
     pub fn len(&self) -> usize {
         self.len
     }
-    pub fn capacity(&self) -> usize {
+    pub const fn capacity(&self) -> usize {
         N
     }
 }

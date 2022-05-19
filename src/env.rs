@@ -94,7 +94,7 @@ impl Sub for Vec2D {
 }
 
 impl Neg for Vec2D {
-    type Output = Vec2D;
+    type Output = Self;
 
     fn neg(self) -> Self::Output {
         Self {
@@ -123,14 +123,9 @@ pub enum Direction {
 
 impl Direction {
     pub fn iter() -> impl Iterator<Item = Self> {
-        [
-            Self::Up,
-            Self::Right,
-            Self::Down,
-            Self::Left,
-        ]
-        .iter()
-        .copied()
+        [Self::Up, Self::Right, Self::Down, Self::Left]
+            .iter()
+            .copied()
     }
 
     /// Returns the invert direction (eg. Left for Right)
@@ -165,7 +160,7 @@ impl From<Vec2D> for Direction {
 }
 
 impl From<u8> for Direction {
-    fn from(v: u8) -> Direction {
+    fn from(v: u8) -> Self {
         debug_assert!(v < 4, "Invalid direction");
         match v {
             1 => Self::Right,
@@ -208,7 +203,7 @@ pub struct SnakeData {
 }
 
 impl PartialEq for SnakeData {
-    fn eq(&self, rhs: &SnakeData) -> bool {
+    fn eq(&self, rhs: &Self) -> bool {
         self.id == rhs.id
     }
 }
@@ -264,8 +259,8 @@ impl IndexResponse {
         head: Cow<'static, str>,
         tail: Cow<'static, str>,
         version: Cow<'static, str>,
-    ) -> IndexResponse {
-        IndexResponse {
+    ) -> Self {
+        Self {
             apiversion,
             author,
             color,
@@ -284,13 +279,13 @@ pub struct MoveResponse {
 }
 
 impl MoveResponse {
-    pub fn new(r#move: Direction) -> MoveResponse {
-        MoveResponse {
+    pub fn new(r#move: Direction) -> Self {
+        Self {
             r#move,
             shout: String::new(),
         }
     }
-    pub fn shout(r#move: Direction, shout: String) -> MoveResponse {
-        MoveResponse { r#move, shout }
+    pub fn shout(r#move: Direction, shout: String) -> Self {
+        Self { r#move, shout }
     }
 }

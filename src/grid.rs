@@ -61,8 +61,8 @@ pub struct Grid {
 impl Grid {
     /// Creates a new grid with the provided dimensions.
     #[must_use]
-    pub fn new(width: usize, height: usize) -> Grid {
-        Grid {
+    pub fn new(width: usize, height: usize) -> Self {
+        Self {
             width,
             height,
             cells: vec![Cell::new(CellT::Free, false); width * height],
@@ -73,10 +73,10 @@ impl Grid {
     /// If the buffer is not dividable by `height` the buffer is truncated
     /// accordingly.
     #[must_use]
-    pub fn from(mut cells: Vec<Cell>, height: usize) -> Grid {
+    pub fn from(mut cells: Vec<Cell>, height: usize) -> Self {
         let width = cells.len() / height;
         cells.truncate(width * height);
-        Grid {
+        Self {
             width,
             height,
             cells,

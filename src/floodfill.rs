@@ -88,8 +88,8 @@ pub struct FloodFill {
 
 impl FloodFill {
     #[must_use]
-    pub fn new(width: usize, height: usize) -> FloodFill {
-        FloodFill {
+    pub fn new(width: usize, height: usize) -> Self {
+        Self {
             cells: vec![FCell::Free; width * height],
             width,
             height,
@@ -158,7 +158,7 @@ impl FloodFill {
     /// Food on the way is been accounted for the own tail.
     fn flood(&mut self, grid: &Grid, heads: impl Iterator<Item = SnakePos>) -> FixedVec<u16, 4> {
         #[inline]
-        fn owns(
+        const fn owns(
             cell: FCell,
             s_id: u8,
             s_distance: u16,
