@@ -19,13 +19,13 @@ from a simple random agent, a very fast area control agent,
 to a minimax tree search agent, that combines multiple heuristics to find the best possible moves.
 These heuristics are configurable and the impact of specific variables and
 their influence over time can be specified on startup.
-This allowed us to perform parameter optimization (bayesian optimization) to further improve the heuristic.
+This allowed us to perform parameter optimization (Bayesian optimization) to further improve the heuristic.
 
 We also developed a fast simulator to execute moves and analyze their outcomes.
-It was used to evaluate the heuristics and optimize their parameters.
+It was used to evaluate the heuristics and tune their parameters.
 
-The [hpo folder](hpo) contains code for automatically optimizing the agent's hyperparameters.
-It utilizes the simulator, mentioned below, to simulate the generated configs and to find the best performing parameters.
+The [hpo](hpo) directory contains the code for automatically optimizing the agent's hyperparameters.
+It utilizes the simulator, mentioned below, to simulate the generated configs and find the best performing parameters.
 The current default configurations of the `Flood`, `Tree`, and `Mobility` agents are the results of several optimization campaigns.
 
 
