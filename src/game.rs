@@ -4,7 +4,7 @@ use std::fmt::{self, Debug};
 
 use owo_colors::{AnsiColors, OwoColorize};
 
-use crate::env::{Direction, GameRequest, SnakeData, Vec2D, HAZARD_DAMAGE};
+use crate::env::{Direction, GameRequest, Battlesnake, Vec2D, HAZARD_DAMAGE};
 use crate::grid::{Cell, CellT, Grid};
 use crate::util::OrdPair;
 
@@ -30,7 +30,7 @@ impl Snake {
     }
 
     #[must_use]
-    pub fn from(snake: &SnakeData) -> Self {
+    pub fn from(snake: &Battlesnake) -> Self {
         Self::new(snake.body.iter().cloned().rev().collect(), snake.health)
     }
 
@@ -378,8 +378,8 @@ impl Debug for Game {
 
         let mut cells = vec![(FmtCell::Free, false); self.grid.width * self.grid.height];
 
-        for y in 0..self.grid.width {
-            for x in 0..self.grid.height {
+        for y in 0..self.grid.height {
+            for x in 0..self.grid.width {
                 let cell = &mut cells[y * self.grid.width + x];
                 let g_cell = self.grid[Vec2D::new(x as _, y as _)];
                 cell.0 = if g_cell.t == CellT::Food {
@@ -412,9 +412,9 @@ impl Debug for Game {
         writeln!(f, "Game {{")?;
 
         // Grid
-        for y in (0..self.grid.width).rev() {
+        for y in (0..self.grid.height).rev() {
             write!(f, "  ")?;
-            for x in 0..self.grid.height {
+            for x in 0..self.grid.width {
                 let (cell, hazard) = cells[y * self.grid.width + x];
                 if hazard {
                     write!(f, "{:?} ", cell.on_bright_black())?;

@@ -6,7 +6,7 @@
 /// See: https://docs.battlesnake.com/references/api
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
-use std::fmt::Debug;
+use std::fmt::{self, Debug};
 use std::mem::size_of;
 use std::ops::{Add, Neg, Sub};
 
@@ -181,6 +181,9 @@ pub struct GameData {
     pub ruleset: Ruleset,
     /// How much time your snake has to respond to requests for this Game in milliseconds.
     pub timeout: u64,
+    /// The source of this game. (tournament, league, arena, challenge, custom)
+    #[serde(default)]
+    pub source: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -192,7 +195,7 @@ pub struct Ruleset {
 
 /// Object describing a snake.
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct SnakeData {
+pub struct Battlesnake {
     pub id: String,
     pub name: String,
     pub health: u8,
@@ -202,7 +205,7 @@ pub struct SnakeData {
     pub shout: String,
 }
 
-impl PartialEq for SnakeData {
+impl PartialEq for Battlesnake {
     fn eq(&self, rhs: &Self) -> bool {
         self.id == rhs.id
     }
@@ -220,24 +223,41 @@ impl PartialEq for SnakeData {
 /// ```
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Board {
+    /// The number of rows in the y-axis of the game board.
     pub height: usize,
+    /// The number of columns in the x-axis of the game board.
     pub width: usize,
+    /// Array of coordinates representing food locations on the game board.
     pub food: Vec<Vec2D>,
+    /// Array of coordinates representing hazardous locations on the game board.
+    /// These will only appear in some game modes.
     pub hazards: Vec<Vec2D>,
-    pub snakes: Vec<SnakeData>,
+    /// Array of [Battlesnake] Objects representing all Battlesnakes remaining on
+    /// the game board (including yourself if you haven't been eliminated).
+    pub snakes: Vec<Battlesnake>,
 }
 
 /// The game data that is send on the `start`, `move` and `end` requests.
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct GameRequest {
-    /// Game Object describing the game being played.
+    /// [Game](GameData) Object describing the game being played.
     pub game: GameData,
     /// Turn number for this move.
     pub turn: usize,
-    /// Board Object describing the game board on this turn.
+    /// [Board] Object describing the game board on this turn.
     pub board: Board,
     /// Battlesnake Object describing your Battlesnake.
-    pub you: SnakeData,
+    pub you: Battlesnake,
+}
+
+impl fmt::Display for GameRequest {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(
+            f,
+            "{}: {} ({}@{})",
+            self.game.source, self.game.ruleset.name, self.you.id, self.game.id
+        )
+    }
 }
 
 /// This response configures the battlesnake and its appearance.
