@@ -10,7 +10,7 @@ use crate::util::OrdPair;
 
 /// The outcome of a simulated game.
 /// If the game did not end the outcome is `None`.
-#[derive(PartialEq, Debug, Clone, Copy)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub enum Outcome {
     None,
     Match,

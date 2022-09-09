@@ -17,34 +17,39 @@ use std::time::Instant;
 #[clap(version, author, about = "Simulate a game between agents.")]
 struct Opts {
     /// Time each snake has for a turn.
-    #[clap(long, default_value_t = 200)]
+    #[clap(long, default_value_t = 200, value_parser)]
     timeout: u64,
     /// Board height.
-    #[clap(long, default_value_t = 11)]
+    #[clap(long, default_value_t = 11, value_parser)]
     width: usize,
     /// Board width.
-    #[clap(long, default_value_t = 11)]
+    #[clap(long, default_value_t = 11, value_parser)]
     height: usize,
     /// Chance new food spawns.
-    #[clap(long, default_value_t = 0.15)]
+    #[clap(long, default_value_t = 0.15, value_parser)]
     food_rate: f64,
     /// Number of turns after which the hazard expands.
-    #[clap(short, long, default_value_t = 25)]
+    #[clap(short, long, default_value_t = 25, value_parser)]
     shrink_turns: usize,
     /// Number of games that are played.
-    #[clap(short, long, default_value_t = 1)]
+    #[clap(short, long, default_value_t = 1, value_parser)]
     game_count: usize,
     /// Swap agent positions to get more accurate results.
-    #[clap(long)]
+    #[clap(long, value_parser)]
     swap: bool,
     /// Seed for the random number generator.
-    #[clap(long, default_value_t = 0)]
+    #[clap(long, default_value_t = 0, value_parser)]
     seed: u64,
     /// Start config.
-    #[clap(long, parse(try_from_str = serde_json::from_str))]
+    #[clap(long, value_parser = parse_request)]
     init: Option<GameRequest>,
     /// Configurations.
+    #[clap(value_parser)]
     agents: Vec<Agent>,
+}
+
+fn parse_request(s: &str) -> Result<GameRequest, serde_json::Error> {
+    serde_json::from_str(s)
 }
 
 #[tokio::main]

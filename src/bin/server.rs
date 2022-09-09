@@ -29,22 +29,22 @@ struct Opt {
     ///
     /// **Note**: Use the IP Address of your device if you want to access it from
     /// another device. (`127.0.0.1` or `localhost` is private to your computer)
-    #[clap(long, default_value = "127.0.0.1:5001")]
+    #[clap(long, default_value = "127.0.0.1:5001", value_parser)]
     host: SocketAddr,
     /// Time in ms that is subtracted from the game timeouts.
-    #[clap(long, default_value_t = 100)]
+    #[clap(long, default_value_t = 100, value_parser)]
     latency: u64,
     /// Color in hex format.
-    #[clap(long, default_value = "#FF7043")]
+    #[clap(long, default_value = "#FF7043", value_parser)]
     color: String,
     /// Head @see https://docs.battlesnake.com/references/personalization
-    #[clap(long, default_value = "sand-worm")]
+    #[clap(long, default_value = "sand-worm", value_parser)]
     head: String,
     /// Tail @see https://docs.battlesnake.com/references/personalization
-    #[clap(long, default_value = "pixel")]
+    #[clap(long, default_value = "pixel", value_parser)]
     tail: String,
     /// Default configuration.
-    #[clap(long, default_value_t)]
+    #[clap(long, default_value_t, value_parser)]
     config: Agent,
 }
 

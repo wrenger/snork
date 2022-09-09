@@ -39,7 +39,7 @@ impl Vec2D {
 
     /// Returns the manhattan distance to (0,0)
     pub fn manhattan(self) -> u64 {
-        self.x.abs() as u64 + self.y.abs() as u64
+        self.x.unsigned_abs() as u64 + self.y.unsigned_abs() as u64
     }
 
     /// Returns whether the vector is inside a rectangle from (0,0) to (width-1,height-1)
