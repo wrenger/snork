@@ -157,7 +157,6 @@ impl FloodFill {
     ///
     /// Food on the way is been accounted for the own tail.
     fn flood(&mut self, grid: &Grid, heads: impl Iterator<Item = SnakePos>) -> FixedVec<u16, 4> {
-        #[inline]
         const fn owns(
             cell: FCell,
             s_id: u8,
@@ -278,7 +277,7 @@ impl Index<Vec2D> for FloodFill {
     fn index(&self, p: Vec2D) -> &Self::Output {
         assert!(0 <= p.x && p.x < self.width as _);
         assert!(0 <= p.y && p.y < self.height as _);
-        &self.cells[(p.x as usize % self.width + p.y as usize * self.width) as usize]
+        &self.cells[p.x as usize % self.width + p.y as usize * self.width]
     }
 }
 
@@ -286,7 +285,7 @@ impl IndexMut<Vec2D> for FloodFill {
     fn index_mut(&mut self, p: Vec2D) -> &mut Self::Output {
         assert!(0 <= p.x && p.x < self.width as _);
         assert!(0 <= p.y && p.y < self.height as _);
-        &mut self.cells[(p.x as usize % self.width + p.y as usize * self.width) as usize]
+        &mut self.cells[p.x as usize % self.width + p.y as usize * self.width]
     }
 }
 

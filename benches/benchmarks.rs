@@ -1,7 +1,8 @@
 use std::fmt::{Debug, Display};
+use std::hint::black_box;
 use std::sync::Arc;
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 
 use rand::{rngs::SmallRng, Rng, SeedableRng};
 use snork::agents::{maxn, FloodHeuristic, MobilityAgent, TreeHeuristic};

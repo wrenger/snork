@@ -92,7 +92,7 @@ pub async fn tree_search(
     let result = search::async_max_n(game, depth, heuristic).await;
 
     info!(
-        ">>> max_n {depth} {:?}ms {result:?}",
+        ">>> max_n {depth} {:?}ms {result:.3?}",
         start.elapsed().as_millis(),
     );
 

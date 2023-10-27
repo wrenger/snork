@@ -1,8 +1,6 @@
 use std::path::Path;
-use tokio::{
-    fs::{self, OpenOptions},
-    io::AsyncWriteExt,
-};
+use tokio::fs::{self, OpenOptions};
+use tokio::io::AsyncWriteExt;
 
 use crate::env::*;
 

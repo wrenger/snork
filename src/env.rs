@@ -3,9 +3,8 @@
 /// This module contains the types for (de)serializing the battlesnake game
 /// requests.
 ///
-/// See: https://docs.battlesnake.com/references/api
+/// See: https://docs.battlesnake.com/api
 use serde::{Deserialize, Serialize};
-use std::borrow::Cow;
 use std::fmt::{self, Debug};
 use std::mem::size_of;
 use std::ops::{Add, Neg, Sub};
@@ -262,23 +261,23 @@ impl fmt::Display for GameRequest {
 
 /// This response configures the battlesnake and its appearance.
 #[derive(Serialize, Debug)]
-pub struct IndexResponse {
-    pub apiversion: Cow<'static, str>,
-    pub author: Cow<'static, str>,
-    pub color: Cow<'static, str>,
-    pub head: Cow<'static, str>,
-    pub tail: Cow<'static, str>,
-    pub version: Cow<'static, str>,
+pub struct IndexResponse<'a> {
+    pub apiversion: &'a str,
+    pub author: &'a str,
+    pub color: &'a str,
+    pub head: &'a str,
+    pub tail: &'a str,
+    pub version: &'a str,
 }
 
-impl IndexResponse {
+impl<'a> IndexResponse<'a> {
     pub fn new(
-        apiversion: Cow<'static, str>,
-        author: Cow<'static, str>,
-        color: Cow<'static, str>,
-        head: Cow<'static, str>,
-        tail: Cow<'static, str>,
-        version: Cow<'static, str>,
+        apiversion: &'a str,
+        author: &'a str,
+        color: &'a str,
+        head: &'a str,
+        tail: &'a str,
+        version: &'a str,
     ) -> Self {
         Self {
             apiversion,
@@ -293,6 +292,7 @@ impl IndexResponse {
 
 /// Game response with the direction in which a snake has decided to move.
 #[derive(Serialize, Debug, Default)]
+#[must_use]
 pub struct MoveResponse {
     pub r#move: Direction,
     pub shout: String,

@@ -4,7 +4,7 @@ use std::fmt::{self, Debug};
 
 use owo_colors::{AnsiColors, OwoColorize};
 
-use crate::env::{Direction, GameRequest, Battlesnake, Vec2D, HAZARD_DAMAGE};
+use crate::env::{Battlesnake, Direction, GameRequest, Vec2D, HAZARD_DAMAGE};
 use crate::grid::{Cell, CellT, Grid};
 use crate::util::OrdPair;
 
@@ -320,7 +320,7 @@ impl Game {
                     (next.within(width, height)
                         && raw_cells[(next.x + next.y * width as i16) as usize]
                             == RawCell::Body(d.invert()))
-                    .then(|| next)
+                    .then_some(next)
                 }) {
                     p = next;
                     body.push_front(p);

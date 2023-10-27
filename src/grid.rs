@@ -8,7 +8,6 @@ use crate::env::{Direction, Vec2D, HAZARD_DAMAGE};
 use crate::util::OrdPair;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-#[repr(u8)]
 pub enum CellT {
     Free,
     Food,
@@ -192,7 +191,7 @@ impl Index<Vec2D> for Grid {
     fn index(&self, p: Vec2D) -> &Self::Output {
         assert!(0 <= p.x && p.x < self.width as _);
         assert!(0 <= p.y && p.y < self.height as _);
-        &self.cells[(p.x as usize + p.y as usize * self.width) as usize]
+        &self.cells[p.x as usize + p.y as usize * self.width]
     }
 }
 
@@ -200,7 +199,7 @@ impl IndexMut<Vec2D> for Grid {
     fn index_mut(&mut self, p: Vec2D) -> &mut Self::Output {
         assert!(0 <= p.x && p.x < self.width as _);
         assert!(0 <= p.y && p.y < self.height as _);
-        &mut self.cells[(p.x as usize + p.y as usize * self.width) as usize]
+        &mut self.cells[p.x as usize + p.y as usize * self.width]
     }
 }
 

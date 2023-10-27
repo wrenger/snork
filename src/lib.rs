@@ -9,17 +9,12 @@ pub mod floodfill;
 pub mod game;
 pub mod grid;
 mod savegame;
-mod util;
 pub mod search;
+mod util;
 
 pub fn logging() {
-    #[cfg(not(test))]
     let _ = env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
-        .format(logging_format)
-        .try_init();
-    #[cfg(test)]
-    let _ = env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
-        .is_test(true)
+        .is_test(cfg!(test))
         .format(logging_format)
         .try_init();
 }
@@ -37,7 +32,7 @@ fn logging_format(buf: &mut Formatter, record: &log::Record) -> std::io::Result<
         buf,
         "{}",
         format_args!(
-            "[{:5} {}:{}] {}\x1b",
+            "[{:5} {}:{}] {}",
             record.level(),
             record.file().unwrap_or_default(),
             record.line().unwrap_or_default(),

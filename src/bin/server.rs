@@ -4,14 +4,13 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use log::{info, warn};
-use snork::agents::*;
 use snork::env::{GameRequest, IndexResponse, API_VERSION};
+use snork::{agents::*, logging};
 
 use clap::Parser;
 use warp::Filter;
 
 pub const PACKAGE_VERSION: &str = env!("CARGO_PKG_VERSION");
-pub const AUTHOR: &str = "l4r0x";
 
 /// Runtime server configuration.
 struct State {
@@ -19,38 +18,43 @@ struct State {
     color: String,
     head: String,
     tail: String,
+    author: String,
     config: Agent,
 }
 
+/// High performant rust snake.
 #[derive(Debug, Parser)]
-#[clap(version, author, about = "High performant rust snake.")]
+#[clap(version, author)]
 struct Opt {
     /// IP and Port of the webserver.
     ///
     /// **Note**: Use the IP Address of your device if you want to access it from
-    /// another device. (`127.0.0.1` or `localhost` is private to your computer)
-    #[clap(long, default_value = "127.0.0.1:5001", value_parser)]
+    /// the outside. (`127.0.0.1` or `localhost` is private to your computer)
+    #[clap(long, default_value = "127.0.0.1:5001")]
     host: SocketAddr,
     /// Time in ms that is subtracted from the game timeouts.
-    #[clap(long, default_value_t = 100, value_parser)]
+    #[clap(long, default_value_t = 100)]
     latency: u64,
     /// Color in hex format.
-    #[clap(long, default_value = "#FF7043", value_parser)]
+    #[clap(long, default_value = "#FF7043")]
     color: String,
-    /// Head @see https://docs.battlesnake.com/references/personalization
-    #[clap(long, default_value = "sand-worm", value_parser)]
+    /// Head @see https://docs.battlesnake.com/guides/customizations
+    #[clap(long, default_value = "sand-worm")]
     head: String,
-    /// Tail @see https://docs.battlesnake.com/references/personalization
-    #[clap(long, default_value = "pixel", value_parser)]
+    /// Tail @see https://docs.battlesnake.com/guides/customizations
+    #[clap(long, default_value = "pixel")]
     tail: String,
+    /// Profile name of the battlesnake account
+    #[clap(long, default_value = "wrenger")]
+    author: String,
     /// Default configuration.
-    #[clap(long, default_value_t, value_parser)]
+    #[clap(long, default_value_t)]
     config: Agent,
 }
 
 #[tokio::main]
 async fn main() {
-    env_logger::init();
+    logging();
 
     let Opt {
         host,
@@ -58,6 +62,7 @@ async fn main() {
         color,
         head,
         tail,
+        author,
         config,
     } = Opt::parse();
 
@@ -66,6 +71,7 @@ async fn main() {
         color,
         head,
         tail,
+        author,
         config,
     });
 
@@ -75,12 +81,12 @@ async fn main() {
         .map(|state: Arc<State>| {
             warn!("index");
             warp::reply::json(&IndexResponse::new(
-                API_VERSION.into(),
-                AUTHOR.into(),
-                state.color.clone().into(),
-                state.head.clone().into(),
-                state.tail.clone().into(),
-                PACKAGE_VERSION.into(),
+                API_VERSION,
+                &state.author,
+                &state.color,
+                &state.head,
+                &state.tail,
+                PACKAGE_VERSION,
             ))
         });
 

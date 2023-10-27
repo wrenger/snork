@@ -110,9 +110,10 @@ async fn async_alphabeta_rec(
 }
 
 /// Alpha-Beta tree search.
+///
 /// @see https://en.wikipedia.org/wiki/Alpha%E2%80%93beta_pruning
-/// Assuming the maximizing agent has id 0
-/// Assuming only two snakes are alive
+/// - Assumes the maximizing agent has id 0
+/// - Assumes only two snakes are alive
 pub fn alphabeta(game: &Game, depth: usize, heuristic: &dyn Heuristic) -> (Direction, f64) {
     alphabeta_rec(game, [Direction::Up; 4], depth, 0, LOSS, WIN, heuristic)
 }
