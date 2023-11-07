@@ -1,17 +1,17 @@
 # Rusty Snakes
 
-Fast [battlesnake](https://play.battlesnake.com) agents written in rust.
+Fast [Battlesnake](https://play.battlesnake.com) agents written in rust.
 This project has been developed as part of an AI games course at the Leibniz University Hannover.
 
-Our `Tree` agent ("ich heisse marvin") managed to reach the second and first place in the global, dual and royale arenas.
-In the Spring League 2021 we even surpassed the best snake ([Kreuzotter](https://github.com/m-schier/battlesnake-2019)) of our university from the last year.
+Our `Tree` agent ("ich heisse marvin") managed to reach second and first place in the global, dual and royale arenas.
+In the Spring League 2021, we even surpassed the best snake ([Kreuzotter](https://github.com/m-schier/battlesnake-2019)) of our university from last year.
 
-At the end of 2021, the new `Flood` agent reached the second place in the Elite Division of the Winter Classic Invitational 2021.
+At the end of 2021, the new `Flood` agent reached second place in the Elite Division of the Winter Classic Invitational 2021.
 
 
 ## Structure of this Repository
 
-This repository contains a web server that runs with the battlesnake API version 1
+This repository contains a web server that runs with the Battlesnake API version 1
 and abstractions for the used data types ([src/env.rs](src/env.rs)).
 
 We developed multiple different agents ([src/agents](src/agents)),
@@ -25,7 +25,7 @@ We also developed a fast simulator to execute moves and analyze their outcomes.
 It was used to evaluate the heuristics and tune their parameters.
 
 The [hpo](hpo) directory contains the code for automatically optimizing the agent's hyperparameters.
-It utilizes the simulator, mentioned below, to simulate the generated configs and find the best performing parameters.
+It utilizes the simulator, mentioned below, to simulate the generated configs and find the best-performing parameters.
 The current default configurations of the `Flood`, `Tree`, and `Mobility` agents are the results of several optimization campaigns.
 
 
@@ -44,7 +44,7 @@ cargo run --release -- [-h] [--host <ip:port>] [--config <json>]
 > There are additional options for `--runtime` and visual representation of the snake (`--head`, `--tail`, `--color`).
 > Run `cargo run --release -- -h` to see all the commandline options.
 
-`config` defines the agent to be used (`Flood`, `Tree`, `Mobility`, `Random`) and configures the agents heuristic.
+`config` defines the agent to be used (`Flood`, `Tree`, `Mobility`, `Random`) and configures the agent's heuristic.
 The default config for the `Flood` agent is for example:
 
 ```json
@@ -93,13 +93,13 @@ cargo run --release --bin move -- [--config <json>] [--runtime] <json>
 ### Running tests & benchmarks
 
 There are multiple tests for the different modules that can be run, as shown below.
-For more information on unit-testing in rust see https://doc.rust-lang.org/book/ch11-01-writing-tests.html.
+For more information on unit testing in Rust see https://doc.rust-lang.org/book/ch11-01-writing-tests.html.
 
 ```bash
 cargo test -- [--nocapture] [testname]
 ```
 
-There are several benchmarks that are ignored when running normal unit tests because they have a longer runtime.
+Several benchmarks are ignored when running normal unit tests because they have a longer runtime.
 They are executed with the release config with compiler and linker optimizations.
 
 ```bash
