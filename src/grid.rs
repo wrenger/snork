@@ -159,7 +159,7 @@ impl Grid {
                 return Some(make_path(&data, target));
             }
 
-            for d in Direction::iter() {
+            for d in Direction::all() {
                 let neighbor = front.apply(d);
                 let mut neighbor_cost = cost + 1.0;
                 if self.is_hazardous(neighbor) {
@@ -170,7 +170,7 @@ impl Grid {
                 }
 
                 if self.has(neighbor) && self[neighbor].t != CellT::Owned {
-                    let cost_so_far = data.get(&neighbor).map_or(f64::MAX,  |(_, c)| *c);
+                    let cost_so_far = data.get(&neighbor).map_or(f64::MAX, |(_, c)| *c);
                     if neighbor_cost < cost_so_far {
                         data.insert(neighbor, (front, neighbor_cost));
                         // queue does not accept float
@@ -189,16 +189,14 @@ impl Index<Vec2D> for Grid {
     type Output = Cell;
 
     fn index(&self, p: Vec2D) -> &Self::Output {
-        assert!(0 <= p.x && p.x < self.width as _);
-        assert!(0 <= p.y && p.y < self.height as _);
+        debug_assert!(p.within(self.width, self.height));
         &self.cells[p.x as usize + p.y as usize * self.width]
     }
 }
 
 impl IndexMut<Vec2D> for Grid {
     fn index_mut(&mut self, p: Vec2D) -> &mut Self::Output {
-        assert!(0 <= p.x && p.x < self.width as _);
-        assert!(0 <= p.y && p.y < self.height as _);
+        debug_assert!(p.within(self.width, self.height));
         &mut self.cells[p.x as usize + p.y as usize * self.width]
     }
 }

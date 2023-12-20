@@ -17,34 +17,34 @@ use std::time::Instant;
 #[clap(version, author, about = "Simulate a game between agents.")]
 struct Opts {
     /// Time each snake has for a turn.
-    #[clap(long, default_value_t = 200, value_parser)]
+    #[clap(long, default_value_t = 200)]
     timeout: u64,
     /// Board height.
-    #[clap(long, default_value_t = 11, value_parser)]
+    #[clap(long, default_value_t = 11)]
     width: usize,
     /// Board width.
-    #[clap(long, default_value_t = 11, value_parser)]
+    #[clap(long, default_value_t = 11)]
     height: usize,
     /// Chance new food spawns.
-    #[clap(long, default_value_t = 0.15, value_parser)]
+    #[clap(long, default_value_t = 0.15)]
     food_rate: f64,
     /// Number of turns after which the hazard expands.
-    #[clap(short, long, default_value_t = 25, value_parser)]
+    #[clap(short, long, default_value_t = 25)]
     shrink_turns: usize,
     /// Number of games that are played.
-    #[clap(short, long, default_value_t = 1, value_parser)]
+    #[clap(short, long, default_value_t = 1)]
     game_count: usize,
     /// Swap agent positions to get more accurate results.
-    #[clap(long, value_parser)]
+    #[clap(long)]
     swap: bool,
     /// Seed for the random number generator.
-    #[clap(long, default_value_t = 0, value_parser)]
+    #[clap(long, default_value_t = 0)]
     seed: u64,
     /// Start config.
     #[clap(long, value_parser = parse_request)]
     init: Option<GameRequest>,
     /// Configurations.
-    #[clap(value_parser)]
+    #[clap()]
     agents: Vec<Agent>,
 }
 
@@ -117,6 +117,7 @@ async fn main() {
         agents.rotate_left(1);
     }
 
+    println!("Agents: {agents:?}");
     println!("Result: {wins:?}");
 }
 

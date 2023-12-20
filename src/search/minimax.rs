@@ -59,7 +59,7 @@ async fn async_max_n_rec(
 
         let mut futures = [None, None, None, None];
 
-        for d in Direction::iter() {
+        for d in Direction::all() {
             if !game.move_is_valid(0, d) {
                 continue;
             }
@@ -85,7 +85,7 @@ async fn async_max_n_rec(
     } else {
         let mut min = 2.0 * WIN;
         let mut moved = false;
-        for d in Direction::iter() {
+        for d in Direction::all() {
             if !game.move_is_valid(ply as u8, d) {
                 continue;
             }
@@ -158,7 +158,7 @@ fn max_n_rec(
     } else if ply == 0 {
         // collect all outcomes instead of max
         let mut result = [LOSS; 4];
-        for d in Direction::iter() {
+        for d in Direction::all() {
             if !game.move_is_valid(0, d) {
                 continue;
             }
@@ -170,7 +170,7 @@ fn max_n_rec(
     } else {
         let mut min = 2.0 * WIN;
         let mut moved = false;
-        for d in Direction::iter() {
+        for d in Direction::all() {
             if !game.move_is_valid(ply as u8, d) {
                 continue;
             }

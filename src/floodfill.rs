@@ -98,7 +98,7 @@ impl FloodFill {
 
     /// Returns if `p` is within the boundaries of the board.
     pub fn has(&self, p: Vec2D) -> bool {
-        0 <= p.x && p.x < self.width as _ && 0 <= p.y && p.y < self.height as _
+        p.within(self.width, self.height)
     }
 
     /// Counts the total health of you or the enemies.
@@ -120,31 +120,9 @@ impl FloodFill {
             .count()
     }
 
-    /// Counts the space of you or the enemies weighted by the weight function.
-    pub fn count_space_weighted<F: FnMut(Vec2D, FCell) -> f64>(
-        &self,
-        id: u8,
-        mut weight: F,
-    ) -> f64 {
-        self.cells
-            .iter()
-            .copied()
-            .enumerate()
-            .map(|(i, c)| match c {
-                FCell::Owned { id: o_id, .. } if o_id == id => weight(
-                    Vec2D::new((i % self.width) as i16, (i / self.width) as i16),
-                    c,
-                ),
-                _ => 0.0,
-            })
-            .sum()
-    }
-
     /// Clears the board so that it can be reused for another floodfill computation.
     pub fn clear(&mut self) {
-        for c in &mut self.cells {
-            *c = FCell::Free;
-        }
+        self.cells.fill(FCell::Free);
     }
 
     /// Flood fill combined with ignoring tails depending on distance to head.
@@ -206,10 +184,12 @@ impl FloodFill {
             health,
         }) = queue.pop_front()
         {
-            for p in Direction::iter()
-                .map(|d| p.apply(d))
-                .filter(|&p| grid.has(p))
-            {
+            for d in Direction::all() {
+                let p = p.apply(d);
+                if !self.has(p) {
+                    continue;
+                }
+
                 let g_cell = grid[p];
                 let cell = self[p];
 
@@ -218,7 +198,8 @@ impl FloodFill {
                 let health = if is_food {
                     100
                 } else {
-                    health.saturating_sub(if g_cell.hazard { HAZARD_DAMAGE } else { 1 })
+                    let cost = if g_cell.hazard { HAZARD_DAMAGE } else { 1 };
+                    health.saturating_sub(cost)
                 };
 
                 // Collect food
@@ -275,16 +256,14 @@ impl Index<Vec2D> for FloodFill {
     type Output = FCell;
 
     fn index(&self, p: Vec2D) -> &Self::Output {
-        assert!(0 <= p.x && p.x < self.width as _);
-        assert!(0 <= p.y && p.y < self.height as _);
+        debug_assert!(p.within(self.width, self.height));
         &self.cells[p.x as usize % self.width + p.y as usize * self.width]
     }
 }
 
 impl IndexMut<Vec2D> for FloodFill {
     fn index_mut(&mut self, p: Vec2D) -> &mut Self::Output {
-        assert!(0 <= p.x && p.x < self.width as _);
-        assert!(0 <= p.y && p.y < self.height as _);
+        debug_assert!(p.within(self.width, self.height));
         &mut self.cells[p.x as usize % self.width + p.y as usize * self.width]
     }
 }

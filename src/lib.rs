@@ -8,7 +8,6 @@ pub mod env;
 pub mod floodfill;
 pub mod game;
 pub mod grid;
-mod savegame;
 pub mod search;
 mod util;
 

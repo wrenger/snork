@@ -66,7 +66,7 @@ impl MobilityAgent {
         let mut grid = game.grid.clone();
         for snake in &game.snakes[1..] {
             if snake.body.len() >= you.body.len() {
-                for d in Direction::iter() {
+                for d in Direction::all() {
                     let p = snake.head().apply(d);
                     if grid.has(p) {
                         grid[p].t = CellT::Owned;

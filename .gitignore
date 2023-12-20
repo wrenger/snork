@@ -7,6 +7,10 @@ Cargo.lock
 *~*
 /start.zsh
 
+perf.*
+flamegraph/
+flamegraph.svg
+
 # Python
 venv/
 __pycache__/

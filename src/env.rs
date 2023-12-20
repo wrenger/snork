@@ -106,11 +106,12 @@ impl Neg for Vec2D {
 /// The Direction is returned as part of a `MoveResponse`.
 ///
 /// The Y-Axis is positive in the up direction, and X-Axis is positive to the right.
-#[derive(Serialize, Debug, Clone, Copy, Hash, PartialEq, Eq)]
+#[derive(Serialize, Debug, Default, Clone, Copy, Hash, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 #[repr(u8)]
 pub enum Direction {
     /// Positive Y
+    #[default]
     Up,
     /// Positive X
     Right,
@@ -121,10 +122,8 @@ pub enum Direction {
 }
 
 impl Direction {
-    pub fn iter() -> impl Iterator<Item = Self> {
+    pub fn all() -> [Self; 4] {
         [Self::Up, Self::Right, Self::Down, Self::Left]
-            .iter()
-            .copied()
     }
 
     /// Returns the invert direction (eg. Left for Right)
@@ -135,12 +134,6 @@ impl Direction {
             Self::Down => Self::Up,
             Self::Left => Self::Right,
         }
-    }
-}
-
-impl Default for Direction {
-    fn default() -> Self {
-        Self::Up
     }
 }
 

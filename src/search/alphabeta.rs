@@ -55,7 +55,7 @@ async fn async_alphabeta_rec(
         let mut value = (Direction::Up, LOSS);
 
         let mut futures = [None, None, None, None];
-        for d in Direction::iter() {
+        for d in Direction::all() {
             let game = game.clone();
             let heuristic = heuristic.clone();
             let actions = [d, Direction::Up, Direction::Up, Direction::Up];
@@ -82,7 +82,7 @@ async fn async_alphabeta_rec(
         value
     } else {
         let mut value = (Direction::Up, WIN);
-        for d in Direction::iter() {
+        for d in Direction::all() {
             let mut actions = actions;
             actions[ply] = d;
             let newval = async_alphabeta_rec(
@@ -152,7 +152,7 @@ fn alphabeta_rec(
         }
     } else if ply == 0 {
         let mut value = (Direction::Up, LOSS);
-        for d in Direction::iter() {
+        for d in Direction::all() {
             let mut actions = actions;
             actions[ply] = d;
             let newval = alphabeta_rec(game, actions, depth, ply + 1, alpha, beta, heuristic);
@@ -169,7 +169,7 @@ fn alphabeta_rec(
         value
     } else {
         let mut value = (Direction::Up, WIN);
-        for d in Direction::iter() {
+        for d in Direction::all() {
             let mut actions = actions;
             actions[ply] = d;
             let newval = alphabeta_rec(game, actions, depth, ply + 1, alpha, beta, heuristic);

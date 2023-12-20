@@ -315,7 +315,7 @@ impl Game {
                 let mut p = Vec2D::new((p % width) as _, (p / width) as _);
                 let mut body = VecDeque::new();
                 body.push_front(p);
-                while let Some(next) = Direction::iter().find_map(|d| {
+                while let Some(next) = Direction::all().into_iter().find_map(|d| {
                     let next = p.apply(d);
                     (next.within(width, height)
                         && raw_cells[(next.x + next.y * width as i16) as usize]

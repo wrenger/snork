@@ -1,4 +1,5 @@
 use std::cmp::Ordering;
+use std::fmt;
 use std::mem::MaybeUninit;
 use std::ops::{Deref, DerefMut};
 
@@ -95,13 +96,21 @@ impl<T, const N: usize> Deref for FixedVec<T, N> {
 
     fn deref(&self) -> &Self::Target {
         // TODO: replace with slice_assume_init_ref
-        unsafe { &*(&self.data as *const [MaybeUninit<T>] as *const [T]) }
+        let slice = &self.data[..self.len];
+        unsafe { &*(slice as *const [MaybeUninit<T>] as *const [T]) }
     }
 }
 impl<T, const N: usize> DerefMut for FixedVec<T, N> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         // TODO: replace with slice_assume_init_mut
-        unsafe { &mut *(&mut self.data as *mut [MaybeUninit<T>] as *mut [T]) }
+        let slice = &mut self.data[..self.len];
+        unsafe { &mut *(slice as *mut [MaybeUninit<T>] as *mut [T]) }
+    }
+}
+
+impl<T: fmt::Debug, const N: usize> fmt::Debug for FixedVec<T, N> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_list().entries(self.iter()).finish()
     }
 }
 

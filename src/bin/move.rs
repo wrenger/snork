@@ -12,13 +12,13 @@ use clap::Parser;
 #[clap(version, author, about = "Simulate a move for an agent.")]
 struct Opts {
     /// Default configuration.
-    #[clap(long, default_value_t, value_parser)]
+    #[clap(long, default_value_t)]
     config: Agent,
     /// JSON Game request.
     #[clap(value_parser = parse_request)]
     request: GameRequest,
     /// Time in ms that is subtracted from the game timeouts.
-    #[clap(long, default_value_t = 200, value_parser)]
+    #[clap(long, default_value_t = 200)]
     latency: usize,
 }
 
