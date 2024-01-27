@@ -70,9 +70,7 @@ async fn async_alphabeta_rec(
                     if newval.1 > value.1 {
                         value = (Direction::from(i as u8), newval.1);
                     }
-                    if newval.1 > alpha {
-                        alpha = newval.1;
-                    }
+                    alpha = alpha.max(newval.1);
                     if alpha >= beta {
                         break;
                     }
@@ -98,9 +96,7 @@ async fn async_alphabeta_rec(
             if newval.1 < value.1 {
                 value = (d, newval.1);
             }
-            if newval.1 < beta {
-                beta = newval.1;
-            }
+            beta = beta.min(newval.1);
             if alpha >= beta {
                 break;
             }
@@ -155,13 +151,11 @@ fn alphabeta_rec(
         for d in Direction::all() {
             let mut actions = actions;
             actions[ply] = d;
-            let newval = alphabeta_rec(game, actions, depth, ply + 1, alpha, beta, heuristic);
-            if newval.1 > value.1 {
-                value = (d, newval.1);
+            let (_, outcome) = alphabeta_rec(game, actions, depth, ply + 1, alpha, beta, heuristic);
+            if outcome > value.1 {
+                value = (d, outcome);
             }
-            if newval.1 > alpha {
-                alpha = newval.1;
-            }
+            alpha = alpha.max(outcome);
             if alpha >= beta {
                 break;
             }
@@ -172,13 +166,11 @@ fn alphabeta_rec(
         for d in Direction::all() {
             let mut actions = actions;
             actions[ply] = d;
-            let newval = alphabeta_rec(game, actions, depth, ply + 1, alpha, beta, heuristic);
-            if newval.1 < value.1 {
-                value = (d, newval.1);
+            let (_, outcome) = alphabeta_rec(game, actions, depth, ply + 1, alpha, beta, heuristic);
+            if outcome < value.1 {
+                value = (d, outcome);
             }
-            if newval.1 < beta {
-                beta = newval.1;
-            }
+            beta = beta.min(outcome);
             if alpha >= beta {
                 break;
             }

@@ -131,7 +131,7 @@ impl MobilityAgent {
         }
 
         // Maximize mobility
-        if let Some(dir) = argmax(space_after_move.iter()) {
+        if let Some(dir) = argmax(space_after_move.iter().copied()) {
             if space_after_move[dir] > 0.0 {
                 info!(">>> max space");
                 return MoveResponse::new(Direction::from(dir as u8));

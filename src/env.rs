@@ -108,7 +108,6 @@ impl Neg for Vec2D {
 /// The Y-Axis is positive in the up direction, and X-Axis is positive to the right.
 #[derive(Serialize, Debug, Default, Clone, Copy, Hash, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
-#[repr(u8)]
 pub enum Direction {
     /// Positive Y
     #[default]
@@ -153,12 +152,12 @@ impl From<Vec2D> for Direction {
 
 impl From<u8> for Direction {
     fn from(v: u8) -> Self {
-        debug_assert!(v < 4, "Invalid direction");
         match v {
+            0 => Self::Up,
             1 => Self::Right,
             2 => Self::Down,
             3 => Self::Left,
-            _ => Self::Up,
+            _ => unreachable!(),
         }
     }
 }
@@ -178,11 +177,41 @@ pub struct GameData {
     pub source: String,
 }
 
+/// Information about the ruleset being used to run this game.
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct Ruleset {
+    /// Name of the ruleset being used to run this game.
+    /// Example: "standard"
     pub name: String,
+    /// The release version of the Rules module used in this game.
+    /// Example: "version": "v1.2.3"
     #[serde(default)]
     pub version: String,
+    #[serde(default)]
+    pub settings: Settings,
+}
+
+/// A collection of specific settings being used by the current game
+/// that control how the rules are applied.
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct Settings {
+    /// Percentage chance of spawning a new food every round.
+    pub food_spawn_chance: usize,
+    /// Minimum food to keep on the board every turn.
+    pub minimum_food: usize,
+    /// Health damage a snake will take when ending its turn in a hazard.
+    /// This stacks on top of the regular 1 damage a snake takes per turn.
+    #[serde(alias = "hazardDamagePerTurn")]
+    pub hazard_damage: usize,
+    pub royale: Royale,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct Royale {
+    /// In Royale mode, the number of turns between generating new hazards (shrinking the safe board space).
+    #[serde(alias = "shrinkEveryNTurns")]
+    pub shrink: usize,
 }
 
 /// Object describing a snake.
@@ -244,10 +273,10 @@ pub struct GameRequest {
 
 impl fmt::Display for GameRequest {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(
+        write!(
             f,
-            "{}: {} ({}@{})",
-            self.game.source, self.game.ruleset.name, self.you.id, self.game.id
+            "t={} {}-{} ({})",
+            self.turn, self.game.source, self.game.ruleset.name, self.game.id
         )
     }
 }

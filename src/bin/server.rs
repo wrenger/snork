@@ -92,7 +92,7 @@ async fn main() {
 
     let start = warp::path("start")
         .and(warp::post())
-        .and(warp::body::json::<GameRequest>())
+        .and(warp::body::json())
         .map(|request: GameRequest| {
             warn!("start {request}");
             warp::reply()
@@ -100,13 +100,13 @@ async fn main() {
 
     let r#move = warp::path("move")
         .and(warp::post())
-        .and(warp::body::json::<GameRequest>())
+        .and(warp::body::json())
         .and(with_state(state.clone()))
         .and_then(step);
 
     let end = warp::path("end")
         .and(warp::post())
-        .and(warp::body::json::<GameRequest>())
+        .and(warp::body::json())
         .map(|request: GameRequest| {
             warn!("end {request}");
             warp::reply()
@@ -128,7 +128,7 @@ async fn step(request: GameRequest, state: Arc<State>) -> Result<impl warp::Repl
 
     let timer = Instant::now();
     let next_move = state.config.step(&request, state.latency).await;
-    info!("response time {:?}ms", timer.elapsed().as_millis());
+    info!("{next_move:?}, {:?}ms", timer.elapsed().as_millis());
 
     Ok(warp::reply::json(&next_move))
 }

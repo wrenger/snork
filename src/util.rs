@@ -3,15 +3,22 @@ use std::fmt;
 use std::mem::MaybeUninit;
 use std::ops::{Deref, DerefMut};
 
-fn approx_cmp<T: PartialOrd>(a: &T, b: &T) -> Ordering {
-    a.partial_cmp(b).unwrap_or(Ordering::Equal)
+fn approx_cmp(a: &f64, b: &f64) -> Ordering {
+    match a.partial_cmp(b) {
+        Some(o) => o,
+        None => match (a.is_nan(), b.is_nan()) {
+            (true, false) => Ordering::Less,
+            (false, true) => Ordering::Greater,
+            _ => Ordering::Equal,
+        },
+    }
 }
 
 /// Returns the index of the larges element in the sequence.
 ///
 /// # Note
 /// This method may not work as expected with NaNs.
-pub fn argmax<T: PartialOrd>(iter: impl Iterator<Item = T>) -> Option<usize> {
+pub fn argmax(iter: impl Iterator<Item = f64>) -> Option<usize> {
     iter.enumerate()
         .max_by(|(_, a), (_, b)| approx_cmp(a, b))
         .map(|(idx, _)| idx)

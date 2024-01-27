@@ -116,14 +116,31 @@ impl Game {
                     .map(Snake::from),
             );
         }
-        Self::new(
-            request.turn,
-            request.board.width,
-            request.board.height,
-            snakes,
-            &request.board.food,
-            &request.board.hazards,
-        )
+
+        if request.game.ruleset.name == "constrictor" {
+            // Constrictor games just have food everywhere
+            let food = (0..request.board.height)
+                .flat_map(|y| (0..request.board.width).map(move |x| Vec2D::new(x as _, y as _)))
+                .collect::<Vec<_>>();
+
+            Self::new(
+                request.turn,
+                request.board.width,
+                request.board.height,
+                snakes,
+                &food,
+                &request.board.hazards,
+            )
+        } else {
+            Self::new(
+                request.turn,
+                request.board.width,
+                request.board.height,
+                snakes,
+                &request.board.food,
+                &request.board.hazards,
+            )
+        }
     }
 
     /// Returns if the game has ended and which snake is the winner or if the
@@ -251,7 +268,7 @@ impl Game {
             if snake.alive() {
                 let head_cell = &mut grid[snake.head()];
                 head_cell.t = CellT::Owned;
-            } else if !snake.body.is_empty() {
+            } else {
                 for &p in &snake.body {
                     grid[p].t = CellT::Free;
                 }

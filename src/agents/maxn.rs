@@ -47,7 +47,7 @@ pub fn step_fast(heuristic: &dyn Heuristic, game: &Game) -> MoveResponse {
 
     info!(">>> max_n 1 {:?}ms {result:?}", start.elapsed().as_millis());
 
-    if let Some(dir) = argmax(result.iter()) {
+    if let Some(dir) = argmax(result.iter().copied()) {
         if result[dir] > search::LOSS {
             return MoveResponse::new(Direction::from(dir as u8));
         }
@@ -96,7 +96,7 @@ pub async fn tree_search(
         start.elapsed().as_millis(),
     );
 
-    argmax(result.iter())
+    argmax(result.iter().copied())
         .map(|d| (Direction::from(d as u8), result[d]))
         .unwrap()
 }

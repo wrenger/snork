@@ -16,7 +16,32 @@ use super::{Heuristic, DRAW, LOSS, WIN};
 /// Dead enemies are skipped.
 pub async fn async_max_n(game: &Game, depth: usize, heuristic: Arc<dyn Heuristic>) -> [f64; 4] {
     assert!(game.snakes.len() <= 4);
-    async_max_n_rec(game, depth, 0, [Direction::Up; 4], heuristic).await
+
+    let mut futures = [None, None, None, None];
+    for d in Direction::all() {
+        if !game.move_is_valid(0, d) {
+            continue;
+        }
+
+        let actions = [d, Direction::Up, Direction::Up, Direction::Up];
+        let game = game.clone();
+        let heuristic = heuristic.clone();
+
+        // Create tasks for subtrees.
+        futures[d as usize] = Some(tokio::task::spawn(async move {
+            async_max_n_rec(&game, depth, 1, actions, heuristic).await
+        }));
+    }
+
+    let mut result = [LOSS; 4];
+    for (i, future) in futures.into_iter().enumerate() {
+        if let Some(f) = future {
+            if let Ok(r) = f.await {
+                result[i] = r;
+            }
+        }
+    }
+    result
 }
 
 #[async_recursion]
@@ -26,39 +51,28 @@ async fn async_max_n_rec(
     ply: usize,
     actions: [Direction; 4],
     heuristic: Arc<dyn Heuristic>,
-) -> [f64; 4] {
+) -> f64 {
     if ply == game.snakes.len() {
         // simulate
         let mut game = game.clone();
         game.step(&actions[..]);
 
         match game.outcome() {
-            Outcome::Winner(0) => return [WIN + heuristic.eval(&game), DRAW, DRAW, DRAW],
-            Outcome::Winner(_) => return [LOSS; 4],
-            Outcome::Match => return [DRAW; 4],
+            Outcome::Winner(0) => return WIN + heuristic.eval(&game),
+            Outcome::Winner(_) => return LOSS,
+            Outcome::Match => return DRAW,
             Outcome::None => {}
         }
 
         if depth <= 1 {
             // eval
-            [heuristic.eval(&game), DRAW, DRAW, DRAW]
+            heuristic.eval(&game)
         } else {
-            let mut result =
-                async_max_n_rec(&game, depth - 1, 0, [Direction::Up; 4], heuristic).await;
-            // max
-            for i in 1..4 {
-                if result[i] > result[0] {
-                    result[0] = result[i];
-                }
-            }
-            result
+            async_max_n_rec(&game, depth - 1, 0, [Direction::Up; 4], heuristic).await
         }
     } else if ply == 0 {
-        // collect all outcomes instead of max
-        let mut result = [LOSS; 4];
-
+        // max
         let mut futures = [None, None, None, None];
-
         for d in Direction::all() {
             if !game.move_is_valid(0, d) {
                 continue;
@@ -69,20 +83,22 @@ async fn async_max_n_rec(
             let heuristic = heuristic.clone();
 
             // Create tasks for subtrees.
-            futures[d as u8 as usize] = Some(tokio::task::spawn(async move {
+            futures[d as usize] = Some(tokio::task::spawn(async move {
                 async_max_n_rec(&game, depth, ply + 1, actions, heuristic).await
             }));
         }
-        for (i, future) in futures.into_iter().enumerate() {
+
+        let mut max = LOSS;
+        for future in futures {
             if let Some(f) = future {
                 if let Ok(r) = f.await {
-                    result[i] = r[0];
+                    max = max.max(r);
                 }
             }
         }
-
-        result
+        max
     } else {
+        // min
         let mut min = 2.0 * WIN;
         let mut moved = false;
         for d in Direction::all() {
@@ -92,7 +108,7 @@ async fn async_max_n_rec(
 
             let mut actions = actions;
             actions[ply] = d;
-            let val = async_max_n_rec(game, depth, ply + 1, actions, heuristic.clone()).await[0];
+            let val = async_max_n_rec(game, depth, ply + 1, actions, heuristic.clone()).await;
             if val < min {
                 min = val;
                 moved = true;
@@ -105,9 +121,9 @@ async fn async_max_n_rec(
         }
         if !moved {
             // continue with next agent
-            min = async_max_n_rec(game, depth, ply + 1, actions, heuristic).await[0];
+            min = async_max_n_rec(game, depth, ply + 1, actions, heuristic).await;
         }
-        [min, DRAW, DRAW, DRAW]
+        min
     }
 }
 
@@ -119,8 +135,14 @@ async fn async_max_n_rec(
 /// If the maximizing player dies traversal ends and min is returned.
 /// Dead enemies are skipped.
 pub fn max_n(game: &Game, depth: usize, heuristic: &dyn Heuristic) -> [f64; 4] {
-    assert!(game.snakes.len() <= 4);
-    max_n_rec(game, depth, 0, [Direction::Up; 4], heuristic)
+    let mut result = [LOSS; 4];
+    for d in Direction::all() {
+        if game.move_is_valid(0, d) {
+            let actions = [d, Direction::Up, Direction::Up, Direction::Up];
+            result[d as usize] = max_n_rec(game, depth, 1, actions, heuristic);
+        }
+    }
+    result
 }
 
 fn max_n_rec(
@@ -129,44 +151,37 @@ fn max_n_rec(
     ply: usize,
     actions: [Direction; 4],
     heuristic: &dyn Heuristic,
-) -> [f64; 4] {
+) -> f64 {
     if ply == game.snakes.len() {
         // simulate
         let mut game = game.clone();
         game.step(&actions[..]);
 
         match game.outcome() {
-            Outcome::Winner(0) => return [WIN + heuristic.eval(&game), DRAW, DRAW, DRAW],
-            Outcome::Winner(_) => return [LOSS; 4],
-            Outcome::Match => return [DRAW; 4],
+            Outcome::Winner(0) => return WIN + heuristic.eval(&game),
+            Outcome::Winner(_) => return LOSS,
+            Outcome::Match => return DRAW,
             Outcome::None => {}
         }
 
         if depth <= 1 {
             // eval
-            [heuristic.eval(&game), DRAW, DRAW, DRAW]
+            heuristic.eval(&game)
         } else {
-            let mut result = max_n_rec(&game, depth - 1, 0, [Direction::Up; 4], heuristic);
-            // max
-            for i in 1..4 {
-                if result[i] > result[0] {
-                    result[0] = result[i];
-                }
-            }
-            result
+            max_n_rec(&game, depth - 1, 0, [Direction::Up; 4], heuristic)
         }
     } else if ply == 0 {
         // collect all outcomes instead of max
-        let mut result = [LOSS; 4];
+        let mut max = LOSS;
         for d in Direction::all() {
             if !game.move_is_valid(0, d) {
                 continue;
             }
             let mut actions = actions;
             actions[ply] = d;
-            result[d as u8 as usize] = max_n_rec(game, depth, ply + 1, actions, heuristic)[0];
+            max = max.max(max_n_rec(game, depth, ply + 1, actions, heuristic));
         }
-        result
+        max
     } else {
         let mut min = 2.0 * WIN;
         let mut moved = false;
@@ -177,7 +192,7 @@ fn max_n_rec(
 
             let mut actions = actions;
             actions[ply] = d;
-            let val = max_n_rec(game, depth, ply + 1, actions, heuristic)[0];
+            let val = max_n_rec(game, depth, ply + 1, actions, heuristic);
             if val < min {
                 min = val;
                 moved = true;
@@ -190,9 +205,9 @@ fn max_n_rec(
         }
         if !moved {
             // continue with next agent
-            min = max_n_rec(game, depth, ply + 1, actions, heuristic)[0];
+            min = max_n_rec(game, depth, ply + 1, actions, heuristic);
         }
-        [min, DRAW, DRAW, DRAW]
+        min
     }
 }
 
