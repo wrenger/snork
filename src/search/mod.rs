@@ -2,6 +2,8 @@ mod minimax;
 pub use minimax::*;
 mod alphabeta;
 pub use alphabeta::*;
+mod mcts;
+pub use mcts::*;
 
 use std::fmt::Debug;
 

@@ -13,6 +13,8 @@ pub use random::*;
 pub mod maxn;
 mod solo;
 pub use solo::*;
+mod mcts;
+pub use mcts::*;
 
 use crate::game::Game;
 
@@ -26,6 +28,7 @@ pub enum Agent {
     Mobility(MobilityAgent),
     Tree(TreeHeuristic),
     Flood(FloodHeuristic),
+    MonteCarlo(FloodHeuristic),
     Solo(SoloHeuristic),
     Random(RandomAgent),
 }
@@ -53,6 +56,7 @@ impl Agent {
             Agent::Mobility(agent) => agent.step(game).await,
             Agent::Tree(agent) => maxn::step(Arc::new(agent.clone()), timeout, game).await,
             Agent::Flood(agent) => maxn::step(Arc::new(agent.clone()), timeout, game).await,
+            Agent::MonteCarlo(agent) => mcts::step(Arc::new(agent.clone()), timeout, game).await,
             Agent::Solo(agent) => maxn::step(Arc::new(agent.clone()), timeout, game).await,
             Agent::Random(agent) => agent.step(game).await,
         }

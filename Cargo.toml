@@ -23,6 +23,7 @@ owo-colors = "4.0"
 async-recursion = "1.0"
 log = { version = "0.4", features = ["release_max_level_info"] }
 env_logger = { version = "0.11", default_features = false }
+mocats = "0.2"
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["async_tokio"] }

@@ -4,6 +4,7 @@ use crate::game::Game;
 use crate::{env::Direction, game::Outcome};
 
 use async_recursion::async_recursion;
+use tokio::task::JoinSet;
 
 use super::{Heuristic, DRAW, LOSS, WIN};
 
@@ -17,7 +18,7 @@ use super::{Heuristic, DRAW, LOSS, WIN};
 pub async fn async_max_n(game: &Game, depth: usize, heuristic: Arc<dyn Heuristic>) -> [f64; 4] {
     assert!(game.snakes.len() <= 4);
 
-    let mut futures = [None, None, None, None];
+    let mut set = JoinSet::new();
     for d in Direction::all() {
         if !game.move_is_valid(0, d) {
             continue;
@@ -28,17 +29,16 @@ pub async fn async_max_n(game: &Game, depth: usize, heuristic: Arc<dyn Heuristic
         let heuristic = heuristic.clone();
 
         // Create tasks for subtrees.
-        futures[d as usize] = Some(tokio::task::spawn(async move {
-            async_max_n_rec(&game, depth, 1, actions, heuristic).await
-        }));
+        set.spawn(async move {
+            let r = async_max_n_rec(&game, depth, 1, actions, heuristic).await;
+            (d, r)
+        });
     }
 
     let mut result = [LOSS; 4];
-    for (i, future) in futures.into_iter().enumerate() {
-        if let Some(f) = future {
-            if let Ok(r) = f.await {
-                result[i] = r;
-            }
+    while let Some(r) = set.join_next().await {
+        if let Ok((d, r)) = r {
+            result[d as usize] = r;
         }
     }
     result
@@ -72,7 +72,7 @@ async fn async_max_n_rec(
         }
     } else if ply == 0 {
         // max
-        let mut futures = [None, None, None, None];
+        let mut set = JoinSet::new();
         for d in Direction::all() {
             if !game.move_is_valid(0, d) {
                 continue;
@@ -83,17 +83,15 @@ async fn async_max_n_rec(
             let heuristic = heuristic.clone();
 
             // Create tasks for subtrees.
-            futures[d as usize] = Some(tokio::task::spawn(async move {
-                async_max_n_rec(&game, depth, ply + 1, actions, heuristic).await
-            }));
+            set.spawn(
+                async move { async_max_n_rec(&game, depth, ply + 1, actions, heuristic).await },
+            );
         }
 
         let mut max = LOSS;
-        for future in futures {
-            if let Some(f) = future {
-                if let Ok(r) = f.await {
-                    max = max.max(r);
-                }
+        while let Some(r) = set.join_next().await {
+            if let Ok(r) = r {
+                max = max.max(r);
             }
         }
         max
