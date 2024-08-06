@@ -13,16 +13,16 @@ license = "MIT"
 default-run = "server"
 
 [dependencies]
-tokio = { version = "1.35", features = ["fs", "sync", "time", "macros", "rt-multi-thread"] }
-warp = { version ="0.3", default_features = false }
-rand = { version = "0.8", default_features = false, features = ["small_rng", "getrandom", "alloc"] }
+tokio = { version = "1.39", features = ["fs", "sync", "time", "macros", "rt-multi-thread"] }
+warp = { version ="0.3", default-features = false }
+rand = { version = "0.8", default-features = false, features = ["small_rng", "getrandom", "alloc"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-clap = { version = "4.4", default_features = false, features = ["std", "derive", "help", "usage"] }
+clap = { version = "4.5", default-features = false, features = ["std", "derive", "help", "usage"] }
 owo-colors = "4.0"
-async-recursion = "1.0"
+async-recursion = "1.1"
 log = { version = "0.4", features = ["release_max_level_info"] }
-env_logger = { version = "0.11", default_features = false }
+env_logger = { version = "0.11", default-features = false }
 mocats = "0.2"
 
 [dev-dependencies]
